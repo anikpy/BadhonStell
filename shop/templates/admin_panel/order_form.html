@@ -1,0 +1,205 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{% if order %}অর্ডার সম্পাদনা{% else %}নতুন অর্ডার{% endif %} - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 5px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .help-text {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .calculated-field {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card">
+        <h2 class="card-title">
+            {% if order %}
+            ✏️ অর্ডার সম্পাদনা
+            {% else %}
+            ➕ নতুন অর্ডার তৈরি করুন
+            {% endif %}
+        </h2>
+        
+        <form method="post" id="orderForm">
+            {% csrf_token %}
+            
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.customer_name.label_tag }}
+                    {{ form.customer_name }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.mobile_number.label_tag }}
+                    {{ form.mobile_number }}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                {{ form.product_name.label_tag }}
+                {{ form.product_name }}
+            </div>
+            
+            <div class="form-group">
+                {{ form.product_description.label_tag }}
+                {{ form.product_description }}
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.total_price.label_tag }}
+                    {{ form.total_price }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.cash_paid.label_tag }}
+                    {{ form.cash_paid }}
+                    <p class="help-text">বাকি টাকা স্বয়ংক্রিয়ভাবে হিসাব হবে</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.order_date.label_tag }}
+                    {{ form.order_date }}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.delivery_date.label_tag }}
+                    {{ form.delivery_date }}
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.status.label_tag }}
+                    {{ form.status }}
+                </div>
+
+                <div class="form-group">
+                    {{ form.delivery_status.label_tag }}
+                    {{ form.delivery_status }}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">
+                    {% if order %}
+                    💾 আপডেট করুন
+                    {% else %}
+                    ✅ অর্ডার তৈরি করুন
+                    {% endif %}
+                </button>
+                <a href="{% url 'order_list' %}" class="btn btn-danger">❌ বাতিল</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // বাংলা সংখ্যা সাপোর্ট - composition events ব্যবহার করে
+    document.addEventListener('DOMContentLoaded', function() {
+        const banglaInputs = document.querySelectorAll('.bangla-number-input');
+
+        banglaInputs.forEach(function(input) {
+            // Prevent any auto-correction or auto-complete
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+
+            // Allow composition (for Bengali input methods)
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', function() {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', function() {
+                isComposing = false;
+            });
+
+            // Don't interfere during composition
+            input.addEventListener('input', function(e) {
+                if (isComposing) {
+                    return; // Don't do anything while composing
+                }
+            });
+
+            console.log('✅ বাংলা ইনপুট সক্রিয় করা হয়েছে:', input.id);
+        });
+
+        console.log('✅ বাংলা সংখ্যা সাপোর্ট সক্রিয় আছে');
+    });
+</script>
+{% endblock %}
+

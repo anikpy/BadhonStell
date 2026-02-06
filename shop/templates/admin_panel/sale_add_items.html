@@ -1,0 +1,175 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}পণ্য যোগ করুন - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🛒 বিক্রয়ে পণ্য যোগ করুন</h2>
+    <div>
+        <strong>ইনভয়েস:</strong> {{ sale.invoice_number }}
+        {% if sale.customer_name %}
+        | <strong>ক্রেতা:</strong> {{ sale.customer_name }}
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- পণ্য যোগ করার ফর্ম -->
+    <div class="col-md-6">
+        <div class="card">
+            <h3>➕ পণ্য নির্বাচন করুন</h3>
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label>পণ্য</label>
+                    <select name="product_id" class="form-control" required id="product-select">
+                        <option value="">-- পণ্য নির্বাচন করুন --</option>
+                        {% for product in products %}
+                        <option value="{{ product.pk }}"
+                                data-price="{{ product.price_per_unit }}"
+                                data-unit="{{ product.get_unit_display }}"
+                                data-stock="{{ product.stock_quantity }}">
+                            {{ product.name }} - ৳{{ product.price_per_unit }}/{{ product.get_unit_display }}
+                            {% if product.stock_quantity <= 0 %}
+                            (আউট অফ স্টক)
+                            {% else %}
+                            (স্টক: {{ product.stock_quantity }})
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="product-info" style="display: none; background: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <p><strong>পণ্যের নাম:</strong> <span id="info-name"></span></p>
+                    <p><strong>মূল্য:</strong> ৳<span id="info-price"></span>/<span id="info-unit"></span></p>
+                    <p><strong>স্টক:</strong> <span id="info-stock"></span> <span id="info-unit2"></span></p>
+                </div>
+                
+                <div class="form-group">
+                    <label>পরিমাণ</label>
+                    <input type="text" name="quantity" class="form-control bangla-number-input" 
+                           placeholder="উদাহরণ: ১০ বা 10" required autocomplete="off">
+                </div>
+                
+                <button type="submit" class="btn btn-success">✅ যোগ করুন</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- যোগ করা পণ্যের তালিকা -->
+    <div class="col-md-6">
+        <div class="card">
+            <h3>📋 যোগ করা পণ্য</h3>
+            
+            {% if items %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>পণ্য</th>
+                        <th>পরিমাণ</th>
+                        <th>মূল্য</th>
+                        <th>মোট</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.quantity }} {{ item.product.get_unit_display }}</td>
+                        <td>৳{{ item.unit_price }}</td>
+                        <td>৳{{ item.total_price }}</td>
+                        <td>
+                            <a href="{% url 'sale_remove_item' sale.pk item.pk %}" 
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('মুছে ফেলবেন?')">🗑️</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div style="border-top: 2px solid #ddd; padding-top: 10px; margin-top: 10px;">
+                <p><strong>সাবটোটাল:</strong> ৳{{ sale.subtotal }}</p>
+                <p><strong>ছাড় ({{ sale.discount_percent }}%):</strong> -৳{{ sale.discount_amount }}</p>
+                <p style="font-size: 1.2em;"><strong>মোট:</strong> <span style="color: green;">৳{{ sale.total_amount }}</span></p>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <a href="{% url 'sale_finalize' sale.pk %}" class="btn btn-success btn-lg">✅ সম্পন্ন করুন</a>
+            </div>
+            {% else %}
+            <p style="text-align: center; padding: 20px; color: #999;">
+                এখনও কোনো পণ্য যোগ করা হয়নি
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // বাংলা সংখ্যা সাপোর্ট
+    document.addEventListener('DOMContentLoaded', function() {
+        const banglaInputs = document.querySelectorAll('.bangla-number-input');
+
+        banglaInputs.forEach(function(input) {
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', function() {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', function() {
+                isComposing = false;
+            });
+        });
+
+        // পণ্য সিলেক্ট করলে তথ্য দেখানো
+        const productSelect = document.getElementById('product-select');
+        const productInfo = document.getElementById('product-info');
+
+        productSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+
+            if (this.value) {
+                const name = selectedOption.text.split(' - ')[0];
+                const price = selectedOption.getAttribute('data-price');
+                const unit = selectedOption.getAttribute('data-unit');
+                const stock = selectedOption.getAttribute('data-stock');
+
+                document.getElementById('info-name').textContent = name;
+                document.getElementById('info-price').textContent = price;
+                document.getElementById('info-unit').textContent = unit;
+                document.getElementById('info-unit2').textContent = unit;
+                document.getElementById('info-stock').textContent = stock;
+
+                productInfo.style.display = 'block';
+
+                // স্টক শেষ হলে সতর্কতা
+                if (parseFloat(stock) <= 0) {
+                    productInfo.style.background = '#ffe0e0';
+                    document.getElementById('info-stock').style.color = 'red';
+                    document.getElementById('info-stock').style.fontWeight = 'bold';
+                } else {
+                    productInfo.style.background = '#f0f8ff';
+                    document.getElementById('info-stock').style.color = 'green';
+                    document.getElementById('info-stock').style.fontWeight = 'bold';
+                }
+            } else {
+                productInfo.style.display = 'none';
+            }
+        });
+    });
+</script>
+
+<style>
+    .row { display: flex; gap: 20px; }
+    .col-md-6 { flex: 1; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table th, .table td { padding: 8px; border-bottom: 1px solid #ddd; text-align: left; }
+    .table th { background: #f5f5f5; font-weight: bold; }
+</style>
+{% endblock %}
+

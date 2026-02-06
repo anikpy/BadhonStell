@@ -1,0 +1,123 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}বিক্রয়/ভাউচার তালিকা{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>💰 বিক্রয়/ভাউচার তালিকা</h2>
+    <a href="{% url 'invoice_create' %}" class="btn btn-primary">➕ নতুন বিক্রয়</a>
+</div>
+
+<!-- সার্চ বক্স -->
+<div class="search-box" style="margin-bottom: 20px;">
+    <form method="get" style="display: flex; gap: 10px;">
+        <input type="text" name="search" class="form-control" placeholder="মোবাইল নাম্বার বা নাম দিয়ে খুঁজুন..." value="{{ search_query }}" style="flex: 1;">
+        <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+        {% if search_query %}
+        <a href="{% url 'invoice_list' %}" class="btn btn-secondary">✖️ রিসেট</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ইনভয়েস নং</th>
+                <th>তারিখ</th>
+                <th>ক্রেতার নাম</th>
+                <th>মোবাইল</th>
+                <th>পণ্য</th>
+                <th>পরিমাণ</th>
+                <th>মোট টাকা</th>
+                <th>বাকি</th>
+                <th>কার্যক্রম</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for invoice in invoices %}
+            <tr>
+                <td><strong>{{ invoice.invoice_number }}</strong></td>
+                <td>{{ invoice.sale_date|date:"d/m/Y" }}</td>
+                <td>
+                    <a href="{% url 'customer_profile' invoice.mobile_number %}" style="color: #2c3e50; text-decoration: none;">
+                        {{ invoice.customer_name }}
+                    </a>
+                </td>
+                <td>
+                    <a href="{% url 'customer_profile' invoice.mobile_number %}" style="color: #2c3e50; text-decoration: none;">
+                        {{ invoice.mobile_number }}
+                    </a>
+                </td>
+                <td>{{ invoice.product.name }}</td>
+                <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                <td>৳{{ invoice.total_amount }}</td>
+                <td>
+                    {% if invoice.due_amount > 0 %}
+                    <span style="color: red; font-weight: bold;">৳{{ invoice.due_amount }}</span>
+                    {% else %}
+                    <span style="color: green;">✅ পরিশোধিত</span>
+                    {% endif %}
+                </td>
+                <td class="action-buttons">
+                    <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
+                    <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px;">
+                    {% if search_query %}
+                    কোনো ফলাফল পাওয়া যায়নি। <a href="{% url 'invoice_list' %}">সব দেখুন</a>
+                    {% else %}
+                    কোনো বিক্রয় রেকর্ড নেই। <a href="{% url 'invoice_create' %}">নতুন বিক্রয় করুন</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+.search-box input {
+    padding: 10px;
+    font-size: 16px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.data-table th {
+    background: #2c3e50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.data-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+

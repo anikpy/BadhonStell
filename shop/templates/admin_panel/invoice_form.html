@@ -1,0 +1,274 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{% if old_invoice %}ইনভয়েস এডিট{% else %}নতুন বিক্রয়{% endif %}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>{% if old_invoice %}✏️ ইনভয়েস এডিট{% else %}➕ নতুন বিক্রয়{% endif %}</h2>
+    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+</div>
+
+{% if old_invoice %}
+<div class="alert alert-info" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <strong>📝 নোট:</strong> এডিট করলে পুরাতন ইনভয়েস সংরক্ষিত থাকবে এবং একটি নতুন ইনভয়েস তৈরি হবে।
+</div>
+{% endif %}
+
+<div class="form-container">
+    <form method="post" class="invoice-form">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <h3>👤 ক্রেতার তথ্য</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>{{ form.customer_name.label }}</label>
+                    {{ form.customer_name }}
+                    {% if form.customer_name.errors %}
+                    <span class="error">{{ form.customer_name.errors.0 }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.mobile_number.label }}</label>
+                    {{ form.mobile_number }}
+                    {% if form.mobile_number.errors %}
+                    <span class="error">{{ form.mobile_number.errors.0 }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>📦 পণ্যের তথ্য</h3>
+            <div class="form-group">
+                <label>{{ form.product.label }}</label>
+                {{ form.product }}
+                {% if form.product.errors %}
+                <span class="error">{{ form.product.errors.0 }}</span>
+                {% endif %}
+            </div>
+            
+            <!-- পণ্যের তথ্য দেখানো -->
+            <div id="product-info" style="display: none; background: #f0f8ff; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                <p><strong>পণ্য:</strong> <span id="info-name"></span></p>
+                <p><strong>একক মূল্য:</strong> ৳<span id="info-price"></span> / <span id="info-unit"></span></p>
+                <p><strong>স্টক:</strong> <span id="info-stock"></span> <span id="info-unit2"></span></p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>{{ form.quantity.label }}</label>
+                    {{ form.quantity }}
+                    {% if form.quantity.errors %}
+                    <span class="error">{{ form.quantity.errors.0 }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.discount_percentage.label }}</label>
+                    {{ form.discount_percentage }}
+                    {% if form.discount_percentage.errors %}
+                    <span class="error">{{ form.discount_percentage.errors.0 }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- লাইভ হিসাব দেখানো -->
+            <div id="calculation-box" style="display: none; background: #e8f5e9; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #4caf50;">
+                <h4 style="margin-top: 0; color: #2e7d32;">💰 হিসাব</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
+                    <div>
+                        <strong>একক মূল্য:</strong> <span id="calc-unit-price" style="color: #1976d2;">৳০</span>
+                    </div>
+                    <div>
+                        <strong>পরিমাণ:</strong> <span id="calc-quantity" style="color: #1976d2;">০</span>
+                    </div>
+                    <div>
+                        <strong>সাবটোটাল:</strong> <span id="calc-subtotal" style="color: #1976d2; font-size: 18px;">৳০</span>
+                    </div>
+                    <div>
+                        <strong>ছাড় (<span id="calc-discount-percent">০</span>%):</strong> <span id="calc-discount-amount" style="color: #d32f2f;">- ৳০</span>
+                    </div>
+                </div>
+                <hr style="margin: 15px 0; border: none; border-top: 2px dashed #4caf50;">
+                <div style="font-size: 22px; font-weight: bold; color: #2e7d32;">
+                    <strong>মোট টাকা:</strong> <span id="calc-total" style="color: #1b5e20;">৳০</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>{{ form.paid_amount.label }}</label>
+                    {{ form.paid_amount }}
+                    {% if form.paid_amount.errors %}
+                    <span class="error">{{ form.paid_amount.errors.0 }}</span>
+                    {% endif %}
+                    <small style="color: #666;">পুরো টাকা না দিলে বাকি থাকবে</small>
+                </div>
+                <div class="form-group">
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 2px solid #ffc107;">
+                        <strong>বাকি থাকবে:</strong> <span id="calc-due" style="color: #d32f2f; font-size: 20px; font-weight: bold;">৳০</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>📝 অন্যান্য</h3>
+            <div class="form-group">
+                <label>{{ form.notes.label }}</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <span class="error">{{ form.notes.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">✅ সংরক্ষণ করুন</button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">❌ বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // বাংলা সংখ্যা সাপোর্ট
+    const banglaInputs = document.querySelectorAll('.bangla-number-input');
+    banglaInputs.forEach(function(input) {
+        let isComposing = false;
+        input.addEventListener('compositionstart', function() {
+            isComposing = true;
+        });
+        input.addEventListener('compositionend', function() {
+            isComposing = false;
+        });
+    });
+
+    // বাংলা থেকে ইংরেজি সংখ্যা কনভার্ট
+    function banglaToEnglish(str) {
+        const banglaDigits = {'০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'};
+        return str.replace(/[০-৯]/g, function(match) {
+            return banglaDigits[match];
+        });
+    }
+
+    // পণ্য সিলেক্ট করলে তথ্য দেখানো
+    const productSelect = document.getElementById('product-select');
+    const productInfo = document.getElementById('product-info');
+    const quantityInput = document.querySelector('input[name="quantity"]');
+    const discountInput = document.querySelector('input[name="discount_percentage"]');
+    const paidInput = document.querySelector('input[name="paid_amount"]');
+    const calculationBox = document.getElementById('calculation-box');
+
+    let currentPrice = 0;
+    let currentUnit = '';
+
+    if (productSelect) {
+        productSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+
+            if (this.value) {
+                const name = selectedOption.text;
+                const price = selectedOption.getAttribute('data-price');
+                const unit = selectedOption.getAttribute('data-unit');
+                const stock = selectedOption.getAttribute('data-stock');
+
+                if (price && unit && stock) {
+                    currentPrice = parseFloat(price);
+                    currentUnit = unit;
+
+                    document.getElementById('info-name').textContent = name;
+                    document.getElementById('info-price').textContent = price;
+                    document.getElementById('info-unit').textContent = unit;
+                    document.getElementById('info-unit2').textContent = unit;
+                    document.getElementById('info-stock').textContent = stock;
+
+                    productInfo.style.display = 'block';
+
+                    // স্টক শেষ হলে সতর্কতা
+                    if (parseFloat(stock) <= 0) {
+                        productInfo.style.background = '#ffe0e0';
+                        document.getElementById('info-stock').style.color = 'red';
+                        document.getElementById('info-stock').style.fontWeight = 'bold';
+                    } else {
+                        productInfo.style.background = '#f0f8ff';
+                        document.getElementById('info-stock').style.color = 'green';
+                        document.getElementById('info-stock').style.fontWeight = 'bold';
+                    }
+
+                    // হিসাব আপডেট
+                    updateCalculation();
+                }
+            } else {
+                productInfo.style.display = 'none';
+                calculationBox.style.display = 'none';
+                currentPrice = 0;
+            }
+        });
+    }
+
+    // লাইভ হিসাব ফাংশন
+    function updateCalculation() {
+        if (currentPrice === 0) {
+            calculationBox.style.display = 'none';
+            return;
+        }
+
+        // পরিমাণ
+        let quantityStr = quantityInput ? quantityInput.value.trim() : '0';
+        quantityStr = banglaToEnglish(quantityStr);
+        const quantity = parseFloat(quantityStr) || 0;
+
+        // ছাড় %
+        let discountStr = discountInput ? discountInput.value.trim() : '0';
+        discountStr = banglaToEnglish(discountStr);
+        const discountPercent = parseFloat(discountStr) || 0;
+
+        // পরিশোধিত
+        let paidStr = paidInput ? paidInput.value.trim() : '0';
+        paidStr = banglaToEnglish(paidStr);
+        const paid = parseFloat(paidStr) || 0;
+
+        // হিসাব
+        const subtotal = quantity * currentPrice;
+        const discountAmount = (subtotal * discountPercent) / 100;
+        const total = subtotal - discountAmount;
+        const due = total - paid;
+
+        // দেখানো
+        if (quantity > 0) {
+            calculationBox.style.display = 'block';
+
+            document.getElementById('calc-unit-price').textContent = '৳' + currentPrice.toFixed(2);
+            document.getElementById('calc-quantity').textContent = quantity.toFixed(2) + ' ' + currentUnit;
+            document.getElementById('calc-subtotal').textContent = '৳' + subtotal.toFixed(2);
+            document.getElementById('calc-discount-percent').textContent = discountPercent.toFixed(2);
+            document.getElementById('calc-discount-amount').textContent = '- ৳' + discountAmount.toFixed(2);
+            document.getElementById('calc-total').textContent = '৳' + total.toFixed(2);
+            document.getElementById('calc-due').textContent = '৳' + due.toFixed(2);
+
+            // বাকি টাকা রঙ
+            if (due > 0) {
+                document.getElementById('calc-due').style.color = '#d32f2f';
+            } else {
+                document.getElementById('calc-due').style.color = '#2e7d32';
+            }
+        } else {
+            calculationBox.style.display = 'none';
+        }
+    }
+
+    // ইনপুট পরিবর্তনে হিসাব আপডেট
+    if (quantityInput) {
+        quantityInput.addEventListener('input', updateCalculation);
+    }
+    if (discountInput) {
+        discountInput.addEventListener('input', updateCalculation);
+    }
+    if (paidInput) {
+        paidInput.addEventListener('input', updateCalculation);
+    }
+});
+</script>
+{% endblock %}
+

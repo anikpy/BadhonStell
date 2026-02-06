@@ -1,0 +1,32 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}নতুন বিক্রয় - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card">
+        <h2 class="card-title">➕ নতুন বিক্রয়</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                {{ form.customer_name.label_tag }}
+                {{ form.customer_name }}
+                <small style="color: #666;">ঐচ্ছিক - খালি রাখতে পারেন</small>
+            </div>
+
+            <div class="form-group">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">✅ পরবর্তী: পণ্য যোগ করুন</button>
+                <a href="{% url 'sale_list' %}" class="btn btn-danger">❌ বাতিল</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,325 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}ইনভয়েস বিস্তারিত{% endblock %}
+
+{% block content %}
+<div class="content-header no-print">
+    <h2>📄 ইনভয়েস বিস্তারিত</h2>
+    <div>
+        <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-warning">✏️ এডিট করুন</a>
+        <a href="{% url 'invoice_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+        <button onclick="window.print()" class="btn btn-primary">🖨️ প্রিন্ট</button>
+    </div>
+</div>
+
+<div class="invoice-container">
+    <!-- ভাউচার/ইনভয়েস -->
+    <div class="voucher" id="printable-voucher">
+        <div class="voucher-header">
+            <h1>{{ shop_info.name }}</h1>
+            <p>{{ shop_info.address }}</p>
+            <p>📞 {{ shop_info.phone }} | 📧 {{ shop_info.email }}</p>
+            <hr>
+            <h2>বিক্রয় ভাউচার</h2>
+        </div>
+
+        <div class="voucher-info">
+            <div class="info-row">
+                <div><strong>ইনভয়েস নং:</strong> {{ invoice.invoice_number }}</div>
+                <div><strong>তারিখ:</strong> {{ invoice.sale_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="info-row">
+                <div><strong>ক্রেতার নাম:</strong> {{ invoice.customer_name }}</div>
+                <div><strong>মোবাইল:</strong> {{ invoice.mobile_number }}</div>
+            </div>
+        </div>
+
+        <table class="voucher-table">
+            <thead>
+                <tr>
+                    <th>পণ্যের নাম</th>
+                    <th>পরিমাণ</th>
+                    <th>একক মূল্য</th>
+                    <th>সাবটোটাল</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ invoice.product.name }}</td>
+                    <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                    <td>৳{{ invoice.unit_price }}</td>
+                    <td>৳{{ invoice.subtotal }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align: right;"><strong>সাবটোটাল:</strong></td>
+                    <td><strong>৳{{ invoice.subtotal }}</strong></td>
+                </tr>
+                {% if invoice.discount_percentage > 0 %}
+                <tr>
+                    <td colspan="3" style="text-align: right;"><strong>ছাড় ({{ invoice.discount_percentage }}%):</strong></td>
+                    <td><strong>- ৳{{ invoice.discount_amount }}</strong></td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <td colspan="3" style="text-align: right;"><strong>মোট টাকা:</strong></td>
+                    <td><strong>৳{{ invoice.total_amount }}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;"><strong>পরিশোধিত:</strong></td>
+                    <td><strong style="color: green;">৳{{ invoice.paid_amount }}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="text-align: right;"><strong>বাকি:</strong></td>
+                    <td><strong style="color: {% if invoice.due_amount > 0 %}red{% else %}green{% endif %};">৳{{ invoice.due_amount }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        {% if invoice.notes %}
+        <div class="notes">
+            <strong>নোট:</strong> {{ invoice.notes }}
+        </div>
+        {% endif %}
+
+        <div class="voucher-footer">
+            <p>ধন্যবাদ! আবার আসবেন।</p>
+        </div>
+    </div>
+
+    <!-- ভার্সন হিস্ট্রি -->
+    {% if all_versions.count > 1 %}
+    <div class="version-history no-print">
+        <h3>📋 ভার্সন হিস্ট্রি</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ইনভয়েস নং</th>
+                    <th>তারিখ</th>
+                    <th>পণ্য</th>
+                    <th>পরিমাণ</th>
+                    <th>মোট টাকা</th>
+                    <th>স্ট্যাটাস</th>
+                    <th>কার্যক্রম</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for version in all_versions %}
+                <tr {% if version.pk == invoice.pk %}style="background: #e3f2fd;"{% endif %}>
+                    <td>{{ version.invoice_number }}</td>
+                    <td>{{ version.sale_date|date:"d/m/Y" }}</td>
+                    <td>{{ version.product.name }}</td>
+                    <td>{{ version.quantity }} {{ version.product.get_unit_display }}</td>
+                    <td>৳{{ version.total_amount }}</td>
+                    <td>
+                        {% if version.is_latest %}
+                        <span class="badge badge-success">✅ সর্বশেষ</span>
+                        {% else %}
+                        <span class="badge badge-secondary">📜 পুরাতন</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if version.pk != invoice.pk %}
+                        <a href="{% url 'invoice_detail' version.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
+                        {% else %}
+                        <strong>বর্তমান</strong>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.invoice-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.voucher {
+    background: white;
+    padding: 40px;
+    border: 2px solid #333;
+    margin-bottom: 30px;
+}
+
+.voucher-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.voucher-header h1 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.voucher-header h2 {
+    margin: 20px 0 0 0;
+    color: #34495e;
+}
+
+.voucher-info {
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.voucher-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.voucher-table th,
+.voucher-table td {
+    border: 1px solid #333;
+    padding: 10px;
+    text-align: left;
+}
+
+.voucher-table th {
+    background: #34495e;
+    color: white;
+}
+
+.voucher-table tfoot td {
+    border-top: 2px solid #333;
+}
+
+.total-row td {
+    background: #f8f9fa;
+    font-size: 18px;
+}
+
+.notes {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-left: 4px solid #3498db;
+}
+
+.voucher-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px dashed #999;
+}
+
+.version-history {
+    margin-top: 30px;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.badge-success {
+    background: #27ae60;
+    color: white;
+}
+
+.badge-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+@media print {
+    /* সব navigation এবং extra elements লুকানো */
+    .no-print,
+    .content-header,
+    .version-history,
+    nav,
+    .admin-nav,
+    header,
+    .admin-header,
+    button,
+    a.btn {
+        display: none !important;
+    }
+
+    /* পেজ সেটিংস - এক পেজে সব */
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+
+    .invoice-container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .voucher {
+        border: 2px solid #000;
+        padding: 15px;
+        margin: 0;
+        page-break-inside: avoid;
+        font-size: 12px;
+    }
+
+    .voucher-header h1 {
+        font-size: 20px;
+        margin: 5px 0;
+    }
+
+    .voucher-header h2 {
+        font-size: 16px;
+        margin: 10px 0;
+    }
+
+    .voucher-header p {
+        font-size: 11px;
+        margin: 2px 0;
+    }
+
+    .voucher-info {
+        margin: 10px 0;
+        font-size: 12px;
+    }
+
+    .voucher-table {
+        font-size: 11px;
+        margin: 10px 0;
+    }
+
+    .voucher-table th,
+    .voucher-table td {
+        padding: 6px;
+    }
+
+    .notes {
+        font-size: 11px;
+        margin: 10px 0;
+        padding: 8px;
+    }
+
+    .voucher-footer {
+        margin-top: 15px;
+        padding-top: 10px;
+        font-size: 11px;
+    }
+
+    /* ভার্সন হিস্ট্রি লুকানো */
+    .version-history {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}
+

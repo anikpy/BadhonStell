@@ -1,0 +1,69 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}পেমেন্ট যোগ করুন - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card">
+        <h2 class="card-title">💵 পেমেন্ট যোগ করুন</h2>
+        
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <p><strong>ইনভয়েস:</strong> {{ sale.invoice_number }}</p>
+            <p><strong>ক্রেতা:</strong> {{ sale.customer_name }}</p>
+            <p><strong>মোট টাকা:</strong> ৳{{ sale.total_amount }}</p>
+            <p><strong>পরিশোধিত:</strong> ৳{{ sale.paid_amount }}</p>
+            <p style="color: red; font-size: 1.2em;"><strong>বাকি:</strong> ৳{{ sale.due_amount }}</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                {{ form.payment_date.label_tag }}
+                {{ form.payment_date }}
+            </div>
+            
+            <div class="form-group">
+                {{ form.amount.label_tag }}
+                {{ form.amount }}
+                <small style="color: #666;">সর্বোচ্চ: ৳{{ sale.due_amount }}</small>
+            </div>
+            
+            <div class="form-group">
+                {{ form.payment_method.label_tag }}
+                {{ form.payment_method }}
+            </div>
+            
+            <div class="form-group">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">✅ পেমেন্ট যোগ করুন</button>
+                <a href="{% url 'sale_detail' sale.pk %}" class="btn btn-danger">❌ বাতিল</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // বাংলা সংখ্যা সাপোর্ট
+    document.addEventListener('DOMContentLoaded', function() {
+        const banglaInputs = document.querySelectorAll('.bangla-number-input');
+        
+        banglaInputs.forEach(function(input) {
+            let isComposing = false;
+            
+            input.addEventListener('compositionstart', function() {
+                isComposing = true;
+            });
+            
+            input.addEventListener('compositionend', function() {
+                isComposing = false;
+            });
+        });
+    });
+</script>
+{% endblock %}
+

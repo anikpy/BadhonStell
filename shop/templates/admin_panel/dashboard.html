@@ -1,0 +1,173 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}ড্যাশবোর্ড - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card.success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+    
+    .stat-card.warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    }
+
+    .stat-card.danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+
+    .stat-card h3 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+        opacity: 0.9;
+    }
+    
+    .stat-card .number {
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    
+    .recent-orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    .recent-orders-table th,
+    .recent-orders-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .recent-orders-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .recent-orders-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-completed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    @media (max-width: 768px) {
+        .recent-orders-table {
+            font-size: 0.9rem;
+        }
+        
+        .recent-orders-table th,
+        .recent-orders-table td {
+            padding: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 30px; color: #2c3e50;">📊 ড্যাশবোর্ড</h2>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>মোট অর্ডার</h3>
+        <div class="number">{{ total_orders }}</div>
+    </div>
+
+    <div class="stat-card warning">
+        <h3>চলমান অর্ডার</h3>
+        <div class="number">{{ pending_orders }}</div>
+    </div>
+
+    <div class="stat-card success">
+        <h3>সম্পন্ন অর্ডার</h3>
+        <div class="number">{{ completed_orders }}</div>
+    </div>
+
+    <div class="stat-card danger">
+        <h3>সম্পন্ন কিন্তু ডেলিভারি হয়নি</h3>
+        <div class="number">{{ completed_not_delivered }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 class="card-title">সাম্প্রতিক অর্ডারসমূহ</h3>
+    
+    {% if recent_orders %}
+    <div style="overflow-x: auto;">
+        <table class="recent-orders-table">
+            <thead>
+                <tr>
+                    <th>ক্রেতার নাম</th>
+                    <th>মোবাইল</th>
+                    <th>পণ্য</th>
+                    <th>মোট মূল্য</th>
+                    <th>বাকি</th>
+                    <th>অবস্থা</th>
+                    <th>তারিখ</th>
+                    <th>অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>{{ order.customer_name }}</td>
+                    <td>{{ order.mobile_number }}</td>
+                    <td>{{ order.product_name }}</td>
+                    <td>৳ {{ order.total_price }}</td>
+                    <td>৳ {{ order.due_amount }}</td>
+                    <td>
+                        <span class="status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ order.order_date|date:"d/m/Y" }}</td>
+                    <td>
+                        <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm" target="_blank">ভাউচার</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; padding: 30px; color: #666;">কোনো অর্ডার নেই।</p>
+    {% endif %}
+    
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="{% url 'order_list' %}" class="btn">সব অর্ডার দেখুন</a>
+    </div>
+</div>
+{% endblock %}
+

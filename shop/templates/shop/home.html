@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}হোম - বাধন স্টিল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 80px 0;
+        text-align: center;
+    }
+    
+    .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 20px;
+    }
+    
+    .hero p {
+        font-size: 1.3rem;
+        margin-bottom: 30px;
+        opacity: 0.95;
+    }
+    
+    .contact-info {
+        background-color: white;
+        padding: 15px 30px;
+        border-radius: 10px;
+        display: inline-block;
+        color: #333;
+        margin-top: 20px;
+    }
+
+    .contact-info p {
+        margin: 5px 0;
+        font-size: 1.1rem;
+        color: #333;
+    }
+
+    .admin-login-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: #ff6b6b;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        transition: all 0.3s;
+        z-index: 1000;
+    }
+
+    .admin-login-btn:hover {
+        background-color: #ff5252;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        color: white;
+    }
+    
+    .products-section {
+        padding: 50px 0;
+    }
+    
+    .section-title {
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 40px;
+        color: #333;
+    }
+    
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+        margin-top: 30px;
+    }
+    
+    .product-card {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    
+    .product-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+    }
+    
+    .product-info {
+        padding: 20px;
+    }
+    
+    .product-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
+    .product-description {
+        color: #666;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+    
+    .product-price {
+        font-size: 1.3rem;
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .no-products {
+        text-align: center;
+        padding: 50px;
+        font-size: 1.2rem;
+        color: #666;
+    }
+    
+    @media (max-width: 768px) {
+        .hero h1 {
+            font-size: 2rem;
+        }
+        
+        .hero p {
+            font-size: 1rem;
+        }
+        
+        .product-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Admin Login Button -->
+<a href="{% url 'admin_login' %}" class="admin-login-btn">
+    🔐 অ্যাডমিন লগইন
+</a>
+
+<div class="hero">
+    <div class="container">
+        <h1>{{ shop_info.name|default:"বাধন স্টিল" }}</h1>
+        <p>{{ shop_info.description|default:"স্টিল ও লোহার সকল ধরনের কাজ করা হয়" }}</p>
+        <a href="{% url 'product_list' %}" class="btn btn-success">পণ্য দেখুন</a>
+
+        {% if shop_info %}
+        <div class="contact-info">
+            <p><strong>📞 ফোন:</strong> {{ shop_info.phone }}</p>
+            <p><strong>💬 হোয়াটসঅ্যাপ:</strong> {{ shop_info.whatsapp }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="products-section">
+    <div class="container">
+        <h2 class="section-title">আমাদের পণ্যসমূহ</h2>
+        
+        {% if products %}
+        <div class="product-grid">
+            {% for product in products|slice:":6" %}
+            <div class="product-card">
+                {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
+                {% else %}
+                <div class="product-image" style="background-color: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 3rem; color: #999;">📦</span>
+                </div>
+                {% endif %}
+                <div class="product-info">
+                    <h3 class="product-name">{{ product.name }}</h3>
+                    <p class="product-description">{{ product.description|truncatewords:15 }}</p>
+                    <p class="product-price">৳ {{ product.estimated_price }}</p>
+                    <a href="tel:{{ shop_info.phone }}" class="btn">অর্ডার করতে যোগাযোগ করুন</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-products">
+            <p>এই মুহূর্তে কোনো পণ্য নেই।</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

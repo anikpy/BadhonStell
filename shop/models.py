@@ -1,0 +1,196 @@
+from django.db import models
+from django.utils import timezone
+
+
+class ShopInfo(models.Model):
+    """দোকানের তথ্য"""
+    name = models.CharField(max_length=200, verbose_name='দোকানের নাম')
+    # logo = models.ImageField(upload_to='shop/', blank=True, null=True, verbose_name='লোগো')
+    # Note: Uncomment above line after installing Pillow: pip install Pillow
+    description = models.TextField(verbose_name='বিবরণ')
+    phone = models.CharField(max_length=20, verbose_name='ফোন নাম্বার')
+    whatsapp = models.CharField(max_length=20, verbose_name='হোয়াটসঅ্যাপ নাম্বার')
+    address = models.TextField(verbose_name='ঠিকানা', blank=True)
+    
+    class Meta:
+        verbose_name = 'দোকানের তথ্য'
+        verbose_name_plural = 'দোকানের তথ্য'
+    
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+    """পণ্যের মডেল"""
+    PRODUCT_CATEGORIES = [
+        ('door', 'দরজা'),
+        ('window', 'জানালা'),
+        ('grill', 'গ্রিল'),
+        ('gate', 'গেট'),
+        ('railing', 'রেলিং'),
+        ('shed', 'শেড'),
+        ('other', 'অন্যান্য'),
+    ]
+    
+    name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    category = models.CharField(max_length=50, choices=PRODUCT_CATEGORIES, verbose_name='ক্যাটাগরি')
+    # image = models.ImageField(upload_to='products/', verbose_name='ছবি')
+    # Note: Uncomment above line after installing Pillow: pip install Pillow
+    description = models.TextField(verbose_name='বিবরণ')
+    estimated_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='আনুমানিক দাম')
+    is_active = models.BooleanField(default=True, verbose_name='সক্রিয়')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির তারিখ')
+    
+    class Meta:
+        verbose_name = 'পণ্য'
+        verbose_name_plural = 'পণ্যসমূহ'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+
+
+class InventoryProduct(models.Model):
+    """ইনভেন্টরি পণ্য - স্টক ব্যবস্থাপনার জন্য"""
+    UNIT_CHOICES = [
+        ('piece', 'পিস'),
+        ('feet', 'ফুট'),
+        ('meter', 'মিটার'),
+        ('ton', 'টন'),
+        ('kg', 'কেজি'),
+    ]
+
+    name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    description = models.TextField(verbose_name='বিবরণ', blank=True)
+    unit = models.CharField(max_length=20, choices=UNIT_CHOICES, verbose_name='একক')
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='প্রতি একক মূল্য')
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='স্টক পরিমাণ', default=0)
+    is_active = models.BooleanField(default=True, verbose_name='সক্রিয়')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির তারিখ')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের তারিখ')
+
+    class Meta:
+        verbose_name = 'ইনভেন্টরি পণ্য'
+        verbose_name_plural = 'ইনভেন্টরি পণ্যসমূহ'
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.stock_quantity} {self.get_unit_display()})"
+
+
+class Order(models.Model):
+    """অর্ডার মডেল - কাস্টম পণ্যের জন্য"""
+    STATUS_CHOICES = [
+        ('pending', 'চলমান'),
+        ('ready', 'প্রস্তুত'),
+        ('completed', 'সম্পন্ন'),
+    ]
+
+    DELIVERY_STATUS_CHOICES = [
+        ('not_delivered', 'ডেলিভারি হয়নি'),
+        ('delivered', 'ডেলিভারি সম্পন্ন'),
+    ]
+
+    customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
+    mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
+    product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    product_description = models.TextField(verbose_name='পণ্যের বিবরণ')
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য')
+    cash_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নগদ পরিশোধ', default=0)
+    due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False)
+    order_date = models.DateField(default=timezone.now, verbose_name='অর্ডার নেওয়ার তারিখ')
+    delivery_date = models.DateField(verbose_name='ডেলিভারির তারিখ')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='প্রোডাক্ট অবস্থা')
+    delivery_status = models.CharField(max_length=20, choices=DELIVERY_STATUS_CHOICES, default='not_delivered', verbose_name='ডেলিভারি অবস্থা')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'অর্ডার'
+        verbose_name_plural = 'অর্ডারসমূহ'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # বাকি টাকা অটো ক্যালকুলেশন
+        self.due_amount = self.total_price - self.cash_paid
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.customer_name} - {self.product_name}"
+
+
+class Invoice(models.Model):
+    """ইনভয়েস/ভাউচার - সিম্পল বিক্রয় রেকর্ড"""
+    invoice_number = models.CharField(max_length=50, unique=True, verbose_name='ইনভয়েস নাম্বার', editable=False)
+
+    # কাস্টমার তথ্য
+    customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
+    mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
+
+    # পণ্যের তথ্য
+    product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+
+    # মূল্য হিসাব
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='ছাড় (%)', default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='ছাড়ের টাকা', editable=False, default=0)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট টাকা', editable=False)
+
+    # পেমেন্ট তথ্য
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিশোধিত টাকা', default=0)
+    due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False, default=0)
+
+    # অন্যান্য
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    sale_date = models.DateField(default=timezone.now, verbose_name='বিক্রয়ের তারিখ')
+
+    # ভাউচার এডিট ট্র্যাকিং
+    original_invoice = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='edited_versions', verbose_name='মূল ইনভয়েস')
+    is_latest = models.BooleanField(default=True, verbose_name='সর্বশেষ ভার্সন')
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'ইনভয়েস'
+        verbose_name_plural = 'ইনভয়েসসমূহ'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # ইনভয়েস নাম্বার জেনারেট
+        if not self.invoice_number:
+            last_invoice = Invoice.objects.all().order_by('-id').first()
+            if last_invoice and last_invoice.invoice_number:
+                try:
+                    last_num = int(last_invoice.invoice_number.split('-')[-1])
+                    self.invoice_number = f"INV-{last_num + 1:05d}"
+                except:
+                    self.invoice_number = "INV-00001"
+            else:
+                self.invoice_number = "INV-00001"
+
+        # হিসাব
+        self.subtotal = self.quantity * self.unit_price
+        self.discount_amount = (self.subtotal * self.discount_percentage) / 100
+        self.total_amount = self.subtotal - self.discount_amount
+        self.due_amount = self.total_amount - self.paid_amount
+
+        # স্টক কমানো (শুধু নতুন ইনভয়েসের জন্য)
+        if self.pk is None:
+            if self.product.stock_quantity >= self.quantity:
+                self.product.stock_quantity -= self.quantity
+                self.product.save()
+            else:
+                raise ValueError(f"স্টক অপর্যাপ্ত! বর্তমান স্টক: {self.product.stock_quantity}")
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.customer_name}"
+
+
+
+

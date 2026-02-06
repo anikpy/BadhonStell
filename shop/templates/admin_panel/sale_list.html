@@ -1,0 +1,66 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}বিক্রয় তালিকা - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>💰 বিক্রয় তালিকা</h2>
+    <a href="{% url 'sale_create' %}" class="btn btn-success">➕ নতুন বিক্রয়</a>
+</div>
+
+<div class="search-box">
+    <form method="get" class="search-form">
+        <input type="text" name="search" placeholder="ইনভয়েস/নাম/মোবাইল খুঁজুন..." value="{{ search_query }}" class="search-input">
+        <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ইনভয়েস নং</th>
+                <th>ক্রেতার নাম</th>
+                <th>মোবাইল</th>
+                <th>তারিখ</th>
+                <th>মোট টাকা</th>
+                <th>পরিশোধিত</th>
+                <th>বাকি</th>
+                <th>কার্যক্রম</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+            <tr>
+                <td><strong>{{ sale.invoice_number }}</strong></td>
+                <td>{{ sale.customer_name|default:"-" }}</td>
+                <td>{{ sale.mobile_number|default:"-" }}</td>
+                <td>{{ sale.sale_date|date:"d/m/Y" }}</td>
+                <td>৳{{ sale.total_amount }}</td>
+                <td>৳{{ sale.paid_amount }}</td>
+                <td>
+                    {% if sale.due_amount > 0 %}
+                    <span style="color: red; font-weight: bold;">৳{{ sale.due_amount }}</span>
+                    {% else %}
+                    <span style="color: green;">৳০</span>
+                    {% endif %}
+                </td>
+                <td class="action-buttons">
+                    <a href="{% url 'sale_detail' sale.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
+                    {% if sale.due_amount > 0 %}
+                    <a href="{% url 'payment_add' sale.pk %}" class="btn btn-sm btn-success">💵 পেমেন্ট</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px;">
+                    কোনো বিক্রয় পাওয়া যায়নি। <a href="{% url 'sale_create' %}">নতুন বিক্রয় তৈরি করুন</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

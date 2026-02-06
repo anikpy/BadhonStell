@@ -1,0 +1,265 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}ইনভেন্টরি পণ্য তালিকা - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inventory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .inventory-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .search-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 12px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .product-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        border: 2px solid transparent;
+    }
+
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        border-color: #667eea;
+    }
+
+    .product-card.out-of-stock {
+        border-color: #dc3545;
+        background: #fff5f5;
+    }
+
+    .product-card.low-stock {
+        border-color: #ffc107;
+        background: #fffbf0;
+    }
+
+    .product-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 15px;
+    }
+
+    .product-name {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .product-status {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-inactive {
+        background: #e0e0e0;
+        color: #666;
+    }
+
+    .product-info {
+        margin: 15px 0;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-label {
+        color: #666;
+        font-size: 0.95rem;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+
+    .price-value {
+        color: #28a745;
+        font-size: 1.2rem;
+    }
+
+    .stock-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+
+    .stock-ok {
+        color: #28a745;
+    }
+
+    .stock-low {
+        color: #ffc107;
+    }
+
+    .stock-out {
+        color: #dc3545;
+    }
+
+    .product-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .product-actions .btn {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .empty-state h3 {
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .inventory-header {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .inventory-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inventory-header">
+    <h2>📦 ইনভেন্টরি পণ্য তালিকা</h2>
+    <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ নতুন পণ্য যোগ করুন</a>
+</div>
+
+<div class="search-section">
+    <form method="get" class="search-form">
+        <input type="text" name="search" placeholder="পণ্যের নাম দিয়ে খুঁজুন..." value="{{ search_query }}" class="search-input">
+        <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+    </form>
+</div>
+
+{% if products %}
+<div class="inventory-grid">
+    {% for product in products %}
+    <div class="product-card {% if product.stock_quantity <= 0 %}out-of-stock{% elif product.stock_quantity <= 10 %}low-stock{% endif %}">
+        <div class="product-header">
+            <h3 class="product-name">{{ product.name }}</h3>
+            <span class="product-status {% if product.is_active %}status-active{% else %}status-inactive{% endif %}">
+                {% if product.is_active %}✅ সক্রিয়{% else %}⏸️ নিষ্ক্রিয়{% endif %}
+            </span>
+        </div>
+
+        <div class="product-info">
+            <div class="info-row">
+                <span class="info-label">একক:</span>
+                <span class="info-value">{{ product.get_unit_display }}</span>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">প্রতি একক মূল্য:</span>
+                <span class="info-value price-value">৳{{ product.price_per_unit }}</span>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">স্টক পরিমাণ:</span>
+                <span class="info-value stock-value {% if product.stock_quantity <= 0 %}stock-out{% elif product.stock_quantity <= 10 %}stock-low{% else %}stock-ok{% endif %}">
+                    {{ product.stock_quantity }} {{ product.get_unit_display }}
+                    {% if product.stock_quantity <= 0 %}
+                    <br><small style="font-size: 0.8rem;">(আউট অফ স্টক)</small>
+                    {% elif product.stock_quantity <= 10 %}
+                    <br><small style="font-size: 0.8rem;">(কম স্টক - পুনরায় অর্ডার করুন)</small>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="product-actions">
+            <a href="{% url 'inventory_product_edit' product.pk %}" class="btn btn-primary">✏️ সম্পাদনা</a>
+            <a href="{% url 'inventory_product_delete' product.pk %}" class="btn btn-danger" onclick="return confirm('আপনি কি নিশ্চিত যে এই পণ্যটি মুছে ফেলতে চান?')">🗑️ মুছুন</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>📦 কোনো পণ্য পাওয়া যায়নি</h3>
+    <p style="color: #666; margin-bottom: 20px;">আপনার ইনভেন্টরিতে এখনো কোনো পণ্য নেই।</p>
+    <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ প্রথম পণ্য যোগ করুন</a>
+</div>
+{% endif %}
+{% endblock %}
+

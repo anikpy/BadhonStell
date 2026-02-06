@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block title %}পণ্য তালিকা - বাধন স্টিল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 0;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .page-header h1 {
+        font-size: 2.5rem;
+    }
+    
+    .filter-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .filter-btn {
+        padding: 10px 20px;
+        background-color: #f0f0f0;
+        color: #333;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: all 0.3s;
+    }
+    
+    .filter-btn:hover, .filter-btn.active {
+        background-color: #667eea;
+        color: white;
+    }
+    
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+    }
+    
+    .product-card {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    
+    .product-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+    }
+    
+    .product-info {
+        padding: 20px;
+    }
+    
+    .product-category {
+        display: inline-block;
+        background-color: #667eea;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+    }
+    
+    .product-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
+    .product-description {
+        color: #666;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+    
+    .product-price {
+        font-size: 1.3rem;
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .contact-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-whatsapp {
+        background-color: #25D366;
+    }
+    
+    .btn-whatsapp:hover {
+        background-color: #1da851;
+    }
+    
+    .no-products {
+        text-align: center;
+        padding: 50px;
+        font-size: 1.2rem;
+        color: #666;
+        background: white;
+        border-radius: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .product-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-buttons {
+            flex-direction: column;
+        }
+        
+        .contact-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1>পণ্য তালিকা</h1>
+    </div>
+</div>
+
+<div class="container">
+    <div class="filter-section">
+        <div class="filter-buttons">
+            <a href="{% url 'product_list' %}" class="filter-btn {% if not selected_category %}active{% endif %}">সব পণ্য</a>
+            <a href="?category=door" class="filter-btn {% if selected_category == 'door' %}active{% endif %}">দরজা</a>
+            <a href="?category=window" class="filter-btn {% if selected_category == 'window' %}active{% endif %}">জানালা</a>
+            <a href="?category=grill" class="filter-btn {% if selected_category == 'grill' %}active{% endif %}">গ্রিল</a>
+            <a href="?category=gate" class="filter-btn {% if selected_category == 'gate' %}active{% endif %}">গেট</a>
+            <a href="?category=railing" class="filter-btn {% if selected_category == 'railing' %}active{% endif %}">রেলিং</a>
+            <a href="?category=shed" class="filter-btn {% if selected_category == 'shed' %}active{% endif %}">শেড</a>
+            <a href="?category=other" class="filter-btn {% if selected_category == 'other' %}active{% endif %}">অন্যান্য</a>
+        </div>
+    </div>
+    
+    {% if products %}
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card">
+            {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
+            {% else %}
+            <div class="product-image" style="background-color: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 3rem; color: #999;">📦</span>
+            </div>
+            {% endif %}
+            <div class="product-info">
+                <span class="product-category">{{ product.get_category_display }}</span>
+                <h3 class="product-name">{{ product.name }}</h3>
+                <p class="product-description">{{ product.description }}</p>
+                <p class="product-price">আনুমানিক মূল্য: ৳ {{ product.estimated_price }}</p>
+                <div class="contact-buttons">
+                    <a href="tel:{{ shop_info.phone }}" class="btn">📞 ফোন করুন</a>
+                    <a href="https://wa.me/{{ shop_info.whatsapp }}" class="btn btn-whatsapp" target="_blank">💬 হোয়াটসঅ্যাপ</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-products">
+        <p>এই ক্যাটাগরিতে কোনো পণ্য নেই।</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

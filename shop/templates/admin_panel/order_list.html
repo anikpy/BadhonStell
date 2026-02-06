@@ -1,0 +1,218 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}অর্ডার তালিকা - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-filter-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .search-form {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #e0e0e0;
+        border-radius: 5px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    .orders-table th,
+    .orders-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .orders-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+        position: sticky;
+        top: 0;
+    }
+    
+    .orders-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-completed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    
+    .no-orders {
+        text-align: center;
+        padding: 50px;
+        color: #666;
+        background: white;
+        border-radius: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .orders-table {
+            font-size: 0.85rem;
+        }
+        
+        .orders-table th,
+        .orders-table td {
+            padding: 8px 5px;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="color: #2c3e50;">📋 অর্ডার তালিকা</h2>
+    <a href="{% url 'order_create' %}" class="btn btn-success">+ নতুন অর্ডার</a>
+</div>
+
+<div class="search-filter-section">
+    <form method="get" class="search-form">
+        <div class="form-group">
+            <label for="search">সার্চ করুন</label>
+            <input type="text" id="search" name="search" value="{{ search_query }}" 
+                   placeholder="নাম, মোবাইল বা পণ্যের নাম লিখুন">
+        </div>
+        
+        <div class="form-group">
+            <label for="status">অবস্থা</label>
+            <select id="status" name="status">
+                <option value="">সব অবস্থা</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>চলমান</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>সম্পন্ন</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn">🔍 সার্চ</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    {% if orders %}
+    <div style="overflow-x: auto;">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>ক্রেতার নাম</th>
+                    <th>মোবাইল</th>
+                    <th>পণ্য</th>
+                    <th>মোট মূল্য</th>
+                    <th>নগদ</th>
+                    <th>বাকি</th>
+                    <th>অর্ডার তারিখ</th>
+                    <th>ডেলিভারি</th>
+                    <th>প্রোডাক্ট</th>
+                    <th>ডেলিভারি</th>
+                    <th>অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td><strong>{{ order.customer_name }}</strong></td>
+                    <td>{{ order.mobile_number }}</td>
+                    <td>{{ order.product_name }}</td>
+                    <td>৳ {{ order.total_price }}</td>
+                    <td>৳ {{ order.cash_paid }}</td>
+                    <td><strong>৳ {{ order.due_amount }}</strong></td>
+                    <td>{{ order.order_date|date:"d/m/Y" }}</td>
+                    <td>{{ order.delivery_date|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if order.delivery_status == 'delivered' %}
+                        <span class="status-badge status-completed">✅ ডেলিভারি সম্পন্ন</span>
+                        {% else %}
+                        <span class="status-badge status-pending">⏳ ডেলিভারি হয়নি</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm" target="_blank">ভাউচার</a>
+                            <a href="{% url 'order_edit' order.pk %}" class="btn btn-warning btn-sm">সম্পাদনা</a>
+                            {% if order.status == 'pending' %}
+                            <a href="{% url 'order_complete' order.pk %}" class="btn btn-success btn-sm" 
+                               onclick="return confirm('এই অর্ডার সম্পন্ন করতে চান?')">সম্পন্ন</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="no-orders">
+        <p>কোনো অর্ডার পাওয়া যায়নি।</p>
+        <a href="{% url 'order_create' %}" class="btn" style="margin-top: 20px;">নতুন অর্ডার তৈরি করুন</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

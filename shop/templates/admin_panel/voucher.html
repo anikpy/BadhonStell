@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ভাউচার - {{ order.customer_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .voucher-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .voucher-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .voucher-header h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .voucher-header p {
+            font-size: 1rem;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .voucher-title {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .price-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 1.05rem;
+        }
+
+        .price-row.total {
+            border-top: 2px solid #333;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .price-row.due {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .signature-section {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 2px solid #333;
+            margin-top: 50px;
+            padding-top: 10px;
+            font-weight: 600;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px dashed #ccc;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 1rem;
+            margin: 0 5px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        @media print {
+            /* পেজ সেটিংস - এক পেজে সব */
+            @page {
+                size: A4;
+                margin: 8mm;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            .voucher-container {
+                border: 1.5px solid #000;
+                box-shadow: none;
+                padding: 12px;
+                margin: 0;
+                max-width: 100%;
+                page-break-inside: avoid;
+            }
+
+            .voucher-header {
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+
+            .voucher-header h1 {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+
+            .voucher-header p {
+                font-size: 0.85rem;
+                margin: 2px 0;
+            }
+
+            .voucher-title {
+                padding: 8px;
+                margin-bottom: 15px;
+                font-size: 1.1rem;
+            }
+
+            .info-section {
+                margin-bottom: 15px;
+            }
+
+            .info-row {
+                padding: 5px 0;
+                font-size: 0.9rem;
+            }
+
+            .price-section {
+                padding: 12px;
+                margin: 15px 0;
+            }
+
+            .price-row {
+                padding: 5px 0;
+                font-size: 0.95rem;
+            }
+
+            .price-row.total {
+                padding-top: 8px;
+                font-size: 1.1rem;
+            }
+
+            .signature-section {
+                margin-top: 25px;
+                gap: 30px;
+            }
+
+            .signature-line {
+                margin-top: 30px;
+                padding-top: 6px;
+                font-size: 0.9rem;
+            }
+
+            .footer-note {
+                margin-top: 20px;
+                padding-top: 10px;
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .voucher-container {
+                padding: 20px;
+            }
+            
+            .voucher-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .info-row {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+            
+            .signature-section {
+                grid-template-columns: 1fr;
+                gap: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'order_list' %}" class="btn">← ফিরে যান</a>
+    </div>
+    
+    <div class="voucher-container">
+        <div class="voucher-header">
+            <h1>{{ shop_info.name|default:"বাধন স্টিল" }}</h1>
+            <p>{{ shop_info.address|default:"স্টিল ও লোহার সকল ধরনের কাজ" }}</p>
+            <p>📞 {{ shop_info.phone|default:"01XXXXXXXXX" }} | 💬 {{ shop_info.whatsapp|default:"01XXXXXXXXX" }}</p>
+        </div>
+        
+        <div class="voucher-title">
+            অর্ডার ভাউচার / ইনভয়েস
+        </div>
+        
+        <div class="info-section">
+            <div class="info-row">
+                <div class="info-label">ক্রেতার নাম:</div>
+                <div class="info-value">{{ order.customer_name }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">মোবাইল নাম্বার:</div>
+                <div class="info-value">{{ order.mobile_number }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">পণ্যের নাম:</div>
+                <div class="info-value">{{ order.product_name }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">পণ্যের বিবরণ:</div>
+                <div class="info-value">{{ order.product_description }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">অর্ডার নেওয়ার তারিখ:</div>
+                <div class="info-value">{{ order.order_date|date:"d/m/Y" }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">ডেলিভারির তারিখ:</div>
+                <div class="info-value">{{ order.delivery_date|date:"d/m/Y" }}</div>
+            </div>
+        </div>
+        
+        <div class="price-section">
+            <div class="price-row">
+                <span>মোট মূল্য:</span>
+                <span>৳ {{ order.total_price }}</span>
+            </div>
+            
+            <div class="price-row">
+                <span>নগদ পরিশোধ:</span>
+                <span>৳ {{ order.cash_paid }}</span>
+            </div>
+            
+            <div class="price-row due">
+                <span>বাকি টাকা:</span>
+                <span>৳ {{ order.due_amount }}</span>
+            </div>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">ক্রেতার স্বাক্ষর</div>
+            </div>
+            
+            <div class="signature-box">
+                <div class="signature-line">বিক্রেতার স্বাক্ষর</div>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: {{ shop_info.phone|default:"01XXXXXXXXX" }}</p>
+        </div>
+    </div>
+</body>
+</html>
+

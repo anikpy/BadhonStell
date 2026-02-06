@@ -1,0 +1,155 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{{ customer_name }} - কাস্টমার প্রোফাইল{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>👤 কাস্টমার প্রোফাইল</h2>
+    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+</div>
+
+<!-- কাস্টমার তথ্য -->
+<div class="customer-info-card">
+    <h3>📋 কাস্টমার তথ্য</h3>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>নাম:</strong> {{ customer_name }}
+        </div>
+        <div class="info-item">
+            <strong>মোবাইল:</strong> {{ mobile_number }}
+        </div>
+        <div class="info-item">
+            <strong>মোট ক্রয়:</strong> <span style="color: #2c3e50; font-weight: bold;">৳{{ total_purchase }}</span>
+        </div>
+        <div class="info-item">
+            <strong>পরিশোধিত:</strong> <span style="color: green; font-weight: bold;">৳{{ total_paid }}</span>
+        </div>
+        <div class="info-item">
+            <strong>মোট বাকি:</strong> <span style="color: {% if total_due > 0 %}red{% else %}green{% endif %}; font-weight: bold;">৳{{ total_due }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- সব ভাউচার -->
+<div class="vouchers-section">
+    <h3>📄 সব ভাউচার ({{ all_invoices.count }}টি)</h3>
+    
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ইনভয়েস নং</th>
+                    <th>তারিখ</th>
+                    <th>পণ্য</th>
+                    <th>পরিমাণ</th>
+                    <th>মোট টাকা</th>
+                    <th>পরিশোধিত</th>
+                    <th>বাকি</th>
+                    <th>স্ট্যাটাস</th>
+                    <th>কার্যক্রম</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in all_invoices %}
+                <tr {% if not invoice.is_latest %}style="background: #f5f5f5; opacity: 0.7;"{% endif %}>
+                    <td>
+                        <strong>{{ invoice.invoice_number }}</strong>
+                        {% if not invoice.is_latest %}
+                        <br><small style="color: #999;">পুরাতন ভার্সন</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ invoice.sale_date|date:"d/m/Y" }}</td>
+                    <td>{{ invoice.product.name }}</td>
+                    <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                    <td>৳{{ invoice.total_amount }}</td>
+                    <td style="color: green;">৳{{ invoice.paid_amount }}</td>
+                    <td>
+                        {% if invoice.due_amount > 0 %}
+                        <span style="color: red; font-weight: bold;">৳{{ invoice.due_amount }}</span>
+                        {% else %}
+                        <span style="color: green;">✅</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if invoice.is_latest %}
+                        <span class="badge badge-success">✅ সর্বশেষ</span>
+                        {% else %}
+                        <span class="badge badge-secondary">📜 পুরাতন</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
+                        {% if invoice.is_latest %}
+                        <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.customer-info-card {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.customer-info-card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.vouchers-section {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.vouchers-section h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.badge-success {
+    background: #27ae60;
+    color: white;
+}
+
+.badge-secondary {
+    background: #95a5a6;
+    color: white;
+}
+</style>
+{% endblock %}
+

@@ -1,0 +1,290 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}ইউজার ম্যানেজমেন্ট - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        border-radius: 10px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .user-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .warning-box {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .warning-box h3 {
+        color: #856404;
+        margin-bottom: 10px;
+    }
+
+    .warning-box ul {
+        margin: 10px 0 0 20px;
+        color: #856404;
+    }
+
+    .add-user-card {
+        background: white;
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #e74c3c;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .users-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+
+    .user-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+
+    .user-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        border-color: #e74c3c;
+    }
+
+    .user-info h3 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+
+    .user-detail {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .user-detail-label {
+        color: #666;
+        font-size: 0.95rem;
+    }
+
+    .user-detail-value {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .user-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .reset-password-form {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: none;
+    }
+
+    .reset-password-form.active {
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .user-header {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .users-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-header">
+    <h2>👥 ইউজার ম্যানেজমেন্ট</h2>
+    <span style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 20px;">
+        🔒 শুধু সুপার অ্যাডমিন
+    </span>
+</div>
+
+<div class="warning-box">
+    <h3>⚠️ সতর্কতা</h3>
+    <ul>
+        <li>এই পেজ শুধুমাত্র সুপার অ্যাডমিনের জন্য</li>
+        <li>ম্যানেজার তৈরি/ডিলিট/পাসওয়ার্ড রিসেট করলে ইমেইল পাঠানো হবে</li>
+        <li>আপনার ইমেইল: <strong>aniklpu01@gmail.com</strong></li>
+        <li>সব পরিবর্তনের নোটিফিকেশন আপনার ইমেইলে যাবে</li>
+    </ul>
+</div>
+
+<div class="add-user-card">
+    <h3 style="margin-bottom: 20px; color: #2c3e50;">➕ নতুন ম্যানেজার যোগ করুন</h3>
+
+    <form method="post" action="{% url 'user_create' %}">
+        {% csrf_token %}
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>পূর্ণ নাম *</label>
+                <input type="text" name="full_name" required placeholder="উদাহরণ: মোঃ করিম">
+            </div>
+
+            <div class="form-group">
+                <label>ইউজারনেম *</label>
+                <input type="text" name="username" required placeholder="উদাহরণ: karim123">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>ইমেইল *</label>
+                <input type="email" name="email" required placeholder="উদাহরণ: karim@example.com">
+            </div>
+
+            <div class="form-group">
+                <label>পাসওয়ার্ড *</label>
+                <input type="text" name="password" required placeholder="শক্তিশালী পাসওয়ার্ড দিন">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">✅ ম্যানেজার যোগ করুন</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3 class="card-title">📋 সব ম্যানেজার ({{ users.count }})</h3>
+
+    {% if users %}
+    <div class="users-grid">
+        {% for user in users %}
+        <div class="user-card">
+            <div class="user-info">
+                <h3>{{ user.first_name|default:user.username }}</h3>
+
+                <div class="user-detail">
+                    <span class="user-detail-label">ইউজারনেম:</span>
+                    <span class="user-detail-value">{{ user.username }}</span>
+                </div>
+
+                <div class="user-detail">
+                    <span class="user-detail-label">ইমেইল:</span>
+                    <span class="user-detail-value">{{ user.email|default:"নেই" }}</span>
+                </div>
+
+                <div class="user-detail">
+                    <span class="user-detail-label">যোগ হয়েছে:</span>
+                    <span class="user-detail-value">{{ user.date_joined|date:"d/m/Y" }}</span>
+                </div>
+
+                <div class="user-detail">
+                    <span class="user-detail-label">শেষ লগইন:</span>
+                    <span class="user-detail-value">
+                        {% if user.last_login %}
+                        {{ user.last_login|date:"d/m/Y H:i" }}
+                        {% else %}
+                        কখনো লগইন করেনি
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="user-actions">
+                <button onclick="toggleResetForm({{ user.id }})" class="btn btn-warning btn-sm">
+                    🔑 পাসওয়ার্ড রিসেট
+                </button>
+                <a href="{% url 'user_delete' user.id %}" class="btn btn-danger btn-sm"
+                   onclick="return confirm('আপনি কি নিশ্চিত যে {{ user.first_name|default:user.username }} কে রিমুভ করতে চান?')">
+                    🗑️ রিমুভ
+                </a>
+            </div>
+
+            <div class="reset-password-form" id="reset-form-{{ user.id }}">
+                <form method="post" action="{% url 'user_reset_password' user.id %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>নতুন পাসওয়ার্ড:</label>
+                        <input type="text" name="new_password" required placeholder="নতুন পাসওয়ার্ড লিখুন">
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm">✅ পাসওয়ার্ড পরিবর্তন করুন</button>
+                    <button type="button" onclick="toggleResetForm({{ user.id }})" class="btn btn-secondary btn-sm">❌ বাতিল</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <p>কোনো ম্যানেজার নেই। উপরের ফর্ম থেকে নতুন ম্যানেজার যোগ করুন।</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleResetForm(userId) {
+    const form = document.getElementById('reset-form-' + userId);
+    form.classList.toggle('active');
+}
+</script>
+{% endblock %}
+

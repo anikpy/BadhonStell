@@ -1,0 +1,43 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}মাল ফেরত তালিকা - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>↩️ মাল ফেরত তালিকা</h2>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>তারিখ</th>
+                <th>ইনভয়েস নং</th>
+                <th>ক্রেতা</th>
+                <th>পণ্য</th>
+                <th>পরিমাণ</th>
+                <th>কারণ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for return in returns %}
+            <tr>
+                <td>{{ return.return_date|date:"d/m/Y" }}</td>
+                <td>{{ return.sale_item.sale.invoice_number }}</td>
+                <td>{{ return.sale_item.sale.customer_name }}</td>
+                <td>{{ return.sale_item.product.name }}</td>
+                <td>{{ return.quantity }} {{ return.sale_item.product.get_unit_display }}</td>
+                <td>{{ return.reason|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px;">
+                    কোনো মাল ফেরত রেকর্ড পাওয়া যায়নি।
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

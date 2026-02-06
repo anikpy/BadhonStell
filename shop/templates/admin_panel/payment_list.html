@@ -1,0 +1,42 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}পেমেন্ট তালিকা - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>💰 পেমেন্ট তালিকা</h2>
+    <a href="{% url 'sale_detail' sale.pk %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+</div>
+
+<div class="card">
+    <h3>ইনভয়েস: {{ sale.invoice_number }} - {{ sale.customer_name }}</h3>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>তারিখ</th>
+                <th>টাকার পরিমাণ</th>
+                <th>পদ্ধতি</th>
+                <th>নোট</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                <td>৳{{ payment.amount }}</td>
+                <td>{{ payment.payment_method }}</td>
+                <td>{{ payment.notes|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px;">
+                    কোনো পেমেন্ট পাওয়া যায়নি।
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
