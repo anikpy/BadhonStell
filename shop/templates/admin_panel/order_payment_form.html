@@ -1,0 +1,51 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}অর্ডারে পেমেন্ট যোগ করুন - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card">
+        <h2>💳 অর্ডারে পেমেন্ট যোগ করুন</h2>
+        <p><strong>অর্ডার:</strong> #{{ order.id }} - {{ order.product_name }}</p>
+        <p><strong>ক্রেতা:</strong> {{ order.customer_name }} ({{ order.mobile_number }})</p>
+        <p><strong>মোট টাকাঃ</strong> ৳{{ order.total_price }} | <strong>বাকি:</strong> ৳{{ order.due_amount }}</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                {{ form.amount.label_tag }}
+                {{ form.amount }}
+                <small class="help-text">
+                    মোট মূল্য: ৳{{ order.total_price }} |
+                    ইতিমধ্যে পরিশোধিত: ৳{{ order.cash_paid }} |
+                    সর্বোচ্চ যুক্ত করতে পারেন: ৳{{ order.due_amount }}
+                </small>
+            </div>
+            <div class="form-group">
+                {{ form.payment_date.label_tag }}
+                {{ form.payment_date }}
+            </div>
+            <div class="form-group">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">💾 পেমেন্ট সংরক্ষণ</button>
+                <a href="{% url 'order_customer_profile' order.mobile_number %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+            </div>
+        </form>
+
+        {% if order.payments.exists %}
+        <hr>
+        <h4>সাম্প্রতিক পেমেন্টসমূহ</h4>
+        <ul>
+            {% for p in order.payments.all %}
+            <li>{{ p.payment_date|date:"d/m/Y" }} — ৳{{ p.amount }} {% if p.notes %} ({{ p.notes }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

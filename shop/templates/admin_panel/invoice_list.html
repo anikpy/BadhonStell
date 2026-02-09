@@ -35,36 +35,63 @@
             </tr>
         </thead>
         <tbody>
-            {% for invoice in invoices %}
-            <tr>
-                <td><strong>{{ invoice.invoice_number }}</strong></td>
-                <td>{{ invoice.sale_date|date:"d/m/Y" }}</td>
-                <td>
-                    <a href="{% url 'customer_profile' invoice.mobile_number %}" style="color: #2c3e50; text-decoration: none;">
-                        {{ invoice.customer_name }}
-                    </a>
-                </td>
-                <td>
-                    <a href="{% url 'customer_profile' invoice.mobile_number %}" style="color: #2c3e50; text-decoration: none;">
-                        {{ invoice.mobile_number }}
-                    </a>
-                </td>
-                <td>{{ invoice.product.name }}</td>
-                <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
-                <td>৳{{ invoice.total_amount }}</td>
-                <td>
-                    {% if invoice.due_amount > 0 %}
-                    <span style="color: red; font-weight: bold;">৳{{ invoice.due_amount }}</span>
-                    {% else %}
-                    <span style="color: green;">✅ পরিশোধিত</span>
-                    {% endif %}
-                </td>
-                <td class="action-buttons">
-                    <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
-                    <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
-                </td>
-            </tr>
-            {% empty %}
+            {% regroup invoices by mobile_number as invoices_by_customer %}
+            {% for customer_group in invoices_by_customer %}
+                <!-- Customer Group Header Row -->
+                <tr style="background-color: #e8f4f8; border-top: 2px solid #667eea;">
+                    <td colspan="9">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="font-size: 1.1em; color: #2c3e50;">
+                                    👤 {{ customer_group.list.0.customer_name }}
+                                </strong>
+                                <span style="color: #666; margin-left: 10px;">
+                                    📱 {{ customer_group.grouper }}
+                                    <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 10px;">
+                                        {{ customer_group.list|length }} ভাউচার
+                                    </span>
+                                </span>
+                            </div>
+                            <a href="{% url 'customer_profile' customer_group.grouper %}" class="btn btn-primary" style="padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
+                                📊 সব ভাউচার দেখুন
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Individual Invoice Rows for this Customer -->
+                {% for invoice in customer_group.list %}
+                <tr>
+                    <td><strong>{{ invoice.invoice_number }}</strong></td>
+                    <td>{{ invoice.sale_date|date:"d/m/Y" }}</td>
+                    <td>
+                        <strong style="color: #2c3e50;">{{ invoice.customer_name }}</strong>
+                    </td>
+                    <td>
+                        <span style="color: #0066cc; font-weight: 600;">{{ invoice.mobile_number }}</span>
+                    </td>
+                    <td>{{ invoice.product.name }}</td>
+                    <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                    <td>৳{{ invoice.total_amount }}</td>
+                    <td>
+                        {% if invoice.due_amount > 0 %}
+                        <span style="color: red; font-weight: bold;">৳{{ invoice.due_amount }}</span>
+                        {% else %}
+                        <span style="color: green;">✅ পরিশোধিত</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-primary">👁️ দেখুন</a>
+                        <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                        <a href="{% url 'invoice_delete' invoice.pk %}" class="btn btn-sm btn-danger"
+                           onclick="return confirm('এই ভাউচারটি মুছে ফেলতে নিশ্চিত?')">🗑️ মুছুন</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+            {% endfor %}
+            
+            {% if not invoices_by_customer %}
             <tr>
                 <td colspan="9" style="text-align: center; padding: 40px;">
                     {% if search_query %}
@@ -74,10 +101,26 @@
                     {% endif %}
                 </td>
             </tr>
-            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
 </div>
+
+{% if page_obj.has_other_pages %}
+<nav class="pagination-nav" style="margin-top: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+    {% if page_obj.has_previous %}
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+    {% endif %}
+    <span class="pagination-info" style="align-self: center; padding: 8px 12px;">
+        পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+    {% endif %}
+</nav>
+{% endif %}
 
 <style>
 .search-box input {

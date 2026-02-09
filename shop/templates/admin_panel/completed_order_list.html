@@ -1,0 +1,198 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}সম্পন্ন অর্ডার - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-filter-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #e0e0e0;
+        border-radius: 5px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    .orders-table th,
+    .orders-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .orders-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+        position: sticky;
+        top: 0;
+    }
+
+    .orders-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .status-delivered {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .no-orders {
+        text-align: center;
+        padding: 50px;
+        color: #666;
+        background: white;
+        border-radius: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .orders-table {
+            font-size: 0.85rem;
+        }
+
+        .orders-table th,
+        .orders-table td {
+            padding: 8px 5px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="color: #2c3e50;">✅ সম্পন্ন অর্ডার</h2>
+    <a href="{% url 'order_list' %}" class="btn btn-secondary">⬅️ চলমান অর্ডার</a>
+</div>
+
+<div class="search-filter-section">
+    <form method="get" class="search-form">
+        <div class="form-group">
+            <label for="search">সার্চ করুন</label>
+            <input type="text" id="search" name="search" value="{{ search_query }}"
+                   placeholder="নাম, মোবাইল বা পণ্যের নাম লিখুন">
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn">🔍 সার্চ</button>
+        </div>
+    </form>
+</div>
+
+{% if orders %}
+<div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <table class="orders-table">
+        <thead>
+            <tr>
+                <th>অর্ডার আইডি</th>
+                <th>কাস্টমার</th>
+                <th>পণ্য</th>
+                <th>মোট দাম</th>
+                <th>পরিশোধিত</th>
+                <th>বাকি</th>
+                <th>ডেলিভারি তারিখ</th>
+                <th>কার্যক্রম</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><strong>#{{ order.id }}</strong></td>
+                <td>
+                    <strong>{{ order.customer_name }}</strong><br>
+                    <small style="color: #666;">{{ order.mobile_number }}</small>
+                </td>
+                <td>{{ order.product_name }}</td>
+                <td><strong>৳{{ order.total_price }}</strong></td>
+                <td style="color: green;">৳{{ order.cash_paid }}</td>
+                <td>
+                    {% if order.due_amount > 0 %}
+                        <span style="color: red;">৳{{ order.due_amount }}</span>
+                    {% else %}
+                        <span style="color: green;">✅ সম্পূর্ণ</span>
+                    {% endif %}
+                </td>
+                <td>{{ order.delivery_date|date:"d/m/Y" }}</td>
+                <td class="action-buttons">
+                    <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm" target="_blank">📄 ভাউচার</a>
+                    <a href="{% url 'order_customer_profile' order.mobile_number %}" class="btn btn-sm btn-primary">👤 প্রোফাইল</a>
+                    <a href="{% url 'order_edit' order.pk %}" class="btn btn-sm btn-warning">✏️ দেখুন</a>
+                    <a href="{% url 'order_delete' order.pk %}" class="btn btn-sm btn-danger"
+                       onclick="return confirm('এই অর্ডারটি মুছে ফেলতে নিশ্চিত?')">🗑️ মুছুন</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="no-orders">
+    <h3>📭 কোনো সম্পন্ন অর্ডার নেই</h3>
+    <p>আপনার সব সম্পন্ন এবং ডেলিভার করা অর্ডার এখানে দেখা যাবে।</p>
+</div>
+{% endif %}
+
+{% if page_obj.has_other_pages %}
+<nav class="pagination-nav" style="margin-top: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+    {% if page_obj.has_previous %}
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+    {% endif %}
+    <span class="pagination-info" style="align-self: center; padding: 8px 12px;">
+        পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}
+

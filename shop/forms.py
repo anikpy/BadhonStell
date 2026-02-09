@@ -1,5 +1,6 @@
 from django import forms
-from .models import Order, InventoryProduct, Invoice
+from decimal import InvalidOperation
+from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment
 
 
 def bangla_to_english_number(text):
@@ -149,9 +150,18 @@ class InventoryProductForm(forms.ModelForm):
         })
     )
 
+    image = forms.ImageField(
+        label='পণ্য ছবি',
+        required=False,
+        widget=forms.ClearableFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*'
+        })
+    )
+
     class Meta:
         model = InventoryProduct
-        fields = ['name', 'description', 'unit', 'price_per_unit', 'stock_quantity', 'is_active']
+        fields = ['name', 'description', 'unit', 'price_per_unit', 'stock_quantity', 'is_active', 'image']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -231,7 +241,7 @@ class InvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ['customer_name', 'mobile_number', 'product', 'quantity', 'discount_percentage', 'paid_amount', 'notes']
+        fields = ['customer_name', 'mobile_number', 'product', 'quantity', 'discount_percentage', 'paid_amount', 'sale_date', 'notes']
         widgets = {
             'customer_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -244,6 +254,10 @@ class InvoiceForm(forms.ModelForm):
             'product': forms.Select(attrs={
                 'class': 'form-control',
                 'id': 'product-select'
+            }),
+            'sale_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -306,3 +320,92 @@ class InvoiceForm(forms.ModelForm):
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
         return 0
 
+
+class PaymentForm(forms.ModelForm):
+    """পেমেন্ট ফর্ম - আংশিক পেমেন্ট যোগ করার জন্য"""
+
+    amount = forms.CharField(
+        label='পেমেন্টের পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫০০ বা 500',
+            'autocomplete': 'off',
+        })
+    )
+
+    class Meta:
+        model = Payment
+        fields = ['amount', 'payment_date', 'notes']
+        widgets = {
+            'payment_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'নোট (ঐচ্ছিক)'
+            }),
+        }
+
+    def clean_amount(self):
+        from decimal import Decimal
+        amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                # CRITICAL FIX: Return Decimal, not float, to prevent precision loss
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('পেমেন্টের পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        return Decimal('0')
+
+
+class OrderPaymentForm(forms.ModelForm):
+    """অর্ডার পেমেন্ট ফর্ম - কাস্টম অর্ডারের আংশিক পেমেন্ট"""
+
+    amount = forms.CharField(
+        label='পেমেন্টের পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫০০ বা 500',
+            'autocomplete': 'off',
+        })
+    )
+
+    class Meta:
+        model = OrderPayment
+        fields = ['amount', 'payment_date', 'notes']
+        widgets = {
+            'payment_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'নোট (ঐচ্ছিক)'
+            }),
+        }
+
+    def clean_amount(self):
+        from decimal import Decimal
+        amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                # CRITICAL FIX: Return Decimal, not float, to prevent precision loss when saving
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('পেমেন্টের পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        return Decimal('0')

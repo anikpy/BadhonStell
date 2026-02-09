@@ -1,0 +1,244 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{{ customer_name }} - কাস্টম অর্ডার প্রোফাইল{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h2>👤 কাস্টম অর্ডার প্রোফাইল</h2>
+    <a href="{% url 'order_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
+</div>
+
+<!-- কাস্টমার তথ্য -->
+<div class="customer-info-card">
+    <h3>📋 কাস্টমার তথ্য</h3>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>নাম:</strong> {{ customer_name }}
+        </div>
+        <div class="info-item">
+            <strong>মোবাইল:</strong> {{ mobile_number }}
+        </div>
+        <div class="info-item">
+            <strong>মোট অর্ডার:</strong> <span style="color: #2c3e50; font-weight: bold;">{{ total_orders }}টি</span>
+        </div>
+        <div class="info-item">
+            <strong>মোট মূল্য:</strong> <span style="color: #2c3e50; font-weight: bold;">৳{{ total_price }}</span>
+        </div>
+        <div class="info-item">
+            <strong>মোট পরিশোধিত:</strong> <span style="color: green; font-weight: bold;">৳{{ total_paid }}</span>
+        </div>
+        <div class="info-item">
+            <strong>মোট বাকি:</strong> <span style="color: {% if total_due > 0 %}red{% else %}green{% endif %}; font-weight: bold;">৳{{ total_due }}</span>
+        </div>
+        <div class="info-item">
+            <strong>ডেলিভার সম্পন্ন:</strong> <span style="color: green; font-weight: bold;">{{ delivered_count }}টি</span>
+        </div>
+        <div class="info-item">
+            <strong>ডেলিভার বাকি:</strong> <span style="color: orange; font-weight: bold;">{{ pending_count }}টি</span>
+        </div>
+    </div>
+</div>
+
+<!-- সব অর্ডার -->
+<div class="orders-section">
+    <h3>📦 সব অর্ডার ({{ all_orders.count }}টি)</h3>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>অর্ডার আইডি</th>
+                    <th>পণ্য</th>
+                    <th>অর্ডার তারিখ</th>
+                    <th>ডেলিভারি তারিখ</th>
+                    <th>মোট মূল্য</th>
+                    <th>পরিশোধিত</th>
+                    <th>বাকি</th>
+                    <th>অবস্থা</th>
+                    <th>ডেলিভারি</th>
+                    <th>কার্যক্রম</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in all_orders %}
+                <tr>
+                    <td><strong>#{{ order.id }}</strong></td>
+                    <td>{{ order.product_name }}</td>
+                    <td>{{ order.order_date|date:"d/m/Y" }}</td>
+                    <td>{{ order.delivery_date|date:"d/m/Y" }}</td>
+                    <td><strong>৳{{ order.total_price }}</strong></td>
+                    <td style="color: green;">৳{{ order.cash_paid }}</td>
+                    <td>
+                        {% if order.due_amount > 0 %}
+                            <span style="color: red; font-weight: bold;">৳{{ order.due_amount }}</span>
+                        {% else %}
+                            <span style="color: green;">✅ সম্পূর্ণ</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ order.status }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if order.delivery_status == 'delivered' %}
+                            <span class="status-badge status-delivered">✅ ডেলিভার</span>
+                        {% else %}
+                            <span class="status-badge status-pending">⏳ বাকি</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <a href="{% url 'order_edit' order.pk %}" class="btn btn-sm btn-primary">✏️ দেখুন</a>
+                        {% if order.due_amount > 0 %}
+                        <a href="{% url 'order_payment_create' order.pk %}" class="btn btn-sm btn-success">💳 পেমেন্ট যোগ করুন</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if order.payments.exists %}
+                <tr class="payments-row">
+                    <td colspan="10" style="background:#fafafa;padding:10px;">
+                        <strong>পেমেন্ট হিস্ট্রি (Order #{{ order.id }}):</strong>
+                        <div style="margin-top:8px;">
+                            {% for p in order.payments.all %}
+                                <div style="display:flex; gap:20px; align-items:center; padding:6px 0;">
+                                    <div style="width:120px; color:#2c3e50; font-weight:600;">{{ p.payment_date|date:"d/m/Y" }}</div>
+                                    <div style="color:green; font-weight:700;">৳{{ p.amount }}</div>
+                                    <div style="color:#666;">{{ p.notes }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.customer-info-card {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.customer-info-card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.orders-section {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.orders-section h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table th {
+    background: #2c3e50;
+    color: white;
+    font-weight: 600;
+}
+
+.data-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-delivered {
+    background: #d4edda;
+    color: #155724;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .data-table {
+        font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px 5px;
+    }
+}
+</style>
+{% endblock %}

@@ -261,5 +261,21 @@
     <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ প্রথম পণ্য যোগ করুন</a>
 </div>
 {% endif %}
+
+{% if page_obj.has_other_pages %}
+<nav class="pagination-nav" style="margin-top: 24px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+    {% if page_obj.has_previous %}
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+    {% endif %}
+    <span class="pagination-info" style="align-self: center; padding: 8px 12px;">
+        পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+    {% endif %}
+</nav>
+{% endif %}
 {% endblock %}
 

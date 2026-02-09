@@ -140,7 +140,7 @@
             <select id="status" name="status">
                 <option value="">সব অবস্থা</option>
                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>চলমান</option>
-                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>সম্পন্ন</option>
+                <option value="ready" {% if status_filter == 'ready' %}selected{% endif %}>প্রস্তুত</option>
             </select>
         </div>
         
@@ -170,39 +170,71 @@
                 </tr>
             </thead>
             <tbody>
-                {% for order in orders %}
-                <tr>
-                    <td><strong>{{ order.customer_name }}</strong></td>
-                    <td>{{ order.mobile_number }}</td>
-                    <td>{{ order.product_name }}</td>
-                    <td>৳ {{ order.total_price }}</td>
-                    <td>৳ {{ order.cash_paid }}</td>
-                    <td><strong>৳ {{ order.due_amount }}</strong></td>
-                    <td>{{ order.order_date|date:"d/m/Y" }}</td>
-                    <td>{{ order.delivery_date|date:"d/m/Y" }}</td>
-                    <td>
-                        <span class="status-badge status-{{ order.status }}">
-                            {{ order.get_status_display }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if order.delivery_status == 'delivered' %}
-                        <span class="status-badge status-completed">✅ ডেলিভারি সম্পন্ন</span>
-                        {% else %}
-                        <span class="status-badge status-pending">⏳ ডেলিভারি হয়নি</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm" target="_blank">ভাউচার</a>
-                            <a href="{% url 'order_edit' order.pk %}" class="btn btn-warning btn-sm">সম্পাদনা</a>
-                            {% if order.status == 'pending' %}
-                            <a href="{% url 'order_complete' order.pk %}" class="btn btn-success btn-sm" 
-                               onclick="return confirm('এই অর্ডার সম্পন্ন করতে চান?')">সম্পন্ন</a>
+                {% regroup orders by mobile_number as orders_by_customer %}
+                {% for customer_group in orders_by_customer %}
+                    <!-- Customer Group Header Row -->
+                    <tr style="background-color: #e8f4f8; border-top: 2px solid #667eea;">
+                        <td colspan="11">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="font-size: 1.1em; color: #2c3e50;">
+                                        👤 {{ customer_group.list.0.customer_name }}
+                                    </strong>
+                                    <span style="color: #666; margin-left: 10px;">
+                                        📱 {{ customer_group.grouper }}
+                                        <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 10px;">
+                                            {{ customer_group.list|length }} অর্ডার
+                                        </span>
+                                    </span>
+                                </div>
+                                <a href="{% url 'order_customer_profile' customer_group.grouper %}" class="btn btn-primary" style="padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
+                                    📊 সব অর্ডার দেখুন
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Individual Order Rows for this Customer -->
+                    {% for order in customer_group.list %}
+                    <tr>
+                        <td><strong style="color: #2c3e50;">{{ order.customer_name }}</strong></td>
+                        <td><span style="color: #0066cc; font-weight: 600;">{{ order.mobile_number }}</span></td>
+                        <td>{{ order.product_name }}</td>
+                        <td>৳ {{ order.total_price }}</td>
+                        <td>৳ {{ order.cash_paid }}</td>
+                        <td><strong>৳ {{ order.due_amount }}</strong></td>
+                        <td>{{ order.order_date|date:"d/m/Y" }}</td>
+                        <td>{{ order.delivery_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="status-badge status-{{ order.status }}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if order.delivery_status == 'delivered' %}
+                            <span class="status-badge status-completed">✅ ডেলিভারি সম্পন্ন</span>
+                            {% else %}
+                            <span class="status-badge status-pending">⏳ ডেলিভারি হয়নি</span>
                             {% endif %}
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm" target="_blank">ভাউচার</a>
+                                <a href="{% url 'order_edit' order.pk %}" class="btn btn-warning btn-sm">সম্পাদনা</a>
+                                {% if order.due_amount > 0 %}
+                                <a href="{% url 'order_payment_create' order.pk %}" class="btn btn-success btn-sm">💳 পেমেন্ট</a>
+                                {% endif %}
+                                {% if order.status == 'pending' %}
+                                <a href="{% url 'order_complete' order.pk %}" class="btn btn-info btn-sm"
+                                   onclick="return confirm('এই অর্ডার সম্পন্ন করতে চান?')">✓ সম্পন্ন</a>
+                                {% endif %}
+                                <a href="{% url 'order_delete' order.pk %}" class="btn btn-danger btn-sm"
+                                   onclick="return confirm('এই অর্ডারটি মুছে ফেলতে নিশ্চিত?')">🗑️ মুছুন</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
                 {% endfor %}
             </tbody>
         </table>

@@ -6,7 +6,11 @@
 <div class="content-header no-print">
     <h2>📄 ইনভয়েস বিস্তারিত</h2>
     <div>
+        {% if invoice.due_amount > 0 %}
+        <a href="{% url 'payment_create' invoice.pk %}" class="btn btn-info">💳 পেমেন্ট যোগ করুন</a>
+        {% endif %}
         <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-warning">✏️ এডিট করুন</a>
+        <a href="{% url 'invoice_delete' invoice.pk %}" class="btn btn-danger" onclick="return confirm('এই ভাউচারটি মুছে ফেলতে নিশ্চিত?')">🗑️ মুছুন</a>
         <a href="{% url 'invoice_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
         <button onclick="window.print()" class="btn btn-primary">🖨️ প্রিন্ট</button>
     </div>
@@ -132,6 +136,38 @@
         </table>
     </div>
     {% endif %}
+
+    <!-- পেমেন্ট হিস্ট্রি -->
+    {% if invoice.payments.all %}
+    <div class="payment-history no-print">
+        <h3>💳 পেমেন্ট হিস্ট্রি</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>তারিখ</th>
+                    <th>পরিমাণ</th>
+                    <th>নোট</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in invoice.payments.all %}
+                <tr>
+                    <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                    <td><strong style="color: green;">৳{{ payment.amount }}</strong></td>
+                    <td>{{ payment.notes|default:"..." }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td style="text-align: right;"><strong>মোট পেমেন্ট:</strong></td>
+                    <td><strong style="color: green;">৳{{ invoice.paid_amount }}</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -215,6 +251,19 @@
 
 .version-history {
     margin-top: 30px;
+}
+
+.payment-history {
+    margin-top: 30px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #27ae60;
+}
+
+.payment-history h3 {
+    margin-top: 0;
+    color: #2c3e50;
 }
 
 .badge {

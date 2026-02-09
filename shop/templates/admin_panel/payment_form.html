@@ -8,11 +8,11 @@
         <h2 class="card-title">💵 পেমেন্ট যোগ করুন</h2>
         
         <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-            <p><strong>ইনভয়েস:</strong> {{ sale.invoice_number }}</p>
-            <p><strong>ক্রেতা:</strong> {{ sale.customer_name }}</p>
-            <p><strong>মোট টাকা:</strong> ৳{{ sale.total_amount }}</p>
-            <p><strong>পরিশোধিত:</strong> ৳{{ sale.paid_amount }}</p>
-            <p style="color: red; font-size: 1.2em;"><strong>বাকি:</strong> ৳{{ sale.due_amount }}</p>
+            <p><strong>ইনভয়েস:</strong> {{ invoice.invoice_number }}</p>
+            <p><strong>ক্রেতা:</strong> {{ invoice.customer_name }}</p>
+            <p><strong>মোট টাকা:</strong> ৳{{ invoice.total_amount }}</p>
+            <p><strong>পরিশোধিত:</strong> ৳{{ invoice.paid_amount }}</p>
+            <p style="color: red; font-size: 1.2em;"><strong>বাকি:</strong> ৳{{ invoice.due_amount }}</p>
         </div>
         
         <form method="post">
@@ -26,12 +26,7 @@
             <div class="form-group">
                 {{ form.amount.label_tag }}
                 {{ form.amount }}
-                <small style="color: #666;">সর্বোচ্চ: ৳{{ sale.due_amount }}</small>
-            </div>
-            
-            <div class="form-group">
-                {{ form.payment_method.label_tag }}
-                {{ form.payment_method }}
+                <small style="color: #666;">সর্বোচ্চ: ৳{{ invoice.due_amount }}</small>
             </div>
             
             <div class="form-group">
@@ -41,7 +36,7 @@
             
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">✅ পেমেন্ট যোগ করুন</button>
-                <a href="{% url 'sale_detail' sale.pk %}" class="btn btn-danger">❌ বাতিল</a>
+                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-danger">❌ বাতিল</a>
             </div>
         </form>
     </div>

@@ -125,7 +125,16 @@
         .btn-warning:hover {
             background-color: #e0a800;
         }
-        
+
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background-color: #138496;
+        }
+
         .btn-sm {
             padding: 5px 15px;
             font-size: 0.9rem;
@@ -193,6 +202,7 @@
             <nav class="admin-nav">
                 <a href="{% url 'admin_dashboard' %}">🏠 ড্যাশবোর্ড</a>
                 <a href="{% url 'order_list' %}">📋 কাস্টম অর্ডার</a>
+                <a href="{% url 'completed_order_list' %}">✅ সম্পন্ন অর্ডার</a>
                 <a href="{% url 'inventory_product_list' %}">📦 ইনভেন্টরি</a>
                 <a href="{% url 'invoice_list' %}">💰 বিক্রয়/ভাউচার</a>
                 {% if request.user.is_superuser %}

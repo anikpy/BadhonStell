@@ -182,7 +182,7 @@
                 <div class="product-info">
                     <h3 class="product-name">{{ product.name }}</h3>
                     <p class="product-description">{{ product.description|truncatewords:15 }}</p>
-                    <p class="product-price">৳ {{ product.estimated_price }}</p>
+                    <p class="product-price">৳ {{ product.price_per_unit }}</p>
                     <a href="tel:{{ shop_info.phone }}" class="btn">অর্ডার করতে যোগাযোগ করুন</a>
                 </div>
             </div>
@@ -196,4 +196,3 @@
     </div>
 </div>
 {% endblock %}
-

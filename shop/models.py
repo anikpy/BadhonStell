@@ -5,8 +5,7 @@ from django.utils import timezone
 class ShopInfo(models.Model):
     """দোকানের তথ্য"""
     name = models.CharField(max_length=200, verbose_name='দোকানের নাম')
-    # logo = models.ImageField(upload_to='shop/', blank=True, null=True, verbose_name='লোগো')
-    # Note: Uncomment above line after installing Pillow: pip install Pillow
+    logo = models.ImageField(upload_to='shop/', blank=True, null=True, verbose_name='লোগো')
     description = models.TextField(verbose_name='বিবরণ')
     phone = models.CharField(max_length=20, verbose_name='ফোন নাম্বার')
     whatsapp = models.CharField(max_length=20, verbose_name='হোয়াটসঅ্যাপ নাম্বার')
@@ -34,8 +33,7 @@ class Product(models.Model):
     
     name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
     category = models.CharField(max_length=50, choices=PRODUCT_CATEGORIES, verbose_name='ক্যাটাগরি')
-    # image = models.ImageField(upload_to='products/', verbose_name='ছবি')
-    # Note: Uncomment above line after installing Pillow: pip install Pillow
+    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name='ছবি')
     description = models.TextField(verbose_name='বিবরণ')
     estimated_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='আনুমানিক দাম')
     is_active = models.BooleanField(default=True, verbose_name='সক্রিয়')
@@ -68,6 +66,8 @@ class InventoryProduct(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='সক্রিয়')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির তারিখ')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের তারিখ')
+    # Optional image for inventory product
+    image = models.ImageField(upload_to='inventory/', blank=True, null=True, verbose_name='ছবি')
 
     class Meta:
         verbose_name = 'ইনভেন্টরি পণ্য'
@@ -98,6 +98,7 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য')
     cash_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নগদ পরিশোধ', default=0)
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False)
+    initial_payment_migrated = models.BooleanField(default=False, verbose_name='প্রাথমিক পেমেন্ট OrderPayment-এ স্থানান্তরিত')
     order_date = models.DateField(default=timezone.now, verbose_name='অর্ডার নেওয়ার তারিখ')
     delivery_date = models.DateField(verbose_name='ডেলিভারির তারিখ')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='প্রোডাক্ট অবস্থা')
@@ -112,7 +113,12 @@ class Order(models.Model):
 
     def save(self, *args, **kwargs):
         # বাকি টাকা অটো ক্যালকুলেশন
-        self.due_amount = self.total_price - self.cash_paid
+        # Note: cash_paid is now updated by signal from OrderPayment records
+        # Only calculate due_amount here for new orders before any payments
+        if not self.pk:  # New order
+            self.due_amount = self.total_price - self.cash_paid
+        else:  # Existing order - let signal handle it
+            pass
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -191,6 +197,106 @@ class Invoice(models.Model):
     def __str__(self):
         return f"{self.invoice_number} - {self.customer_name}"
 
+    def get_total_paid_amount(self):
+        """আংশিক পেমেন্ট থেকে মোট পরিশোধিত পরিমাণ পান"""
+        return sum(payment.amount for payment in self.payments.all())
 
 
+class Payment(models.Model):
+    """পেমেন্ট - আংশিক পেমেন্ট ট্র্যাকিং"""
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments', verbose_name='ইনভয়েস')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিশোধিত পরিমাণ')
+    payment_date = models.DateField(default=timezone.now, verbose_name='পেমেন্ট তারিখ')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
 
+    class Meta:
+        verbose_name = 'পেমেন্ট'
+        verbose_name_plural = 'পেমেন্টসমূহ'
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f"পেমেন্ট {self.amount} - {self.invoice.invoice_number}"
+
+
+class OrderPayment(models.Model):
+    """অর্ডার পেমেন্ট - কাস্টম অর্ডারের আংশিক পেমেন্ট ট্র্যাকিং"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments', verbose_name='অর্ডার')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিশোধিত পরিমাণ')
+    payment_date = models.DateField(default=timezone.now, verbose_name='পেমেন্ট তারিখ')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'অর্ডার পেমেন্ট'
+        verbose_name_plural = 'অর্ডার পেমেন্টসমূহ'
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f"অর্ডার পেমেন্ট {self.amount} - Order#{self.order.pk}"
+
+    def save(self, *args, **kwargs):
+        # Prevent overpayment: sum existing payments (excluding this one if updating)
+        existing_total = sum(p.amount for p in self.order.payments.exclude(pk=self.pk))
+        new_total = existing_total + (self.amount or 0)
+        if new_total > float(self.order.total_price):
+            raise ValueError(f"Overpayment detected: order total is {self.order.total_price}, existing paid {existing_total}, attempted add {(self.amount or 0)}")
+        super().save(*args, **kwargs)
+
+
+# Signals to update Order totals when OrderPayment changes
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+@receiver([post_save, post_delete], sender=OrderPayment)
+def update_order_payment_totals(sender, instance, **kwargs):
+    """
+    CRITICAL FIX: Properly calculate cash_paid and due_amount
+
+    Design:
+    - cash_paid field is used for initial payment when order is created (for convenience)
+    - But once we add OrderPayment records, we should track EVERYTHING via OrderPayment
+    - This signal migrates initial payment to OrderPayment on first payment addition
+    """
+    order = instance.order
+    from decimal import Decimal
+
+    # Step 1: If initial payment exists and not yet migrated, create OrderPayment for it.
+    # CRITICAL: Always migrate the full order.cash_paid to an OrderPayment once. Otherwise
+    # when the user adds a payment that equals or exceeds the initial amount, we skip
+    # migration (existing_payment_total >= cash_paid) and then Step 2 overwrites
+    # cash_paid with sum(OrderPayments), losing the initial payment.
+    if order.cash_paid > 0 and not order.initial_payment_migrated:
+        try:
+            initial_amount = Decimal(str(order.cash_paid))
+            OrderPayment.objects.create(
+                order=order,
+                amount=initial_amount,
+                payment_date=order.order_date,
+                notes='প্রাথমিক পেমেন্ট (মাইগ্রেটেড)'
+            )
+            order.initial_payment_migrated = True
+        except Exception:
+            pass  # Silently skip if migration fails
+
+    # Step 2: Recalculate total paid from ALL OrderPayment records.
+    # CRITICAL: On post_save, include the triggering instance explicitly — the reverse
+    # relation order.payments.all() can miss the just-saved row, so the first payment
+    # would not be counted until a second payment is added. On post_delete, instance is
+    # already removed from DB so sum(order.payments.all()) is correct.
+    if 'created' in kwargs and getattr(instance, 'pk', None):
+        total_paid = sum(Decimal(str(p.amount)) for p in order.payments.exclude(pk=instance.pk)) + Decimal(str(instance.amount))
+    else:
+        total_paid = sum(Decimal(str(p.amount)) for p in order.payments.all())
+    order.cash_paid = total_paid
+    order.due_amount = order.total_price - total_paid
+    order.initial_payment_migrated = True
+
+    # Save without triggering signal again
+    Order.objects.filter(pk=order.pk).update(
+        cash_paid=order.cash_paid,
+        due_amount=order.due_amount,
+        initial_payment_migrated=True
+    )

@@ -2,132 +2,253 @@
 
 {% block title %}{% if old_invoice %}ইনভয়েস এডিট{% else %}নতুন বিক্রয়{% endif %}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Clean card layout for forms */
+    .form-container {
+        max-width: 1100px;
+        margin: 30px auto;
+    }
+
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .content-header h2 {
+        margin: 0;
+        font-size: 1.6rem;
+        color: #263238;
+    }
+
+    .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 6px 24px rgba(38,50,56,0.06);
+        border: 1px solid #e6eef3;
+    }
+
+    .form-section {
+        margin-bottom: 18px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #263238;
+    }
+
+    .form-group .form-control,
+    select.form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #dbe7ef;
+        font-size: 1rem;
+        transition: box-shadow .15s ease, border-color .15s ease;
+    }
+
+    .form-group .form-control:focus {
+        outline: none;
+        box-shadow: 0 4px 18px rgba(102,126,234,0.08);
+        border-color: #667eea;
+    }
+
+    .error {
+        color: #c62828;
+        font-size: 0.9rem;
+        margin-top: 6px;
+        display: block;
+    }
+
+    .calculation-card {
+        background: linear-gradient(180deg,#f1f8ee,#fff);
+        border-radius: 10px;
+        padding: 16px;
+        border: 1px solid #d9f0d9;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #111827;
+        padding: 10px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e6eef3;
+    }
+
+    .btn-success {
+        background: linear-gradient(90deg,#16a34a,#4ade80);
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    @media (max-width: 880px) {
+        .form-row { grid-template-columns: 1fr; }
+        .content-header { flex-direction: column; align-items: stretch; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="content-header">
-    <h2>{% if old_invoice %}✏️ ইনভয়েস এডিট{% else %}➕ নতুন বিক্রয়{% endif %}</h2>
-    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">⬅️ ফিরে যান</a>
-</div>
-
-{% if old_invoice %}
-<div class="alert alert-info" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <strong>📝 নোট:</strong> এডিট করলে পুরাতন ইনভয়েস সংরক্ষিত থাকবে এবং একটি নতুন ইনভয়েস তৈরি হবে।
-</div>
-{% endif %}
-
 <div class="form-container">
-    <form method="post" class="invoice-form">
-        {% csrf_token %}
-        
-        <div class="form-section">
-            <h3>👤 ক্রেতার তথ্য</h3>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>{{ form.customer_name.label }}</label>
-                    {{ form.customer_name }}
-                    {% if form.customer_name.errors %}
-                    <span class="error">{{ form.customer_name.errors.0 }}</span>
-                    {% endif %}
-                </div>
-                <div class="form-group">
-                    <label>{{ form.mobile_number.label }}</label>
-                    {{ form.mobile_number }}
-                    {% if form.mobile_number.errors %}
-                    <span class="error">{{ form.mobile_number.errors.0 }}</span>
-                    {% endif %}
-                </div>
-            </div>
+    <div class="content-header">
+        <h2>{% if old_invoice %}✏️ ইনভয়েস এডিট{% else %}➕ নতুন বিক্রয়{% endif %}</h2>
+        <div>
+            <a href="{% url 'invoice_list' %}" class="btn-secondary">⬅️ ফিরে যান</a>
         </div>
+    </div>
 
-        <div class="form-section">
-            <h3>📦 পণ্যের তথ্য</h3>
-            <div class="form-group">
-                <label>{{ form.product.label }}</label>
-                {{ form.product }}
-                {% if form.product.errors %}
-                <span class="error">{{ form.product.errors.0 }}</span>
-                {% endif %}
-            </div>
-            
-            <!-- পণ্যের তথ্য দেখানো -->
-            <div id="product-info" style="display: none; background: #f0f8ff; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                <p><strong>পণ্য:</strong> <span id="info-name"></span></p>
-                <p><strong>একক মূল্য:</strong> ৳<span id="info-price"></span> / <span id="info-unit"></span></p>
-                <p><strong>স্টক:</strong> <span id="info-stock"></span> <span id="info-unit2"></span></p>
-            </div>
+    {% if old_invoice %}
+    <div class="card" style="margin-bottom:12px; background:#eaf4ff; border:1px solid #d7eafd;">
+        <strong>📝 নোট:</strong> এডিট করলে পুরাতন ইনভয়েস সংরক্ষিত থাকবে এবং একটি নতুন ইনভয়েস তৈরি হবে।
+    </div>
+    {% endif %}
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>{{ form.quantity.label }}</label>
-                    {{ form.quantity }}
-                    {% if form.quantity.errors %}
-                    <span class="error">{{ form.quantity.errors.0 }}</span>
-                    {% endif %}
-                </div>
-                <div class="form-group">
-                    <label>{{ form.discount_percentage.label }}</label>
-                    {{ form.discount_percentage }}
-                    {% if form.discount_percentage.errors %}
-                    <span class="error">{{ form.discount_percentage.errors.0 }}</span>
-                    {% endif %}
-                </div>
-            </div>
+    <div class="card">
+        <form method="post" class="invoice-form">
+            {% csrf_token %}
 
-            <!-- লাইভ হিসাব দেখানো -->
-            <div id="calculation-box" style="display: none; background: #e8f5e9; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #4caf50;">
-                <h4 style="margin-top: 0; color: #2e7d32;">💰 হিসাব</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 16px;">
-                    <div>
-                        <strong>একক মূল্য:</strong> <span id="calc-unit-price" style="color: #1976d2;">৳০</span>
+            <div class="form-section">
+                <h3 style="margin:0 0 12px 0;">👤 ক্রেতার তথ্য</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.customer_name.label }}</label>
+                        {{ form.customer_name }}
+                        {% if form.customer_name.errors %}
+                        <span class="error">{{ form.customer_name.errors.0 }}</span>
+                        {% endif %}
                     </div>
-                    <div>
-                        <strong>পরিমাণ:</strong> <span id="calc-quantity" style="color: #1976d2;">০</span>
-                    </div>
-                    <div>
-                        <strong>সাবটোটাল:</strong> <span id="calc-subtotal" style="color: #1976d2; font-size: 18px;">৳০</span>
-                    </div>
-                    <div>
-                        <strong>ছাড় (<span id="calc-discount-percent">০</span>%):</strong> <span id="calc-discount-amount" style="color: #d32f2f;">- ৳০</span>
-                    </div>
-                </div>
-                <hr style="margin: 15px 0; border: none; border-top: 2px dashed #4caf50;">
-                <div style="font-size: 22px; font-weight: bold; color: #2e7d32;">
-                    <strong>মোট টাকা:</strong> <span id="calc-total" style="color: #1b5e20;">৳০</span>
-                </div>
-            </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>{{ form.paid_amount.label }}</label>
-                    {{ form.paid_amount }}
-                    {% if form.paid_amount.errors %}
-                    <span class="error">{{ form.paid_amount.errors.0 }}</span>
-                    {% endif %}
-                    <small style="color: #666;">পুরো টাকা না দিলে বাকি থাকবে</small>
-                </div>
-                <div class="form-group">
-                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 2px solid #ffc107;">
-                        <strong>বাকি থাকবে:</strong> <span id="calc-due" style="color: #d32f2f; font-size: 20px; font-weight: bold;">৳০</span>
+                    <div class="form-group">
+                        <label>{{ form.mobile_number.label }}</label>
+                        {{ form.mobile_number }}
+                        {% if form.mobile_number.errors %}
+                        <span class="error">{{ form.mobile_number.errors.0 }}</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="form-section">
-            <h3>📝 অন্যান্য</h3>
-            <div class="form-group">
-                <label>{{ form.notes.label }}</label>
-                {{ form.notes }}
-                {% if form.notes.errors %}
-                <span class="error">{{ form.notes.errors.0 }}</span>
-                {% endif %}
+            <div class="form-section">
+                <h3 style="margin:0 0 12px 0;">📦 পণ্যের তথ্য</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.product.label }}</label>
+                        {{ form.product }}
+                        {% if form.product.errors %}
+                        <span class="error">{{ form.product.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>{{ form.quantity.label }}</label>
+                        {{ form.quantity }}
+                        {% if form.quantity.errors %}
+                        <span class="error">{{ form.quantity.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div id="product-info" style="display: none; background: #f0f8ff; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                    <p style="margin:4px 0"><strong>পণ্য:</strong> <span id="info-name"></span></p>
+                    <p style="margin:4px 0"><strong>একক মূল্য:</strong> ৳<span id="info-price"></span> / <span id="info-unit"></span></p>
+                    <p style="margin:4px 0"><strong>স্টক:</strong> <span id="info-stock"></span> <span id="info-unit2"></span></p>
+                </div>
+
+                <div class="form-row" style="margin-top:12px;">
+                    <div class="form-group">
+                        <label>{{ form.discount_percentage.label }}</label>
+                        {{ form.discount_percentage }}
+                        {% if form.discount_percentage.errors %}
+                        <span class="error">{{ form.discount_percentage.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>{{ form.paid_amount.label }}</label>
+                        {{ form.paid_amount }}
+                        {% if form.paid_amount.errors %}
+                        <span class="error">{{ form.paid_amount.errors.0 }}</span>
+                        {% endif %}
+                        <small style="color:#65748b; display:block; margin-top:6px;">পুরো টাকা না দিলে বাকি থাকবে</small>
+                    </div>
+                </div>
+
+                <div id="calculation-box" class="calculation-card" style="display:none; margin-top: 14px;">
+                    <h4 style="margin:0 0 12px 0; color:#166534;">💰 হিসাব</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div><strong>একক মূল্য:</strong> <span id="calc-unit-price" style="color:#1976d2;">৳০</span></div>
+                        <div><strong>পরিমাণ:</strong> <span id="calc-quantity" style="color:#1976d2;">০</span></div>
+                        <div><strong>সাবটোটাল:</strong> <span id="calc-subtotal" style="color:#1976d2; font-size:16px;">৳০</span></div>
+                        <div><strong>ছাড় (<span id="calc-discount-percent">০</span>%):</strong> <span id="calc-discount-amount" style="color:#d32f2f;">- ৳০</span></div>
+                    </div>
+                    <hr style="margin:12px 0; border:none; border-top:1px dashed #c8e6c9;">
+                    <div style="font-size:18px; font-weight:700; color:#1b5e20;">মোট টাকা: <span id="calc-total">৳০</span></div>
+                    <div style="margin-top:8px;">বাকি থাকবে: <span id="calc-due" style="color:#d32f2f; font-size:16px; font-weight:700;">৳০</span></div>
+                </div>
             </div>
-        </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-success">✅ সংরক্ষণ করুন</button>
-            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">❌ বাতিল</a>
-        </div>
-    </form>
+            <div class="form-section">
+                <h3 style="margin:0 0 12px 0;">📅 তারিখ</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ form.sale_date.label }}</label>
+                        {{ form.sale_date }}
+                        {% if form.sale_date.errors %}
+                        <span class="error">{{ form.sale_date.errors.0 }}</span>
+                        {% endif %}
+                        <small style="color:#65748b; display:block; margin-top:6px;">বিক্রয়ের তারিখ</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 style="margin:0 0 12px 0;">📝 অন্যান্য</h3>
+                <div class="form-row single">
+                    <div class="form-group">
+                        <label>{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <span class="error">{{ form.notes.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-success">✅ সংরক্ষণ করুন</button>
+                <a href="{% url 'invoice_list' %}" class="btn-secondary">❌ বাতিল</a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -271,4 +392,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
