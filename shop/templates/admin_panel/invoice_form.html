@@ -46,6 +46,10 @@
         grid-template-columns: 1fr;
     }
 
+    .form-row-three {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
     .form-group label {
         display: block;
         font-weight: 600;
@@ -111,7 +115,8 @@
     }
 
     @media (max-width: 880px) {
-        .form-row { grid-template-columns: 1fr; }
+        .form-row,
+        .form-row-three { grid-template-columns: 1fr; }
         .content-header { flex-direction: column; align-items: stretch; }
     }
 </style>
@@ -159,10 +164,21 @@
 
             <div class="form-section">
                 <h3 style="margin:0 0 12px 0;">📦 পণ্যের তথ্য</h3>
-                <div class="form-row">
+                <div class="form-row form-row-three">
                     <div class="form-group">
                         <label>{{ form.product.label }}</label>
-                        {{ form.product }}
+                        <select name="product" id="product-select" class="form-control" required>
+                            <option value="">---------</option>
+                            {% for p in form.fields.product.queryset %}
+                            <option value="{{ p.pk }}"
+                                    data-price="{{ p.price_per_unit }}"
+                                    data-unit="{{ p.get_unit_display }}"
+                                    data-stock="{{ p.stock_quantity }}"
+                                    {% if form.product.value|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ p.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                         {% if form.product.errors %}
                         <span class="error">{{ form.product.errors.0 }}</span>
                         {% endif %}
@@ -174,6 +190,13 @@
                         {% if form.quantity.errors %}
                         <span class="error">{{ form.quantity.errors.0 }}</span>
                         {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>মোট দাম</label>
+                        <div id="moto-dam-beside-quantity" style="padding:10px 12px; border-radius:8px; border:1px solid #dbe7ef; background:#e8f5e9; font-size:1.25rem; font-weight:700; color:#1b5e20; min-height:42px; display:flex; align-items:center;">
+                            ৳০
+                        </div>
                     </div>
                 </div>
 
@@ -202,6 +225,14 @@
                     </div>
                 </div>
 
+                <!-- Prominent মোট দাম (total amount) - always visible when product selected -->
+                <div id="total-amount-bar" class="calculation-card" style="display:none; margin-top:14px; background:linear-gradient(135deg,#e8f5e9,#c8e6c9); border:2px solid #2e7d32;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                        <span style="font-size:1.1rem; font-weight:600; color:#1b5e20;">মোট দাম (Total Amount):</span>
+                        <span id="display-moto-dam" style="font-size:1.5rem; font-weight:700; color:#1b5e20;">৳০</span>
+                    </div>
+                </div>
+
                 <div id="calculation-box" class="calculation-card" style="display:none; margin-top: 14px;">
                     <h4 style="margin:0 0 12px 0; color:#166534;">💰 হিসাব</h4>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
@@ -211,7 +242,7 @@
                         <div><strong>ছাড় (<span id="calc-discount-percent">০</span>%):</strong> <span id="calc-discount-amount" style="color:#d32f2f;">- ৳০</span></div>
                     </div>
                     <hr style="margin:12px 0; border:none; border-top:1px dashed #c8e6c9;">
-                    <div style="font-size:18px; font-weight:700; color:#1b5e20;">মোট টাকা: <span id="calc-total">৳০</span></div>
+                    <div style="font-size:18px; font-weight:700; color:#1b5e20;">মোট দাম: <span id="calc-total">৳০</span></div>
                     <div style="margin-top:8px;">বাকি থাকবে: <span id="calc-due" style="color:#d32f2f; font-size:16px; font-weight:700;">৳০</span></div>
                 </div>
             </div>
@@ -280,6 +311,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const discountInput = document.querySelector('input[name="discount_percentage"]');
     const paidInput = document.querySelector('input[name="paid_amount"]');
     const calculationBox = document.getElementById('calculation-box');
+    const totalAmountBar = document.getElementById('total-amount-bar');
+    const displayMotoDam = document.getElementById('display-moto-dam');
 
     let currentPrice = 0;
     let currentUnit = '';
@@ -295,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const stock = selectedOption.getAttribute('data-stock');
 
                 if (price && unit && stock) {
-                    currentPrice = parseFloat(price);
+                    currentPrice = parseFloat(price) || 0;
                     currentUnit = unit;
 
                     document.getElementById('info-name').textContent = name;
@@ -317,25 +350,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('info-stock').style.fontWeight = 'bold';
                     }
 
-                    // হিসাব আপডেট
+                    // Show calculation area as soon as product is selected
+                    if (totalAmountBar) totalAmountBar.style.display = 'block';
+                    if (calculationBox) calculationBox.style.display = 'block';
                     updateCalculation();
                 }
             } else {
                 productInfo.style.display = 'none';
-                calculationBox.style.display = 'none';
+                if (calculationBox) calculationBox.style.display = 'none';
+                if (totalAmountBar) totalAmountBar.style.display = 'none';
                 currentPrice = 0;
+                if (displayMotoDam) displayMotoDam.textContent = '–';
             }
         });
     }
 
-    // লাইভ হিসাব ফাংশন
+    // লাইভ হিসাব ফাংশন - মোট দাম = সাবটোটাল − ছাড়ের টাকা
     function updateCalculation() {
+        // No product selected: show – and hide calculation area
         if (currentPrice === 0) {
-            calculationBox.style.display = 'none';
+            if (totalAmountBar) totalAmountBar.style.display = 'none';
+            if (calculationBox) calculationBox.style.display = 'none';
+            if (displayMotoDam) displayMotoDam.textContent = '–';
+            var motoDamBeside = document.getElementById('moto-dam-beside-quantity');
+            if (motoDamBeside) motoDamBeside.textContent = '৳০';
             return;
         }
 
-        // পরিমাণ
+        // পরিমাণ (support Bangla and English digits)
         let quantityStr = quantityInput ? quantityInput.value.trim() : '0';
         quantityStr = banglaToEnglish(quantityStr);
         const quantity = parseFloat(quantityStr) || 0;
@@ -350,32 +392,35 @@ document.addEventListener('DOMContentLoaded', function() {
         paidStr = banglaToEnglish(paidStr);
         const paid = parseFloat(paidStr) || 0;
 
-        // হিসাব
+        // সাবটোটাল = পরিমাণ × একক মূল্য; ছাড়ের টাকা = সাবটোটাল × (ছাড় % / 100); মোট দাম = সাবটোটাল − ছাড়ের টাকা
         const subtotal = quantity * currentPrice;
         const discountAmount = (subtotal * discountPercent) / 100;
         const total = subtotal - discountAmount;
         const due = total - paid;
 
-        // দেখানো
-        if (quantity > 0) {
-            calculationBox.style.display = 'block';
+        // Prominent মোট দাম bar (visible as soon as product selected, even when quantity is 0)
+        if (totalAmountBar) totalAmountBar.style.display = 'block';
+        if (displayMotoDam) displayMotoDam.textContent = '৳' + total.toFixed(2);
+        // মোট দাম beside পরিমাণ
+        const motoDamBesideEl = document.getElementById('moto-dam-beside-quantity');
+        if (motoDamBesideEl) motoDamBesideEl.textContent = '৳' + total.toFixed(2);
 
-            document.getElementById('calc-unit-price').textContent = '৳' + currentPrice.toFixed(2);
-            document.getElementById('calc-quantity').textContent = quantity.toFixed(2) + ' ' + currentUnit;
-            document.getElementById('calc-subtotal').textContent = '৳' + subtotal.toFixed(2);
-            document.getElementById('calc-discount-percent').textContent = discountPercent.toFixed(2);
-            document.getElementById('calc-discount-amount').textContent = '- ৳' + discountAmount.toFixed(2);
-            document.getElementById('calc-total').textContent = '৳' + total.toFixed(2);
-            document.getElementById('calc-due').textContent = '৳' + due.toFixed(2);
+        // Full calculation box
+        if (calculationBox) calculationBox.style.display = 'block';
 
-            // বাকি টাকা রঙ
-            if (due > 0) {
-                document.getElementById('calc-due').style.color = '#d32f2f';
-            } else {
-                document.getElementById('calc-due').style.color = '#2e7d32';
-            }
-        } else {
-            calculationBox.style.display = 'none';
+        document.getElementById('calc-unit-price').textContent = '৳' + currentPrice.toFixed(2);
+        document.getElementById('calc-quantity').textContent = quantity.toFixed(2) + ' ' + currentUnit;
+        document.getElementById('calc-subtotal').textContent = '৳' + subtotal.toFixed(2);
+        document.getElementById('calc-discount-percent').textContent = discountPercent.toFixed(2);
+        document.getElementById('calc-discount-amount').textContent = '- ৳' + discountAmount.toFixed(2);
+        document.getElementById('calc-total').textContent = '৳' + total.toFixed(2);
+        document.getElementById('calc-due').textContent = '৳' + due.toFixed(2);
+
+        // বাকি টাকা রঙ
+        var calcDueEl = document.getElementById('calc-due');
+        if (calcDueEl) {
+            if (due > 0) calcDueEl.style.color = '#d32f2f';
+            else calcDueEl.style.color = '#2e7d32';
         }
     }
 
