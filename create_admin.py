@@ -22,7 +22,7 @@ def create_admin_user():
     
     username = 'admin'
     email = 'admin@badhonsteel.com'
-    password = 'admin1234'
+    password = 'Ba890717@'
     
     # Check if user already exists
     if User.objects.filter(username=username).exists():
