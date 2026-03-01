@@ -114,10 +114,81 @@
         font-weight: 600;
     }
 
+    /* ---- Multi-product items table ---- */
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+    }
+    .items-table th {
+        background: #34495e;
+        color: #fff;
+        padding: 9px 10px;
+        text-align: left;
+        font-size: 0.93rem;
+    }
+    .items-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid #e8edf2;
+        vertical-align: middle;
+    }
+    .items-table tr:hover td { background: #f7fafc; }
+    .items-table select.form-control,
+    .items-table input.form-control {
+        padding: 7px 9px;
+        font-size: 0.95rem;
+    }
+    .items-table td.subtotal-cell {
+        font-weight: 700;
+        color: #1b5e20;
+        white-space: nowrap;
+    }
+    .btn-add-row {
+        background: #1976d2;
+        color: #fff;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.97rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-add-row:hover { background: #1565c0; }
+    .btn-remove-row {
+        background: #e53935;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+    .btn-remove-row:hover { background: #b71c1c; }
+    .grand-total-bar {
+        background: linear-gradient(135deg,#e8f5e9,#c8e6c9);
+        border: 2px solid #2e7d32;
+        border-radius: 10px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+    .grand-total-bar .label { font-size: 1.05rem; font-weight: 600; color: #1b5e20; }
+    .grand-total-bar .value { font-size: 1.55rem; font-weight: 700; color: #1b5e20; }
+    .due-bar { margin-top: 8px; font-size: 1rem; }
+    .stock-warn { color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none; }
+
     @media (max-width: 880px) {
         .form-row,
         .form-row-three { grid-template-columns: 1fr; }
         .content-header { flex-direction: column; align-items: stretch; }
+        .items-table { font-size: 0.88rem; }
     }
 </style>
 {% endblock %}
@@ -162,51 +233,33 @@
                 </div>
             </div>
 
+            <!-- Hidden field that holds the serialized items JSON -->
+            <input type="hidden" name="items_json" id="items-json-field" value="[]">
+
             <div class="form-section">
                 <h3 style="margin:0 0 12px 0;">📦 পণ্যের তথ্য</h3>
-                <div class="form-row form-row-three">
-                    <div class="form-group">
-                        <label>{{ form.product.label }}</label>
-                        <select name="product" id="product-select" class="form-control" required>
-                            <option value="">---------</option>
-                            {% for p in form.fields.product.queryset %}
-                            <option value="{{ p.pk }}"
-                                    data-price="{{ p.price_per_unit }}"
-                                    data-unit="{{ p.get_unit_display }}"
-                                    data-stock="{{ p.stock_quantity }}"
-                                    {% if form.product.value|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>
-                                {{ p.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        {% if form.product.errors %}
-                        <span class="error">{{ form.product.errors.0 }}</span>
-                        {% endif %}
-                    </div>
 
-                    <div class="form-group">
-                        <label>{{ form.quantity.label }}</label>
-                        {{ form.quantity }}
-                        {% if form.quantity.errors %}
-                        <span class="error">{{ form.quantity.errors.0 }}</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group">
-                        <label>মোট দাম</label>
-                        <div id="moto-dam-beside-quantity" style="padding:10px 12px; border-radius:8px; border:1px solid #dbe7ef; background:#e8f5e9; font-size:1.25rem; font-weight:700; color:#1b5e20; min-height:42px; display:flex; align-items:center;">
-                            ৳০
-                        </div>
-                    </div>
+                <!-- Dynamic product rows table -->
+                <div style="overflow-x:auto;">
+                    <table class="items-table" id="items-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:200px;">পণ্য</th>
+                                <th style="min-width:110px;">পরিমাণ</th>
+                                <th style="min-width:120px;">একক মূল্য</th>
+                                <th style="min-width:120px;">সাবটোটাল</th>
+                                <th style="width:50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody">
+                            <!-- rows injected by JS -->
+                        </tbody>
+                    </table>
                 </div>
 
-                <div id="product-info" style="display: none; background: #f0f8ff; padding: 12px; border-radius: 8px; margin-top: 10px;">
-                    <p style="margin:4px 0"><strong>পণ্য:</strong> <span id="info-name"></span></p>
-                    <p style="margin:4px 0"><strong>একক মূল্য:</strong> ৳<span id="info-price"></span> / <span id="info-unit"></span></p>
-                    <p style="margin:4px 0"><strong>স্টক:</strong> <span id="info-stock"></span> <span id="info-unit2"></span></p>
-                </div>
+                <button type="button" class="btn-add-row" id="add-row-btn">➕ আরো পণ্য যোগ করুন</button>
 
-                <div class="form-row" style="margin-top:12px;">
+                <div class="form-row" style="margin-top:16px;">
                     <div class="form-group">
                         <label>{{ form.discount_percentage.label }}</label>
                         {{ form.discount_percentage }}
@@ -225,25 +278,22 @@
                     </div>
                 </div>
 
-                <!-- Prominent মোট দাম (total amount) - always visible when product selected -->
-                <div id="total-amount-bar" class="calculation-card" style="display:none; margin-top:14px; background:linear-gradient(135deg,#e8f5e9,#c8e6c9); border:2px solid #2e7d32;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-                        <span style="font-size:1.1rem; font-weight:600; color:#1b5e20;">মোট দাম (Total Amount):</span>
-                        <span id="display-moto-dam" style="font-size:1.5rem; font-weight:700; color:#1b5e20;">৳০</span>
+                <!-- Grand total bar -->
+                <div class="grand-total-bar" id="grand-total-bar">
+                    <div>
+                        <span class="label">সাবটোটাল:</span>
+                        <span id="display-subtotal" style="font-size:1rem; font-weight:600; color:#1b5e20; margin-left:8px;">৳০</span>
+                        &nbsp;&nbsp;
+                        <span class="label">ছাড়: </span>
+                        <span id="display-discount-amount" style="font-size:1rem; font-weight:600; color:#c62828; margin-left:4px;">৳০</span>
+                    </div>
+                    <div>
+                        <span class="label">মোট টাকা:</span>
+                        <span class="value" id="display-total">৳০</span>
                     </div>
                 </div>
-
-                <div id="calculation-box" class="calculation-card" style="display:none; margin-top: 14px;">
-                    <h4 style="margin:0 0 12px 0; color:#166534;">💰 হিসাব</h4>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                        <div><strong>একক মূল্য:</strong> <span id="calc-unit-price" style="color:#1976d2;">৳০</span></div>
-                        <div><strong>পরিমাণ:</strong> <span id="calc-quantity" style="color:#1976d2;">০</span></div>
-                        <div><strong>সাবটোটাল:</strong> <span id="calc-subtotal" style="color:#1976d2; font-size:16px;">৳০</span></div>
-                        <div><strong>ছাড় (<span id="calc-discount-percent">০</span>%):</strong> <span id="calc-discount-amount" style="color:#d32f2f;">- ৳০</span></div>
-                    </div>
-                    <hr style="margin:12px 0; border:none; border-top:1px dashed #c8e6c9;">
-                    <div style="font-size:18px; font-weight:700; color:#1b5e20;">মোট দাম: <span id="calc-total">৳০</span></div>
-                    <div style="margin-top:8px;">বাকি থাকবে: <span id="calc-due" style="color:#d32f2f; font-size:16px; font-weight:700;">৳০</span></div>
+                <div class="due-bar">
+                    বাকি থাকবে: <strong id="display-due" style="color:#d32f2f;">৳০</strong>
                 </div>
             </div>
 
@@ -283,157 +333,203 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // বাংলা সংখ্যা সাপোর্ট
-    const banglaInputs = document.querySelectorAll('.bangla-number-input');
-    banglaInputs.forEach(function(input) {
-        let isComposing = false;
-        input.addEventListener('compositionstart', function() {
-            isComposing = true;
-        });
-        input.addEventListener('compositionend', function() {
-            isComposing = false;
-        });
+// All product data from server
+const PRODUCTS = {{ products_json|safe }};
+const EDIT_ITEMS = {{ edit_items_json|default:"[]"|safe }};
+
+// Map for quick lookup
+const productMap = {};
+PRODUCTS.forEach(p => { productMap[p.id] = p; });
+
+// বাংলা → English digit converter
+function b2e(str) {
+    return String(str).replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+}
+function parseNum(str) {
+    return parseFloat(b2e(String(str).trim())) || 0;
+}
+
+let rowCount = 0;
+
+function buildProductOptions(selectedId) {
+    let html = '<option value="">-- পণ্য বেছে নিন --</option>';
+    PRODUCTS.forEach(p => {
+        const sel = (p.id == selectedId) ? ' selected' : '';
+        html += `<option value="${p.id}"${sel}>${p.name} (স্টক: ${p.stock})</option>`;
+    });
+    return html;
+}
+
+function addRow(prefill) {
+    rowCount++;
+    const idx = rowCount;
+    const p = prefill || {};
+    const tbody = document.getElementById('items-tbody');
+    const tr = document.createElement('tr');
+    tr.dataset.idx = idx;
+    tr.innerHTML = `
+        <td>
+            <select class="form-control row-product" data-idx="${idx}">
+                ${buildProductOptions(p.product_id || '')}
+            </select>
+            <span class="stock-warn" id="stock-warn-${idx}">⚠️ স্টক অপর্যাপ্ত!</span>
+        </td>
+        <td>
+            <input type="text" class="form-control bangla-number-input row-qty" data-idx="${idx}"
+                   value="${p.quantity || ''}" placeholder="পরিমাণ" autocomplete="off">
+        </td>
+        <td>
+            <input type="text" class="form-control row-price" data-idx="${idx}"
+                   value="${p.unit_price || ''}" placeholder="একক মূল্য" readonly
+                   style="background:#f5f5f5; color:#555;">
+            <small class="row-unit" id="unit-label-${idx}" style="color:#888;"></small>
+        </td>
+        <td class="subtotal-cell" id="subtotal-cell-${idx}">৳০</td>
+        <td>
+            <button type="button" class="btn-remove-row" onclick="removeRow(${idx})">🗑️</button>
+        </td>`;
+    tbody.appendChild(tr);
+
+    // If prefill, initialise price/unit display
+    if (p.product_id && productMap[p.product_id]) {
+        const prod = productMap[p.product_id];
+        tr.querySelector('.row-price').value = prod.price.toFixed(2);
+        document.getElementById(`unit-label-${idx}`).textContent = prod.unit;
+    }
+
+    // Listeners
+    tr.querySelector('.row-product').addEventListener('change', function() {
+        onProductChange(idx, this.value);
+    });
+    tr.querySelector('.row-qty').addEventListener('input', function() {
+        updateRowSubtotal(idx);
+        updateGrandTotal();
     });
 
-    // বাংলা থেকে ইংরেজি সংখ্যা কনভার্ট
-    function banglaToEnglish(str) {
-        const banglaDigits = {'০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'};
-        return str.replace(/[০-৯]/g, function(match) {
-            return banglaDigits[match];
-        });
-    }
+    updateRowSubtotal(idx);
+    updateGrandTotal();
+}
 
-    // পণ্য সিলেক্ট করলে তথ্য দেখানো
-    const productSelect = document.getElementById('product-select');
-    const productInfo = document.getElementById('product-info');
-    const quantityInput = document.querySelector('input[name="quantity"]');
+function removeRow(idx) {
+    const tbody = document.getElementById('items-tbody');
+    const tr = tbody.querySelector(`tr[data-idx="${idx}"]`);
+    if (tr) { tbody.removeChild(tr); }
+    updateGrandTotal();
+}
+
+function onProductChange(idx, productId) {
+    const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
+    const unitLabel = document.getElementById(`unit-label-${idx}`);
+    if (productId && productMap[productId]) {
+        const prod = productMap[productId];
+        priceInput.value = prod.price.toFixed(2);
+        unitLabel.textContent = prod.unit;
+    } else {
+        priceInput.value = '';
+        unitLabel.textContent = '';
+    }
+    updateRowSubtotal(idx);
+    updateGrandTotal();
+}
+
+function updateRowSubtotal(idx) {
+    const qtyInput = document.querySelector(`.row-qty[data-idx="${idx}"]`);
+    const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
+    const subtotalCell = document.getElementById(`subtotal-cell-${idx}`);
+    const productSel = document.querySelector(`.row-product[data-idx="${idx}"]`);
+    const stockWarn = document.getElementById(`stock-warn-${idx}`);
+
+    const qty = parseNum(qtyInput ? qtyInput.value : '0');
+    const price = parseFloat(priceInput ? priceInput.value : '0') || 0;
+    const subtotal = qty * price;
+
+    if (subtotalCell) subtotalCell.textContent = '৳' + subtotal.toFixed(2);
+
+    // Stock check
+    if (productSel && productSel.value && productMap[productSel.value]) {
+        const stock = productMap[productSel.value].stock;
+        if (qty > stock) {
+            stockWarn.style.display = 'block';
+        } else {
+            stockWarn.style.display = 'none';
+        }
+    } else if (stockWarn) {
+        stockWarn.style.display = 'none';
+    }
+}
+
+function updateGrandTotal() {
+    // Collect all rows
+    const rows = document.querySelectorAll('#items-tbody tr');
+    let subtotal = 0;
+    rows.forEach(tr => {
+        const idx = tr.dataset.idx;
+        const qty = parseNum(tr.querySelector('.row-qty') ? tr.querySelector('.row-qty').value : '0');
+        const price = parseFloat(tr.querySelector('.row-price') ? tr.querySelector('.row-price').value : '0') || 0;
+        subtotal += qty * price;
+    });
+
     const discountInput = document.querySelector('input[name="discount_percentage"]');
     const paidInput = document.querySelector('input[name="paid_amount"]');
-    const calculationBox = document.getElementById('calculation-box');
-    const totalAmountBar = document.getElementById('total-amount-bar');
-    const displayMotoDam = document.getElementById('display-moto-dam');
+    const discountPct = parseNum(discountInput ? discountInput.value : '0');
+    const paid = parseNum(paidInput ? paidInput.value : '0');
 
-    let currentPrice = 0;
-    let currentUnit = '';
+    const discountAmt = (subtotal * discountPct) / 100;
+    const total = subtotal - discountAmt;
+    const due = total - paid;
 
-    if (productSelect) {
-        productSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
+    document.getElementById('display-subtotal').textContent = '৳' + subtotal.toFixed(2);
+    document.getElementById('display-discount-amount').textContent = '- ৳' + discountAmt.toFixed(2);
+    document.getElementById('display-total').textContent = '৳' + total.toFixed(2);
+    const dueEl = document.getElementById('display-due');
+    dueEl.textContent = '৳' + due.toFixed(2);
+    dueEl.style.color = due > 0 ? '#d32f2f' : '#2e7d32';
 
-            if (this.value) {
-                const name = selectedOption.text;
-                const price = selectedOption.getAttribute('data-price');
-                const unit = selectedOption.getAttribute('data-unit');
-                const stock = selectedOption.getAttribute('data-stock');
+    // Sync hidden JSON field
+    syncItemsJson();
+}
 
-                if (price && unit && stock) {
-                    currentPrice = parseFloat(price) || 0;
-                    currentUnit = unit;
-
-                    document.getElementById('info-name').textContent = name;
-                    document.getElementById('info-price').textContent = price;
-                    document.getElementById('info-unit').textContent = unit;
-                    document.getElementById('info-unit2').textContent = unit;
-                    document.getElementById('info-stock').textContent = stock;
-
-                    productInfo.style.display = 'block';
-
-                    // স্টক শেষ হলে সতর্কতা
-                    if (parseFloat(stock) <= 0) {
-                        productInfo.style.background = '#ffe0e0';
-                        document.getElementById('info-stock').style.color = 'red';
-                        document.getElementById('info-stock').style.fontWeight = 'bold';
-                    } else {
-                        productInfo.style.background = '#f0f8ff';
-                        document.getElementById('info-stock').style.color = 'green';
-                        document.getElementById('info-stock').style.fontWeight = 'bold';
-                    }
-
-                    // Show calculation area as soon as product is selected
-                    if (totalAmountBar) totalAmountBar.style.display = 'block';
-                    if (calculationBox) calculationBox.style.display = 'block';
-                    updateCalculation();
-                }
-            } else {
-                productInfo.style.display = 'none';
-                if (calculationBox) calculationBox.style.display = 'none';
-                if (totalAmountBar) totalAmountBar.style.display = 'none';
-                currentPrice = 0;
-                if (displayMotoDam) displayMotoDam.textContent = '–';
-            }
-        });
-    }
-
-    // লাইভ হিসাব ফাংশন - মোট দাম = সাবটোটাল − ছাড়ের টাকা
-    function updateCalculation() {
-        // No product selected: show – and hide calculation area
-        if (currentPrice === 0) {
-            if (totalAmountBar) totalAmountBar.style.display = 'none';
-            if (calculationBox) calculationBox.style.display = 'none';
-            if (displayMotoDam) displayMotoDam.textContent = '–';
-            var motoDamBeside = document.getElementById('moto-dam-beside-quantity');
-            if (motoDamBeside) motoDamBeside.textContent = '৳০';
-            return;
+function syncItemsJson() {
+    const rows = document.querySelectorAll('#items-tbody tr');
+    const items = [];
+    rows.forEach(tr => {
+        const idx = tr.dataset.idx;
+        const sel = tr.querySelector('.row-product');
+        const qty = parseNum(tr.querySelector('.row-qty') ? tr.querySelector('.row-qty').value : '0');
+        if (sel && sel.value && qty > 0) {
+            items.push({ product_id: parseInt(sel.value), quantity: qty });
         }
+    });
+    document.getElementById('items-json-field').value = JSON.stringify(items);
+}
 
-        // পরিমাণ (support Bangla and English digits)
-        let quantityStr = quantityInput ? quantityInput.value.trim() : '0';
-        quantityStr = banglaToEnglish(quantityStr);
-        const quantity = parseFloat(quantityStr) || 0;
+document.addEventListener('DOMContentLoaded', function() {
+    // Add initial row(s)
+    if (EDIT_ITEMS && EDIT_ITEMS.length > 0) {
+        EDIT_ITEMS.forEach(item => addRow(item));
+    } else {
+        addRow();
+    }
 
-        // ছাড় %
-        let discountStr = discountInput ? discountInput.value.trim() : '0';
-        discountStr = banglaToEnglish(discountStr);
-        const discountPercent = parseFloat(discountStr) || 0;
+    // Add row button
+    document.getElementById('add-row-btn').addEventListener('click', function() { addRow(); });
 
-        // পরিশোধিত
-        let paidStr = paidInput ? paidInput.value.trim() : '0';
-        paidStr = banglaToEnglish(paidStr);
-        const paid = parseFloat(paidStr) || 0;
+    // Discount / paid amount listeners
+    const discountInput = document.querySelector('input[name="discount_percentage"]');
+    const paidInput = document.querySelector('input[name="paid_amount"]');
+    if (discountInput) discountInput.addEventListener('input', updateGrandTotal);
+    if (paidInput) paidInput.addEventListener('input', updateGrandTotal);
 
-        // সাবটোটাল = পরিমাণ × একক মূল্য; ছাড়ের টাকা = সাবটোটাল × (ছাড় % / 100); মোট দাম = সাবটোটাল − ছাড়ের টাকা
-        const subtotal = quantity * currentPrice;
-        const discountAmount = (subtotal * discountPercent) / 100;
-        const total = subtotal - discountAmount;
-        const due = total - paid;
-
-        // Prominent মোট দাম bar (visible as soon as product selected, even when quantity is 0)
-        if (totalAmountBar) totalAmountBar.style.display = 'block';
-        if (displayMotoDam) displayMotoDam.textContent = '৳' + total.toFixed(2);
-        // মোট দাম beside পরিমাণ
-        const motoDamBesideEl = document.getElementById('moto-dam-beside-quantity');
-        if (motoDamBesideEl) motoDamBesideEl.textContent = '৳' + total.toFixed(2);
-
-        // Full calculation box
-        if (calculationBox) calculationBox.style.display = 'block';
-
-        document.getElementById('calc-unit-price').textContent = '৳' + currentPrice.toFixed(2);
-        document.getElementById('calc-quantity').textContent = quantity.toFixed(2) + ' ' + currentUnit;
-        document.getElementById('calc-subtotal').textContent = '৳' + subtotal.toFixed(2);
-        document.getElementById('calc-discount-percent').textContent = discountPercent.toFixed(2);
-        document.getElementById('calc-discount-amount').textContent = '- ৳' + discountAmount.toFixed(2);
-        document.getElementById('calc-total').textContent = '৳' + total.toFixed(2);
-        document.getElementById('calc-due').textContent = '৳' + due.toFixed(2);
-
-        // বাকি টাকা রঙ
-        var calcDueEl = document.getElementById('calc-due');
-        if (calcDueEl) {
-            if (due > 0) calcDueEl.style.color = '#d32f2f';
-            else calcDueEl.style.color = '#2e7d32';
+    // Sync before submit
+    document.querySelector('.invoice-form').addEventListener('submit', function(e) {
+        syncItemsJson();
+        const items = JSON.parse(document.getElementById('items-json-field').value);
+        if (!items.length) {
+            e.preventDefault();
+            alert('কমপক্ষে একটি পণ্য যোগ করুন!');
+            return false;
         }
-    }
-
-    // ইনপুট পরিবর্তনে হিসাব আপডেট
-    if (quantityInput) {
-        quantityInput.addEventListener('input', updateCalculation);
-    }
-    if (discountInput) {
-        discountInput.addEventListener('input', updateCalculation);
-    }
-    if (paidInput) {
-        paidInput.addEventListener('input', updateCalculation);
-    }
+    });
 });
 </script>
 {% endblock %}

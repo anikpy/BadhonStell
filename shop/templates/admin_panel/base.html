@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}অ্যাডমিন প্যানেল - বাধন স্টিল{% endblock %}</title>
+    <title>{% block title %}Admin Panel{% endblock %} — Badhon Steel</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -19,40 +19,85 @@
         }
         
         .admin-header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #283593 60%, #1565c0 100%);
             color: white;
-            padding: 15px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 0;
+            box-shadow: 0 3px 16px rgba(0,0,0,0.22);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        
-        .admin-header .container {
+
+        .admin-header-inner {
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: stretch;
+            min-height: 58px;
         }
-        
-        .admin-header h1 {
-            font-size: 1.5rem;
+
+        .admin-brand {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 10px 0;
+            line-height: 1.2;
+            text-decoration: none;
         }
-        
+
+        .admin-brand .brand-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .admin-brand .brand-sub {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.65);
+            letter-spacing: 0.3px;
+        }
+
         .admin-nav {
             display: flex;
-            gap: 20px;
+            gap: 2px;
+            align-items: stretch;
         }
-        
+
         .admin-nav a {
-            color: white;
+            color: rgba(255,255,255,0.82);
             text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            padding: 0 13px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            border-bottom: 3px solid transparent;
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
+            white-space: nowrap;
         }
-        
+
         .admin-nav a:hover {
-            background-color: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-bottom-color: rgba(255,255,255,0.4);
+        }
+
+        .admin-nav a.active {
+            color: #fff;
+            border-bottom-color: #64b5f6;
+            background: rgba(255,255,255,0.08);
+            font-weight: 600;
+        }
+
+        .admin-nav a.nav-logout {
+            color: #ef9a9a;
+        }
+        .admin-nav a.nav-logout:hover {
+            color: #fff;
+            background: rgba(220,53,69,0.25);
+            border-bottom-color: #ef9a9a;
         }
         
         .container {
@@ -154,19 +199,23 @@
             color: #2c3e50;
         }
         
-        @media (max-width: 768px) {
-            .admin-header .container {
+        @media (max-width: 900px) {
+            .admin-header-inner {
                 flex-direction: column;
-                gap: 15px;
+                padding: 8px 14px;
+                min-height: unset;
+                gap: 6px;
             }
-            
             .admin-nav {
-                flex-direction: column;
-                width: 100%;
+                flex-wrap: wrap;
+                gap: 2px;
+                padding-bottom: 6px;
             }
-            
             .admin-nav a {
-                text-align: center;
+                padding: 6px 10px;
+                font-size: 0.82rem;
+                border-bottom: none;
+                border-radius: 6px;
             }
         }
 
@@ -197,19 +246,22 @@
 </head>
 <body>
     <div class="admin-header">
-        <div class="container">
-            <h1>🏢 অ্যাডমিন প্যানেল - বাধন স্টিল</h1>
+        <div class="admin-header-inner">
+            <a class="admin-brand" href="{% url 'admin_dashboard' %}">
+                <span class="brand-name">🏗️ Badhon Steel</span>
+                <span class="brand-sub">📍 Kendua, Netrokona &nbsp;|&nbsp; 📞 +8801727555673</span>
+            </a>
             <nav class="admin-nav">
-                <a href="{% url 'admin_dashboard' %}">🏠 ড্যাশবোর্ড</a>
-                <a href="{% url 'order_list' %}">📋 কাস্টম অর্ডার</a>
-                <a href="{% url 'completed_order_list' %}">✅ সম্পন্ন অর্ডার</a>
-                <a href="{% url 'inventory_product_list' %}">📦 ইনভেন্টরি</a>
-                <a href="{% url 'invoice_list' %}">💰 বিক্রয়/ভাউচার</a>
+                <a href="{% url 'admin_dashboard' %}" {% if request.resolver_match.url_name == 'admin_dashboard' %}class="active"{% endif %}>🏠 ড্যাশবোর্ড</a>
+                <a href="{% url 'order_list' %}" {% if 'order' in request.resolver_match.url_name %}class="active"{% endif %}>📋 কাস্টম অর্ডার</a>
+                <a href="{% url 'completed_order_list' %}" {% if request.resolver_match.url_name == 'completed_order_list' %}class="active"{% endif %}>✅ সম্পন্ন</a>
+                <a href="{% url 'inventory_product_list' %}" {% if 'inventory' in request.resolver_match.url_name %}class="active"{% endif %}>📦 ইনভেন্টরি</a>
+                <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>
                 {% if request.user.is_superuser %}
-                <a href="{% url 'user_management' %}">👥 ইউজার ম্যানেজমেন্ট</a>
+                <a href="{% url 'user_management' %}" {% if request.resolver_match.url_name == 'user_management' %}class="active"{% endif %}>👥 ইউজার</a>
                 {% endif %}
                 <a href="{% url 'home' %}" target="_blank">🌐 সাইট</a>
-                <a href="{% url 'admin_logout' %}">🚪 লগআউট</a>
+                <a href="{% url 'admin_logout' %}" class="nav-logout">🚪 লগআউট</a>
             </nav>
         </div>
     </div>

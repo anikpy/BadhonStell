@@ -70,8 +70,18 @@
                     <td>
                         <span style="color: #0066cc; font-weight: 600;">{{ invoice.mobile_number }}</span>
                     </td>
-                    <td>{{ invoice.product.name }}</td>
-                    <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                    <td>
+                        {% if invoice.items.all %}
+                            {% for item in invoice.items.all %}{{ item.product.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% elif invoice.product %}{{ invoice.product.name }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if invoice.items.all %}
+                            {{ invoice.items.count }} পণ্য
+                        {% elif invoice.product %}{{ invoice.quantity }} {{ invoice.product.get_unit_display }}
+                        {% else %}—{% endif %}
+                    </td>
                     <td>৳{{ invoice.total_amount }}</td>
                     <td>
                         {% if invoice.due_amount > 0 %}

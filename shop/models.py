@@ -133,16 +133,17 @@ class Invoice(models.Model):
     customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
     mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
 
-    # পণ্যের তথ্য
-    product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য')
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    # পণ্যের তথ্য (backward compat: nullable for multi-item invoices)
+    product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য',
+                                null=True, blank=True)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য', default=0)
 
     # মূল্য হিসাব
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False, default=0)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='ছাড় (%)', default=0)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='ছাড়ের টাকা', editable=False, default=0)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট টাকা', editable=False)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট টাকা', editable=False, default=0)
 
     # পেমেন্ট তথ্য
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিশোধিত টাকা', default=0)
@@ -178,19 +179,25 @@ class Invoice(models.Model):
             else:
                 self.invoice_number = "INV-00001"
 
-        # হিসাব
-        self.subtotal = self.quantity * self.unit_price
-        self.discount_amount = (self.subtotal * self.discount_percentage) / 100
-        self.total_amount = self.subtotal - self.discount_amount
-        self.due_amount = self.total_amount - self.paid_amount
+        if self.product_id:
+            # Single-product mode (backward compatibility with old invoices)
+            self.subtotal = self.quantity * self.unit_price
+            self.discount_amount = (self.subtotal * self.discount_percentage) / 100
+            self.total_amount = self.subtotal - self.discount_amount
+            self.due_amount = self.total_amount - self.paid_amount
 
-        # স্টক কমানো (শুধু নতুন ইনভয়েসের জন্য)
-        if self.pk is None:
-            if self.product.stock_quantity >= self.quantity:
-                self.product.stock_quantity -= self.quantity
-                self.product.save()
-            else:
-                raise ValueError(f"স্টক অপর্যাপ্ত! বর্তমান স্টক: {self.product.stock_quantity}")
+            # স্টক কমানো (শুধু নতুন ইনভয়েসের জন্য)
+            if self.pk is None:
+                if self.product.stock_quantity >= self.quantity:
+                    self.product.stock_quantity -= self.quantity
+                    self.product.save()
+                else:
+                    raise ValueError(f"স্টক অপর্যাপ্ত! বর্তমান স্টক: {self.product.stock_quantity}")
+        else:
+            # Multi-item mode: subtotal pre-calculated in view, just apply discount
+            self.discount_amount = (self.subtotal * self.discount_percentage) / 100
+            self.total_amount = self.subtotal - self.discount_amount
+            self.due_amount = self.total_amount - self.paid_amount
 
         super().save(*args, **kwargs)
 
@@ -200,6 +207,26 @@ class Invoice(models.Model):
     def get_total_paid_amount(self):
         """আংশিক পেমেন্ট থেকে মোট পরিশোধিত পরিমাণ পান"""
         return sum(payment.amount for payment in self.payments.all())
+
+
+class InvoiceItem(models.Model):
+    """ইনভয়েস আইটেম - একটি ইনভয়েসে একাধিক পণ্যের জন্য"""
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items', verbose_name='ইনভয়েস')
+    product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False, default=0)
+
+    class Meta:
+        verbose_name = 'ইনভয়েস আইটেম'
+        verbose_name_plural = 'ইনভয়েস আইটেমসমূহ'
+
+    def save(self, *args, **kwargs):
+        self.subtotal = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_number} – {self.product.name} × {self.quantity}"
 
 
 class Payment(models.Model):

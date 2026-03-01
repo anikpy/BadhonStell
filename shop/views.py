@@ -5,9 +5,10 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import JsonResponse
-from .models import ShopInfo, Product, Order, InventoryProduct, Invoice
+from .models import ShopInfo, Product, Order, InventoryProduct, Invoice, InvoiceItem
 from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm
 from decimal import Decimal
+import json
 
 
 # কাস্টমার সাইট ভিউ
@@ -336,22 +337,77 @@ def invoice_list(request):
 
 @login_required
 def invoice_create(request):
-    """নতুন ইনভয়েস তৈরি"""
+    """নতুন ইনভয়েস তৈরি - একাধিক পণ্য সাপোর্ট"""
+    products = InventoryProduct.objects.filter(is_active=True)
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in products
+    ])
+
     if request.method == 'POST':
         form = InvoiceForm(request.POST)
-        if form.is_valid():
+        items_json_str = request.POST.get('items_json', '[]')
+
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        elif form.is_valid():
             try:
+                # Validate each item and compute grand subtotal
+                subtotal = Decimal('0')
+                validated_items = []
+                for item in items_data:
+                    product = InventoryProduct.objects.get(pk=item['product_id'])
+                    quantity = Decimal(str(item['quantity']))
+                    if quantity <= 0:
+                        raise ValueError(f"{product.name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if product.stock_quantity < quantity:
+                        raise ValueError(f"{product.name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {product.stock_quantity}")
+                    unit_price = product.price_per_unit
+                    item_subtotal = quantity * unit_price
+                    subtotal += item_subtotal
+                    validated_items.append({
+                        'product': product,
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                    })
+
+                # Save invoice header (no single product - multi-item mode)
                 invoice = form.save(commit=False)
-                invoice.unit_price = invoice.product.price_per_unit
+                invoice.subtotal = subtotal
                 invoice.save()
+
+                # Create InvoiceItem rows and deduct stock
+                for item in validated_items:
+                    InvoiceItem.objects.create(
+                        invoice=invoice,
+                        product=item['product'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                    )
+                    item['product'].stock_quantity -= item['quantity']
+                    item['product'].save()
+
                 messages.success(request, f'✅ ইনভয়েস {invoice.invoice_number} তৈরি হয়েছে!')
                 return redirect('invoice_detail', pk=invoice.pk)
+            except InventoryProduct.DoesNotExist:
+                messages.error(request, '❌ পণ্য খুঁজে পাওয়া যায়নি!')
             except ValueError as e:
                 messages.error(request, f'❌ {str(e)}')
     else:
         form = InvoiceForm()
 
-    context = {'form': form}
+    context = {'form': form, 'products_json': products_json}
     return render(request, 'admin_panel/invoice_form.html', context)
 
 
@@ -403,47 +459,130 @@ def invoice_detail(request, pk):
 
 @login_required
 def invoice_edit(request, pk):
-    """ইনভয়েস এডিট (নতুন ভার্সন তৈরি)"""
+    """ইনভয়েস এডিট (নতুন ভার্সন তৈরি) - একাধিক পণ্য সাপোর্ট"""
     old_invoice = get_object_or_404(Invoice, pk=pk)
+
+    products = InventoryProduct.objects.filter(is_active=True)
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in products
+    ])
 
     if request.method == 'POST':
         form = InvoiceForm(request.POST)
-        if form.is_valid():
-            try:
-                # পুরাতন ইনভয়েসের স্টক ফেরত দেওয়া
-                old_invoice.product.stock_quantity += old_invoice.quantity
-                old_invoice.product.save()
+        items_json_str = request.POST.get('items_json', '[]')
 
-                # নতুন ইনভয়েস তৈরি
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        elif form.is_valid():
+            try:
+                # Validate & compute subtotal for new items
+                subtotal = Decimal('0')
+                validated_items = []
+                for item in items_data:
+                    product = InventoryProduct.objects.get(pk=item['product_id'])
+                    quantity = Decimal(str(item['quantity']))
+                    if quantity <= 0:
+                        raise ValueError(f"{product.name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    unit_price = product.price_per_unit
+                    item_subtotal = quantity * unit_price
+                    subtotal += item_subtotal
+                    validated_items.append({
+                        'product': product,
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                    })
+
+                # Restore stock from old invoice
+                if old_invoice.product:
+                    old_invoice.product.stock_quantity += old_invoice.quantity
+                    old_invoice.product.save()
+                else:
+                    for old_item in old_invoice.items.all():
+                        old_item.product.stock_quantity += old_item.quantity
+                        old_item.product.save()
+
+                # Check stock availability for new items
+                for item in validated_items:
+                    if item['product'].stock_quantity < item['quantity']:
+                        raise ValueError(f"{item['product'].name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {item['product'].stock_quantity}")
+
+                # Create new invoice
                 new_invoice = form.save(commit=False)
-                new_invoice.unit_price = new_invoice.product.price_per_unit
+                new_invoice.subtotal = subtotal
                 new_invoice.original_invoice = old_invoice.original_invoice or old_invoice
                 new_invoice.save()
 
-                # পুরাতন ইনভয়েস মার্ক করা
+                # Create items and deduct stock
+                for item in validated_items:
+                    InvoiceItem.objects.create(
+                        invoice=new_invoice,
+                        product=item['product'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                    )
+                    item['product'].stock_quantity -= item['quantity']
+                    item['product'].save()
+
+                # Mark old invoice as not latest
                 old_invoice.is_latest = False
-                old_invoice.save()
+                Invoice.objects.filter(pk=old_invoice.pk).update(is_latest=False)
 
                 messages.success(request, f'✅ নতুন ইনভয়েস {new_invoice.invoice_number} তৈরি হয়েছে! পুরাতন ইনভয়েস সংরক্ষিত আছে।')
                 return redirect('invoice_detail', pk=new_invoice.pk)
+            except InventoryProduct.DoesNotExist:
+                messages.error(request, '❌ পণ্য খুঁজে পাওয়া যায়নি!')
             except ValueError as e:
                 messages.error(request, f'❌ {str(e)}')
     else:
-        # পুরাতন ডেটা দিয়ে ফর্ম পূরণ
         form = InvoiceForm(initial={
             'customer_name': old_invoice.customer_name,
             'mobile_number': old_invoice.mobile_number,
-            'product': old_invoice.product,
-            'quantity': old_invoice.quantity,
             'discount_percentage': old_invoice.discount_percentage,
             'paid_amount': old_invoice.paid_amount,
             'notes': old_invoice.notes,
-            'sale_date': old_invoice.sale_date,  # বিক্রয়ের তারিখ যোগ করা হয়েছে
+            'sale_date': old_invoice.sale_date,
         })
+
+    # Build existing items for template pre-population
+    if old_invoice.items.exists():
+        edit_items = [
+            {
+                'product_id': item.product_id,
+                'product_name': item.product.name,
+                'quantity': float(item.quantity),
+                'unit_price': float(item.unit_price),
+                'unit': item.product.get_unit_display(),
+            }
+            for item in old_invoice.items.all()
+        ]
+    elif old_invoice.product:
+        edit_items = [{
+            'product_id': old_invoice.product_id,
+            'product_name': old_invoice.product.name,
+            'quantity': float(old_invoice.quantity),
+            'unit_price': float(old_invoice.unit_price),
+            'unit': old_invoice.product.get_unit_display(),
+        }]
+    else:
+        edit_items = []
 
     context = {
         'form': form,
         'old_invoice': old_invoice,
+        'products_json': products_json,
+        'edit_items_json': json.dumps(edit_items),
     }
     return render(request, 'admin_panel/invoice_form.html', context)
 
@@ -455,8 +594,15 @@ def invoice_delete(request, pk):
     inv_number = invoice.invoice_number
     try:
         # স্টক ফেরত (বিক্রয় বাতিল হিসাবে)
-        invoice.product.stock_quantity += invoice.quantity
-        invoice.product.save()
+        if invoice.product:
+            # Single-product (old-style) invoice
+            invoice.product.stock_quantity += invoice.quantity
+            invoice.product.save()
+        else:
+            # Multi-item invoice
+            for item in invoice.items.all():
+                item.product.stock_quantity += item.quantity
+                item.product.save()
         invoice.delete()
         messages.success(request, f'✅ ইনভয়েস {inv_number} মুছে ফেলা হয়েছে।')
     except Exception as e:

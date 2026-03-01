@@ -36,10 +36,18 @@
         margin-bottom: 10px;
         opacity: 0.9;
     }
-    
+
     .stat-card .number {
         font-size: 2.5rem;
         font-weight: 700;
+    }
+
+    a:has(.stat-card) .stat-card {
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    a:has(.stat-card):hover .stat-card {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.18);
     }
     
     .recent-orders-table {
@@ -97,28 +105,42 @@
 {% endblock %}
 
 {% block content %}
-<h2 style="margin-bottom: 30px; color: #2c3e50;">📊 ড্যাশবোর্ড</h2>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <h2 style="margin:0; color:#1a237e; font-size:1.5rem;">📊 ড্যাশবোর্ড</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="{% url 'invoice_create' %}" class="btn btn-success" style="font-size:0.95rem;">➕ নতুন বিক্রয়</a>
+        <a href="{% url 'order_create' %}" class="btn" style="font-size:0.95rem; background:#1565c0;">📋 নতুন অর্ডার</a>
+    </div>
+</div>
 
 <div class="stats-grid">
-    <div class="stat-card">
-        <h3>মোট অর্ডার</h3>
-        <div class="number">{{ total_orders }}</div>
-    </div>
+    <a href="{% url 'order_list' %}" style="text-decoration:none;">
+        <div class="stat-card">
+            <h3>মোট অর্ডার</h3>
+            <div class="number">{{ total_orders }}</div>
+        </div>
+    </a>
 
-    <div class="stat-card warning">
-        <h3>চলমান অর্ডার</h3>
-        <div class="number">{{ pending_orders }}</div>
-    </div>
+    <a href="{% url 'order_list' %}" style="text-decoration:none;">
+        <div class="stat-card warning">
+            <h3>চলমান অর্ডার</h3>
+            <div class="number">{{ pending_orders }}</div>
+        </div>
+    </a>
 
-    <div class="stat-card success">
-        <h3>সম্পন্ন অর্ডার</h3>
-        <div class="number">{{ completed_orders }}</div>
-    </div>
+    <a href="{% url 'completed_order_list' %}" style="text-decoration:none;">
+        <div class="stat-card success">
+            <h3>সম্পন্ন অর্ডার</h3>
+            <div class="number">{{ completed_orders }}</div>
+        </div>
+    </a>
 
-    <div class="stat-card danger">
-        <h3>সম্পন্ন কিন্তু ডেলিভারি হয়নি</h3>
-        <div class="number">{{ completed_not_delivered }}</div>
-    </div>
+    <a href="{% url 'invoice_list' %}" style="text-decoration:none;">
+        <div class="stat-card danger">
+            <h3>সম্পন্ন কিন্তু ডেলিভারি হয়নি</h3>
+            <div class="number">{{ completed_not_delivered }}</div>
+        </div>
+    </a>
 </div>
 
 <div class="card">

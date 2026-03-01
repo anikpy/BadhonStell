@@ -22,7 +22,7 @@
         <div class="voucher-header">
             <h1>{{ shop_info.name }}</h1>
             <p>{{ shop_info.address }}</p>
-            <p>📞 {{ shop_info.phone }} | 📧 {{ shop_info.email }}</p>
+            <p>📞 {{ shop_info.phone }}</p>
             <hr>
             <h2>বিক্রয় ভাউচার</h2>
         </div>
@@ -41,6 +41,7 @@
         <table class="voucher-table">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>পণ্যের নাম</th>
                     <th>পরিমাণ</th>
                     <th>একক মূল্য</th>
@@ -48,34 +49,47 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>{{ invoice.product.name }}</td>
-                    <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
-                    <td>৳{{ invoice.unit_price }}</td>
-                    <td>৳{{ invoice.subtotal }}</td>
-                </tr>
+                {% if invoice.items.all %}
+                    {% for item in invoice.items.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.quantity }} {{ item.product.get_unit_display }}</td>
+                        <td>৳{{ item.unit_price }}</td>
+                        <td>৳{{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                {% elif invoice.product %}
+                    <tr>
+                        <td>1</td>
+                        <td>{{ invoice.product.name }}</td>
+                        <td>{{ invoice.quantity }} {{ invoice.product.get_unit_display }}</td>
+                        <td>৳{{ invoice.unit_price }}</td>
+                        <td>৳{{ invoice.subtotal }}</td>
+                    </tr>
+                {% endif %}
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3" style="text-align: right;"><strong>সাবটোটাল:</strong></td>
+                    <td colspan="4" style="text-align: right;"><strong>সাবটোটাল:</strong></td>
                     <td><strong>৳{{ invoice.subtotal }}</strong></td>
                 </tr>
                 {% if invoice.discount_percentage > 0 %}
                 <tr>
-                    <td colspan="3" style="text-align: right;"><strong>ছাড় ({{ invoice.discount_percentage }}%):</strong></td>
+                    <td colspan="4" style="text-align: right;"><strong>ছাড় ({{ invoice.discount_percentage }}%):</strong></td>
                     <td><strong>- ৳{{ invoice.discount_amount }}</strong></td>
                 </tr>
                 {% endif %}
                 <tr class="total-row">
-                    <td colspan="3" style="text-align: right;"><strong>মোট টাকা:</strong></td>
+                    <td colspan="4" style="text-align: right;"><strong>মোট টাকা:</strong></td>
                     <td><strong>৳{{ invoice.total_amount }}</strong></td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="text-align: right;"><strong>পরিশোধিত:</strong></td>
+                    <td colspan="4" style="text-align: right;"><strong>পরিশোধিত:</strong></td>
                     <td><strong style="color: green;">৳{{ invoice.paid_amount }}</strong></td>
                 </tr>
                 <tr>
-                    <td colspan="3" style="text-align: right;"><strong>বাকি:</strong></td>
+                    <td colspan="4" style="text-align: right;"><strong>বাকি:</strong></td>
                     <td><strong style="color: {% if invoice.due_amount > 0 %}red{% else %}green{% endif %};">৳{{ invoice.due_amount }}</strong></td>
                 </tr>
             </tfoot>
@@ -102,7 +116,6 @@
                     <th>ইনভয়েস নং</th>
                     <th>তারিখ</th>
                     <th>পণ্য</th>
-                    <th>পরিমাণ</th>
                     <th>মোট টাকা</th>
                     <th>স্ট্যাটাস</th>
                     <th>কার্যক্রম</th>
@@ -113,8 +126,13 @@
                 <tr {% if version.pk == invoice.pk %}style="background: #e3f2fd;"{% endif %}>
                     <td>{{ version.invoice_number }}</td>
                     <td>{{ version.sale_date|date:"d/m/Y" }}</td>
-                    <td>{{ version.product.name }}</td>
-                    <td>{{ version.quantity }} {{ version.product.get_unit_display }}</td>
+                    <td>
+                        {% if version.items.all %}
+                            {% for item in version.items.all %}{{ item.product.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% elif version.product %}
+                            {{ version.product.name }}
+                        {% else %}—{% endif %}
+                    </td>
                     <td>৳{{ version.total_amount }}</td>
                     <td>
                         {% if version.is_latest %}

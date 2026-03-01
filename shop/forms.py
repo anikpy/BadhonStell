@@ -207,17 +207,7 @@ class InventoryProductForm(forms.ModelForm):
 
 
 class InvoiceForm(forms.ModelForm):
-    """ইনভয়েস ফর্ম - সিম্পল বিক্রয়"""
-
-    quantity = forms.CharField(
-        label='পরিমাণ',
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control bangla-number-input',
-            'placeholder': 'উদাহরণ: ১০০ বা 100',
-            'autocomplete': 'off',
-        })
-    )
+    """ইনভয়েস ফর্ম - একাধিক পণ্যসহ বিক্রয় (items JSON দিয়ে পরিচালিত)"""
 
     discount_percentage = forms.CharField(
         label='ছাড় (%)',
@@ -241,7 +231,7 @@ class InvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ['customer_name', 'mobile_number', 'product', 'quantity', 'discount_percentage', 'paid_amount', 'sale_date', 'notes']
+        fields = ['customer_name', 'mobile_number', 'discount_percentage', 'paid_amount', 'sale_date', 'notes']
         widgets = {
             'customer_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -250,10 +240,6 @@ class InvoiceForm(forms.ModelForm):
             'mobile_number': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'মোবাইল নাম্বার'
-            }),
-            'product': forms.Select(attrs={
-                'class': 'form-control',
-                'id': 'product-select'
             }),
             'sale_date': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -265,35 +251,6 @@ class InvoiceForm(forms.ModelForm):
                 'placeholder': 'নোট লিখুন (ঐচ্ছিক)'
             }),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # পণ্য সিলেক্টে ডেটা এট্রিবিউট যোগ করা
-        product_choices = []
-        for product in InventoryProduct.objects.filter(is_active=True):
-            product_choices.append((
-                product.pk,
-                product.name,
-                {
-                    'data-price': str(product.price_per_unit),
-                    'data-unit': product.get_unit_display(),
-                    'data-stock': str(product.stock_quantity),
-                }
-            ))
-
-        # Custom rendering for product field
-        self.fields['product'].queryset = InventoryProduct.objects.filter(is_active=True)
-
-    def clean_quantity(self):
-        quantity = self.cleaned_data.get('quantity')
-        if quantity:
-            converted = bangla_to_english_number(str(quantity).strip())
-            converted = converted.replace(',', '').replace(' ', '')
-            try:
-                return float(converted)
-            except ValueError:
-                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
-        return 0
 
     def clean_discount_percentage(self):
         discount = self.cleaned_data.get('discount_percentage')

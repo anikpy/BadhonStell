@@ -14,37 +14,54 @@
         
         body {
             font-family: 'Noto Sans Bengali', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #283593 55%, #1565c0 100%);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            gap: 18px;
         }
-        
+
+        .shop-banner {
+            text-align: center;
+            color: #fff;
+        }
+        .shop-banner h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .shop-banner p {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.75);
+        }
+
         .login-container {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.28);
+            padding: 36px 40px;
             max-width: 400px;
             width: 100%;
         }
-        
+
         .login-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
         }
-        
+
         .login-header h1 {
-            font-size: 2rem;
-            color: #2c3e50;
-            margin-bottom: 10px;
+            font-size: 1.6rem;
+            color: #1a237e;
+            margin-bottom: 4px;
         }
-        
+
         .login-header p {
-            color: #666;
-            font-size: 1rem;
+            color: #888;
+            font-size: 0.9rem;
         }
         
         .form-group {
@@ -76,18 +93,19 @@
         .btn {
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #1565c0 100%);
             color: white;
             border: none;
             border-radius: 8px;
             font-size: 1.1rem;
             font-family: 'Noto Sans Bengali', sans-serif;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(21,101,192,0.35);
         }
         
         .alert {
@@ -136,21 +154,26 @@
         }
 
         .user-type-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #1565c0 100%);
             color: white;
-            border-color: #667eea;
+            border-color: #1565c0;
         }
 
         .user-type-btn:hover {
-            border-color: #667eea;
+            border-color: #1565c0;
         }
     </style>
 </head>
 <body>
+    <div class="shop-banner">
+        <h1>🏗️ Badhon Steel</h1>
+        <p>📍 Kendua, Netrokona &nbsp;&nbsp;|&nbsp;&nbsp; 📞 +8801727555673</p>
+    </div>
+
     <div class="login-container">
         <div class="login-header">
             <h1>🔐 লগইন</h1>
-            <p>বাধন স্টিল ম্যানেজমেন্ট সিস্টেম</p>
+            <p>ম্যানেজমেন্ট সিস্টেম</p>
         </div>
 
         <div class="user-type-selector">
