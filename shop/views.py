@@ -363,28 +363,35 @@ def invoice_create(request):
             messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
         elif form.is_valid():
             try:
-                # Validate each item and compute grand subtotal
-                subtotal = Decimal('0')
+                # Validate each item and compute grand subtotal (after per-item discount)
+                grand_subtotal = Decimal('0')
                 validated_items = []
                 for item in items_data:
                     product = InventoryProduct.objects.get(pk=item['product_id'])
                     quantity = Decimal(str(item['quantity']))
+                    disc_pct = Decimal(str(item.get('discount_percentage', 0)))
                     if quantity <= 0:
                         raise ValueError(f"{product.name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if disc_pct < 0 or disc_pct > 100:
+                        raise ValueError(f"{product.name}: ছাড় ০–১০০%-এর মধ্যে হতে হবে")
                     if product.stock_quantity < quantity:
                         raise ValueError(f"{product.name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {product.stock_quantity}")
                     unit_price = product.price_per_unit
-                    item_subtotal = quantity * unit_price
-                    subtotal += item_subtotal
+                    gross = quantity * unit_price
+                    item_discount = (gross * disc_pct) / 100
+                    item_net = gross - item_discount
+                    grand_subtotal += item_net
                     validated_items.append({
                         'product': product,
                         'quantity': quantity,
                         'unit_price': unit_price,
+                        'discount_percentage': disc_pct,
                     })
 
-                # Save invoice header (no single product - multi-item mode)
+                # Save invoice header (multi-item mode; no global discount)
                 invoice = form.save(commit=False)
-                invoice.subtotal = subtotal
+                invoice.subtotal = grand_subtotal
+                invoice.discount_percentage = Decimal('0')
                 invoice.save()
 
                 # Create InvoiceItem rows and deduct stock
@@ -394,6 +401,7 @@ def invoice_create(request):
                         product=item['product'],
                         quantity=item['quantity'],
                         unit_price=item['unit_price'],
+                        discount_percentage=item['discount_percentage'],
                     )
                     item['product'].stock_quantity -= item['quantity']
                     item['product'].save()
@@ -487,21 +495,26 @@ def invoice_edit(request, pk):
             messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
         elif form.is_valid():
             try:
-                # Validate & compute subtotal for new items
-                subtotal = Decimal('0')
+                # Validate & compute grand subtotal (after per-item discount)
+                grand_subtotal = Decimal('0')
                 validated_items = []
                 for item in items_data:
                     product = InventoryProduct.objects.get(pk=item['product_id'])
                     quantity = Decimal(str(item['quantity']))
+                    disc_pct = Decimal(str(item.get('discount_percentage', 0)))
                     if quantity <= 0:
                         raise ValueError(f"{product.name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if disc_pct < 0 or disc_pct > 100:
+                        raise ValueError(f"{product.name}: ছাড় ০–১০০%-এর মধ্যে হতে হবে")
                     unit_price = product.price_per_unit
-                    item_subtotal = quantity * unit_price
-                    subtotal += item_subtotal
+                    gross = quantity * unit_price
+                    item_discount = (gross * disc_pct) / 100
+                    grand_subtotal += gross - item_discount
                     validated_items.append({
                         'product': product,
                         'quantity': quantity,
                         'unit_price': unit_price,
+                        'discount_percentage': disc_pct,
                     })
 
                 # Restore stock from old invoice
@@ -518,9 +531,10 @@ def invoice_edit(request, pk):
                     if item['product'].stock_quantity < item['quantity']:
                         raise ValueError(f"{item['product'].name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {item['product'].stock_quantity}")
 
-                # Create new invoice
+                # Create new invoice (no global discount — discounts are per-item)
                 new_invoice = form.save(commit=False)
-                new_invoice.subtotal = subtotal
+                new_invoice.subtotal = grand_subtotal
+                new_invoice.discount_percentage = Decimal('0')
                 new_invoice.original_invoice = old_invoice.original_invoice or old_invoice
                 new_invoice.save()
 
@@ -531,12 +545,12 @@ def invoice_edit(request, pk):
                         product=item['product'],
                         quantity=item['quantity'],
                         unit_price=item['unit_price'],
+                        discount_percentage=item['discount_percentage'],
                     )
                     item['product'].stock_quantity -= item['quantity']
                     item['product'].save()
 
                 # Mark old invoice as not latest
-                old_invoice.is_latest = False
                 Invoice.objects.filter(pk=old_invoice.pk).update(is_latest=False)
 
                 messages.success(request, f'✅ নতুন ইনভয়েস {new_invoice.invoice_number} তৈরি হয়েছে! পুরাতন ইনভয়েস সংরক্ষিত আছে।')
@@ -549,13 +563,12 @@ def invoice_edit(request, pk):
         form = InvoiceForm(initial={
             'customer_name': old_invoice.customer_name,
             'mobile_number': old_invoice.mobile_number,
-            'discount_percentage': old_invoice.discount_percentage,
             'paid_amount': old_invoice.paid_amount,
             'notes': old_invoice.notes,
             'sale_date': old_invoice.sale_date,
         })
 
-    # Build existing items for template pre-population
+    # Build existing items for template pre-population (includes per-item discount)
     if old_invoice.items.exists():
         edit_items = [
             {
@@ -563,6 +576,7 @@ def invoice_edit(request, pk):
                 'product_name': item.product.name,
                 'quantity': float(item.quantity),
                 'unit_price': float(item.unit_price),
+                'discount_percentage': float(item.discount_percentage),
                 'unit': item.product.get_unit_display(),
             }
             for item in old_invoice.items.all()
@@ -573,6 +587,7 @@ def invoice_edit(request, pk):
             'product_name': old_invoice.product.name,
             'quantity': float(old_invoice.quantity),
             'unit_price': float(old_invoice.unit_price),
+            'discount_percentage': float(old_invoice.discount_percentage),
             'unit': old_invoice.product.get_unit_display(),
         }]
     else:

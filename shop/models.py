@@ -204,17 +204,33 @@ class Invoice(models.Model):
     def __str__(self):
         return f"{self.invoice_number} - {self.customer_name}"
 
+    @property
+    def total_item_savings(self):
+        """সকল আইটেমের ছাড়ের মোট পরিমাণ (multi-item মোডের জন্য)"""
+        return sum(item.discount_amount for item in self.items.all())
+
+    @property
+    def total_gross_amount(self):
+        """সকল আইটেমের গ্রস মোট (ছাড়ের আগে)"""
+        return sum(item.gross_amount for item in self.items.all())
+
     def get_total_paid_amount(self):
         """আংশিক পেমেন্ট থেকে মোট পরিশোধিত পরিমাণ পান"""
         return sum(payment.amount for payment in self.payments.all())
 
 
 class InvoiceItem(models.Model):
-    """ইনভয়েস আইটেম - একটি ইনভয়েসে একাধিক পণ্যের জন্য"""
+    """ইনভয়েস আইটেম - একটি ইনভয়েসে একাধিক পণ্যের জন্য (প্রতিটি পণ্যে আলাদা ছাড় সহ)"""
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items', verbose_name='ইনভয়েস')
     product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য')
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    discount_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, verbose_name='ছাড় (%)'
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, editable=False, default=0, verbose_name='ছাড়ের টাকা'
+    )
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False, default=0)
 
     class Meta:
@@ -222,8 +238,14 @@ class InvoiceItem(models.Model):
         verbose_name_plural = 'ইনভয়েস আইটেমসমূহ'
 
     def save(self, *args, **kwargs):
-        self.subtotal = self.quantity * self.unit_price
+        gross = self.quantity * self.unit_price
+        self.discount_amount = (gross * self.discount_percentage) / 100
+        self.subtotal = gross - self.discount_amount
         super().save(*args, **kwargs)
+
+    @property
+    def gross_amount(self):
+        return self.quantity * self.unit_price
 
     def __str__(self):
         return f"{self.invoice.invoice_number} – {self.product.name} × {self.quantity}"

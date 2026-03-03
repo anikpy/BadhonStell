@@ -207,17 +207,7 @@ class InventoryProductForm(forms.ModelForm):
 
 
 class InvoiceForm(forms.ModelForm):
-    """ইনভয়েস ফর্ম - একাধিক পণ্যসহ বিক্রয় (items JSON দিয়ে পরিচালিত)"""
-
-    discount_percentage = forms.CharField(
-        label='ছাড় (%)',
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control bangla-number-input',
-            'placeholder': 'উদাহরণ: ৫ বা 5 (মানে ৫%)',
-            'autocomplete': 'off',
-        })
-    )
+    """ইনভয়েস ফর্ম - প্রতিটি পণ্যে আলাদা ছাড় সহ (items JSON দিয়ে পরিচালিত)"""
 
     paid_amount = forms.CharField(
         label='পরিশোধিত টাকা',
@@ -231,7 +221,7 @@ class InvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ['customer_name', 'mobile_number', 'discount_percentage', 'paid_amount', 'sale_date', 'notes']
+        fields = ['customer_name', 'mobile_number', 'paid_amount', 'sale_date', 'notes']
         widgets = {
             'customer_name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -251,20 +241,6 @@ class InvoiceForm(forms.ModelForm):
                 'placeholder': 'নোট লিখুন (ঐচ্ছিক)'
             }),
         }
-
-    def clean_discount_percentage(self):
-        discount = self.cleaned_data.get('discount_percentage')
-        if discount:
-            converted = bangla_to_english_number(str(discount).strip())
-            converted = converted.replace(',', '').replace(' ', '')
-            try:
-                value = float(converted)
-                if value < 0 or value > 100:
-                    raise forms.ValidationError('ছাড় ০ থেকে ১০০% এর মধ্যে হতে হবে')
-                return value
-            except ValueError:
-                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
-        return 0
 
     def clean_paid_amount(self):
         paid = self.cleaned_data.get('paid_amount')

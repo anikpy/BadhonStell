@@ -143,6 +143,9 @@
         color: #1b5e20;
         white-space: nowrap;
     }
+    .items-table td.discount-cell { color: #c62828; font-size: 0.88rem; white-space: nowrap; }
+    .row-discount { max-width: 80px; }
+    .row-discount:focus { border-color: #e53935 !important; }
     .btn-add-row {
         background: #1976d2;
         color: #fff;
@@ -245,10 +248,11 @@
                         <thead>
                             <tr>
                                 <th style="min-width:200px;">পণ্য</th>
-                                <th style="min-width:110px;">পরিমাণ</th>
-                                <th style="min-width:120px;">একক মূল্য</th>
-                                <th style="min-width:120px;">সাবটোটাল</th>
-                                <th style="width:50px;"></th>
+                                <th style="min-width:95px;">পরিমাণ</th>
+                                <th style="min-width:110px;">একক মূল্য</th>
+                                <th style="min-width:90px;">ছাড় %</th>
+                                <th style="min-width:110px;">নেট মূল্য</th>
+                                <th style="width:44px;"></th>
                             </tr>
                         </thead>
                         <tbody id="items-tbody">
@@ -259,15 +263,7 @@
 
                 <button type="button" class="btn-add-row" id="add-row-btn">➕ আরো পণ্য যোগ করুন</button>
 
-                <div class="form-row" style="margin-top:16px;">
-                    <div class="form-group">
-                        <label>{{ form.discount_percentage.label }}</label>
-                        {{ form.discount_percentage }}
-                        {% if form.discount_percentage.errors %}
-                        <span class="error">{{ form.discount_percentage.errors.0 }}</span>
-                        {% endif %}
-                    </div>
-
+                <div class="form-row" style="margin-top:16px; max-width:420px;">
                     <div class="form-group">
                         <label>{{ form.paid_amount.label }}</label>
                         {{ form.paid_amount }}
@@ -280,15 +276,18 @@
 
                 <!-- Grand total bar -->
                 <div class="grand-total-bar" id="grand-total-bar">
-                    <div>
-                        <span class="label">সাবটোটাল:</span>
-                        <span id="display-subtotal" style="font-size:1rem; font-weight:600; color:#1b5e20; margin-left:8px;">৳০</span>
-                        &nbsp;&nbsp;
-                        <span class="label">ছাড়: </span>
-                        <span id="display-discount-amount" style="font-size:1rem; font-weight:600; color:#c62828; margin-left:4px;">৳০</span>
+                    <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+                        <span>
+                            <span class="label">গ্রস:</span>
+                            <span id="display-gross" style="font-weight:600; color:#1b5e20; margin-left:4px;">৳০</span>
+                        </span>
+                        <span>
+                            <span class="label">মোট ছাড়:</span>
+                            <span id="display-discount-amount" style="font-weight:600; color:#c62828; margin-left:4px;">- ৳০</span>
+                        </span>
                     </div>
                     <div>
-                        <span class="label">মোট টাকা:</span>
+                        <span class="label">নেট মোট:</span>
                         <span class="value" id="display-total">৳০</span>
                     </div>
                 </div>
@@ -333,20 +332,18 @@
 </div>
 
 <script>
-// All product data from server
-const PRODUCTS = {{ products_json|safe }};
+const PRODUCTS   = {{ products_json|safe }};
 const EDIT_ITEMS = {{ edit_items_json|default:"[]"|safe }};
 
-// Map for quick lookup
 const productMap = {};
 PRODUCTS.forEach(p => { productMap[p.id] = p; });
 
-// বাংলা → English digit converter
+// বাংলা → English
 function b2e(str) {
     return String(str).replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
 }
 function parseNum(str) {
-    return parseFloat(b2e(String(str).trim())) || 0;
+    return parseFloat(b2e(String(str || '0').trim())) || 0;
 }
 
 let rowCount = 0;
@@ -362,11 +359,13 @@ function buildProductOptions(selectedId) {
 
 function addRow(prefill) {
     rowCount++;
-    const idx = rowCount;
-    const p = prefill || {};
+    const idx  = rowCount;
+    const p    = prefill || {};
+    const disc = (p.discount_percentage !== undefined) ? p.discount_percentage : '';
     const tbody = document.getElementById('items-tbody');
-    const tr = document.createElement('tr');
+    const tr    = document.createElement('tr');
     tr.dataset.idx = idx;
+
     tr.innerHTML = `
         <td>
             <select class="form-control row-product" data-idx="${idx}">
@@ -380,30 +379,41 @@ function addRow(prefill) {
         </td>
         <td>
             <input type="text" class="form-control row-price" data-idx="${idx}"
-                   value="${p.unit_price || ''}" placeholder="একক মূল্য" readonly
+                   value="${p.unit_price || ''}" placeholder="মূল্য" readonly
                    style="background:#f5f5f5; color:#555;">
             <small class="row-unit" id="unit-label-${idx}" style="color:#888;"></small>
         </td>
-        <td class="subtotal-cell" id="subtotal-cell-${idx}">৳০</td>
+        <td>
+            <input type="text" class="form-control bangla-number-input row-discount row-discount-input"
+                   data-idx="${idx}" value="${disc}" placeholder="০" autocomplete="off"
+                   title="এই পণ্যে ছাড় (%)">
+            <small style="color:#c62828; font-size:0.78rem;">%</small>
+        </td>
+        <td class="subtotal-cell" id="subtotal-cell-${idx}">৳০
+            <div id="saving-label-${idx}" class="discount-cell" style="display:none;"></div>
+        </td>
         <td>
             <button type="button" class="btn-remove-row" onclick="removeRow(${idx})">🗑️</button>
         </td>`;
+
     tbody.appendChild(tr);
 
-    // If prefill, initialise price/unit display
+    // Prefill price + unit if product already selected
     if (p.product_id && productMap[p.product_id]) {
         const prod = productMap[p.product_id];
         tr.querySelector('.row-price').value = prod.price.toFixed(2);
         document.getElementById(`unit-label-${idx}`).textContent = prod.unit;
     }
 
-    // Listeners
+    // Event listeners
     tr.querySelector('.row-product').addEventListener('change', function() {
         onProductChange(idx, this.value);
     });
-    tr.querySelector('.row-qty').addEventListener('input', function() {
-        updateRowSubtotal(idx);
-        updateGrandTotal();
+    tr.querySelector('.row-qty').addEventListener('input', () => {
+        updateRowSubtotal(idx); updateGrandTotal();
+    });
+    tr.querySelector('.row-discount-input').addEventListener('input', () => {
+        updateRowSubtotal(idx); updateGrandTotal();
     });
 
     updateRowSubtotal(idx);
@@ -411,21 +421,20 @@ function addRow(prefill) {
 }
 
 function removeRow(idx) {
-    const tbody = document.getElementById('items-tbody');
-    const tr = tbody.querySelector(`tr[data-idx="${idx}"]`);
-    if (tr) { tbody.removeChild(tr); }
+    const tr = document.querySelector(`#items-tbody tr[data-idx="${idx}"]`);
+    if (tr) tr.remove();
     updateGrandTotal();
 }
 
 function onProductChange(idx, productId) {
     const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
-    const unitLabel = document.getElementById(`unit-label-${idx}`);
+    const unitLabel  = document.getElementById(`unit-label-${idx}`);
     if (productId && productMap[productId]) {
         const prod = productMap[productId];
-        priceInput.value = prod.price.toFixed(2);
-        unitLabel.textContent = prod.unit;
+        priceInput.value       = prod.price.toFixed(2);
+        unitLabel.textContent  = prod.unit;
     } else {
-        priceInput.value = '';
+        priceInput.value      = '';
         unitLabel.textContent = '';
     }
     updateRowSubtotal(idx);
@@ -433,101 +442,102 @@ function onProductChange(idx, productId) {
 }
 
 function updateRowSubtotal(idx) {
-    const qtyInput = document.querySelector(`.row-qty[data-idx="${idx}"]`);
-    const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
-    const subtotalCell = document.getElementById(`subtotal-cell-${idx}`);
-    const productSel = document.querySelector(`.row-product[data-idx="${idx}"]`);
-    const stockWarn = document.getElementById(`stock-warn-${idx}`);
+    const qty      = parseNum(document.querySelector(`.row-qty[data-idx="${idx}"]`)?.value);
+    const price    = parseNum(document.querySelector(`.row-price[data-idx="${idx}"]`)?.value);
+    const discPct  = parseNum(document.querySelector(`.row-discount-input[data-idx="${idx}"]`)?.value);
+    const gross    = qty * price;
+    const saving   = (gross * discPct) / 100;
+    const net      = gross - saving;
 
-    const qty = parseNum(qtyInput ? qtyInput.value : '0');
-    const price = parseFloat(priceInput ? priceInput.value : '0') || 0;
-    const subtotal = qty * price;
+    const cell     = document.getElementById(`subtotal-cell-${idx}`);
+    const savLabel = document.getElementById(`saving-label-${idx}`);
+    const stockWrn = document.getElementById(`stock-warn-${idx}`);
+    const prodSel  = document.querySelector(`.row-product[data-idx="${idx}"]`);
 
-    if (subtotalCell) subtotalCell.textContent = '৳' + subtotal.toFixed(2);
-
-    // Stock check
-    if (productSel && productSel.value && productMap[productSel.value]) {
-        const stock = productMap[productSel.value].stock;
-        if (qty > stock) {
-            stockWarn.style.display = 'block';
+    if (cell) {
+        cell.firstChild.textContent = '৳' + net.toFixed(2);
+    }
+    if (savLabel) {
+        if (saving > 0) {
+            savLabel.textContent     = `সাশ্রয়: ৳${saving.toFixed(2)}`;
+            savLabel.style.display   = 'block';
         } else {
-            stockWarn.style.display = 'none';
+            savLabel.style.display   = 'none';
         }
-    } else if (stockWarn) {
-        stockWarn.style.display = 'none';
+    }
+
+    // Stock warning
+    if (prodSel?.value && productMap[prodSel.value]) {
+        stockWrn.style.display = qty > productMap[prodSel.value].stock ? 'block' : 'none';
+    } else if (stockWrn) {
+        stockWrn.style.display = 'none';
     }
 }
 
 function updateGrandTotal() {
-    // Collect all rows
     const rows = document.querySelectorAll('#items-tbody tr');
-    let subtotal = 0;
+    let totalGross = 0, totalSaving = 0;
+
     rows.forEach(tr => {
-        const idx = tr.dataset.idx;
-        const qty = parseNum(tr.querySelector('.row-qty') ? tr.querySelector('.row-qty').value : '0');
-        const price = parseFloat(tr.querySelector('.row-price') ? tr.querySelector('.row-price').value : '0') || 0;
-        subtotal += qty * price;
+        const idx   = tr.dataset.idx;
+        const qty   = parseNum(tr.querySelector('.row-qty')?.value);
+        const price = parseNum(tr.querySelector('.row-price')?.value);
+        const disc  = parseNum(tr.querySelector('.row-discount-input')?.value);
+        const gross = qty * price;
+        totalGross  += gross;
+        totalSaving += (gross * disc) / 100;
     });
 
-    const discountInput = document.querySelector('input[name="discount_percentage"]');
-    const paidInput = document.querySelector('input[name="paid_amount"]');
-    const discountPct = parseNum(discountInput ? discountInput.value : '0');
-    const paid = parseNum(paidInput ? paidInput.value : '0');
+    const net  = totalGross - totalSaving;
+    const paid = parseNum(document.querySelector('input[name="paid_amount"]')?.value);
+    const due  = net - paid;
 
-    const discountAmt = (subtotal * discountPct) / 100;
-    const total = subtotal - discountAmt;
-    const due = total - paid;
-
-    document.getElementById('display-subtotal').textContent = '৳' + subtotal.toFixed(2);
-    document.getElementById('display-discount-amount').textContent = '- ৳' + discountAmt.toFixed(2);
-    document.getElementById('display-total').textContent = '৳' + total.toFixed(2);
+    document.getElementById('display-gross').textContent           = '৳' + totalGross.toFixed(2);
+    document.getElementById('display-discount-amount').textContent = '- ৳' + totalSaving.toFixed(2);
+    document.getElementById('display-total').textContent           = '৳' + net.toFixed(2);
     const dueEl = document.getElementById('display-due');
-    dueEl.textContent = '৳' + due.toFixed(2);
-    dueEl.style.color = due > 0 ? '#d32f2f' : '#2e7d32';
+    dueEl.textContent  = '৳' + due.toFixed(2);
+    dueEl.style.color  = due > 0 ? '#d32f2f' : '#2e7d32';
 
-    // Sync hidden JSON field
     syncItemsJson();
 }
 
 function syncItemsJson() {
-    const rows = document.querySelectorAll('#items-tbody tr');
+    const rows  = document.querySelectorAll('#items-tbody tr');
     const items = [];
     rows.forEach(tr => {
-        const idx = tr.dataset.idx;
-        const sel = tr.querySelector('.row-product');
-        const qty = parseNum(tr.querySelector('.row-qty') ? tr.querySelector('.row-qty').value : '0');
-        if (sel && sel.value && qty > 0) {
-            items.push({ product_id: parseInt(sel.value), quantity: qty });
+        const idx  = tr.dataset.idx;
+        const sel  = tr.querySelector('.row-product');
+        const qty  = parseNum(tr.querySelector('.row-qty')?.value);
+        const disc = parseNum(tr.querySelector('.row-discount-input')?.value);
+        if (sel?.value && qty > 0) {
+            items.push({
+                product_id: parseInt(sel.value),
+                quantity: qty,
+                discount_percentage: disc,
+            });
         }
     });
     document.getElementById('items-json-field').value = JSON.stringify(items);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Add initial row(s)
     if (EDIT_ITEMS && EDIT_ITEMS.length > 0) {
         EDIT_ITEMS.forEach(item => addRow(item));
     } else {
         addRow();
     }
 
-    // Add row button
-    document.getElementById('add-row-btn').addEventListener('click', function() { addRow(); });
+    document.getElementById('add-row-btn').addEventListener('click', () => addRow());
+    document.querySelector('input[name="paid_amount"]')
+            ?.addEventListener('input', updateGrandTotal);
 
-    // Discount / paid amount listeners
-    const discountInput = document.querySelector('input[name="discount_percentage"]');
-    const paidInput = document.querySelector('input[name="paid_amount"]');
-    if (discountInput) discountInput.addEventListener('input', updateGrandTotal);
-    if (paidInput) paidInput.addEventListener('input', updateGrandTotal);
-
-    // Sync before submit
     document.querySelector('.invoice-form').addEventListener('submit', function(e) {
         syncItemsJson();
         const items = JSON.parse(document.getElementById('items-json-field').value);
         if (!items.length) {
             e.preventDefault();
             alert('কমপক্ষে একটি পণ্য যোগ করুন!');
-            return false;
         }
     });
 });
