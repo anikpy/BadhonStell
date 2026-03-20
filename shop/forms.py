@@ -1,6 +1,6 @@
 from django import forms
 from decimal import InvalidOperation
-from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment
+from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem
 
 
 def bangla_to_english_number(text):
@@ -20,18 +20,13 @@ def bangla_to_english_number(text):
 
 
 class OrderForm(forms.ModelForm):
-    """অর্ডার ফর্ম - বাংলা সংখ্যা সাপোর্ট সহ"""
+    """অর্ডার ফর্ম - একাধিক পণ্য সাপোর্ট সহ"""
 
-    # CharField হিসেবে override করা যাতে বাংলা সংখ্যা লেখা যায়
+    # This field is not used directly - items are managed via JavaScript
     total_price = forms.CharField(
         label='মোট মূল্য',
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control bangla-number-input',
-            'placeholder': 'উদাহরণ: ১০০০ বা 1000',
-            'autocomplete': 'off',
-            'inputmode': 'text',
-        })
+        required=False,
+        widget=forms.HiddenInput(),
     )
 
     cash_paid = forms.CharField(
@@ -41,15 +36,20 @@ class OrderForm(forms.ModelForm):
             'class': 'form-control bangla-number-input',
             'placeholder': 'উদাহরণ: ৫০০ বা 500',
             'autocomplete': 'off',
-            'inputmode': 'text',
         })
+    )
+
+    # Hidden field to store items JSON
+    items_json = forms.CharField(
+        label='পণ্যসমূহ',
+        required=False,
+        widget=forms.HiddenInput(),
     )
 
     class Meta:
         model = Order
         fields = [
-            'customer_name', 'mobile_number', 'product_name',
-            'product_description', 'total_price', 'cash_paid',
+            'customer_name', 'mobile_number', 'cash_paid',
             'order_date', 'delivery_date', 'status', 'delivery_status'
         ]
         widgets = {
@@ -62,15 +62,6 @@ class OrderForm(forms.ModelForm):
                 'placeholder': 'উদাহরণ: ০১৭১২৩৪৫৬৭৮ বা 01712345678',
                 'autocomplete': 'off',
                 'inputmode': 'text',
-            }),
-            'product_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'পণ্যের নাম লিখুন'
-            }),
-            'product_description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'পণ্যের বিস্তারিত বিবরণ লিখুন'
             }),
             'order_date': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -88,27 +79,11 @@ class OrderForm(forms.ModelForm):
             }),
         }
 
-    def clean_total_price(self):
-        """মোট মূল্য ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
-        total_price = self.cleaned_data.get('total_price')
-        if total_price:
-            # বাংলা সংখ্যা থেকে ইংরেজি সংখ্যায় রূপান্তর
-            converted = bangla_to_english_number(str(total_price).strip())
-            # Remove any extra spaces or commas
-            converted = converted.replace(',', '').replace(' ', '')
-            try:
-                return float(converted)
-            except ValueError:
-                raise forms.ValidationError('সঠিক সংখ্যা লিখুন (উদাহরণ: ১০০০ বা 1000)')
-        return 0
-
     def clean_cash_paid(self):
         """নগদ পরিশোধ ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
         cash_paid = self.cleaned_data.get('cash_paid')
         if cash_paid:
-            # বাংলা সংখ্যা থেকে ইংরেজি সংখ্যায় রূপান্তর
             converted = bangla_to_english_number(str(cash_paid).strip())
-            # Remove any extra spaces or commas
             converted = converted.replace(',', '').replace(' ', '')
             try:
                 return float(converted)
@@ -116,15 +91,45 @@ class OrderForm(forms.ModelForm):
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন (উদাহরণ: ৫০০ বা 500)')
         return 0
 
-    def clean_mobile_number(self):
-        """মোবাইল নাম্বার ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
-        mobile = self.cleaned_data.get('mobile_number')
-        if mobile:
-            # বাংলা সংখ্যা থেকে ইংরেজি সংখ্যায় রূপান্তর
-            converted = bangla_to_english_number(str(mobile).strip())
-            return converted
-        return mobile
+    def clean_items_json(self):
+        """Validate items JSON"""
+        import json
+        items_json = self.cleaned_data.get('items_json', '[]')
+        try:
+            items = json.loads(items_json)
+        except json.JSONDecodeError:
+            raise forms.ValidationError('অবৈধ পণ্য তথ্য')
+        
+        if not items:
+            raise forms.ValidationError('কমপক্ষে একটি পণ্য যোগ করুন')
+        
+        return items
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Save order first to get PK
+        if commit:
+            instance.save()
+            
+            # Delete existing items if editing
+            if instance.pk:
+                instance.items.all().delete()
+            
+            # Create OrderItem records
+            items_data = self.cleaned_data.get('items_json', [])
+            from decimal import Decimal
+            
+            for item_data in items_data:
+                OrderItem.objects.create(
+                    order=instance,
+                    product_name=item_data['product_name'],
+                    product_description=item_data.get('product_description', ''),
+                    quantity=Decimal(str(item_data['quantity'])),
+                    unit_price=Decimal(str(item_data['unit_price'])),
+                )
+        
+        return instance
 
 
 class InventoryProductForm(forms.ModelForm):
@@ -179,6 +184,30 @@ class InventoryProductForm(forms.ModelForm):
                 'class': 'form-check-input'
             }),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:  # Editing existing product
+            self.fields['name'].widget.attrs['readonly'] = True
+            self.fields['unit'].widget.attrs['disabled'] = True
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if not name:
+            raise forms.ValidationError('পণ্যের নাম আবশ্যক')
+        return name.strip().title()
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        name = cleaned_data.get('name')
+        unit = cleaned_data.get('unit')
+        
+        # Check for duplicate products (only for new products)
+        if name and unit and not self.instance.pk:
+            if InventoryProduct.objects.filter(name__iexact=name, unit=unit).exists():
+                raise forms.ValidationError(f'এই নামে এবং এককে একটি পণ্য ইতিমধ্যেই আছে: {name} ({dict(self.fields["unit"].choices)[unit]})')
+        
+        return cleaned_data
 
     def clean_price_per_unit(self):
         price = self.cleaned_data.get('price_per_unit')
@@ -201,9 +230,6 @@ class InventoryProductForm(forms.ModelForm):
             except ValueError:
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
         return 0
-
-
-
 
 
 class InvoiceForm(forms.ModelForm):
@@ -328,7 +354,7 @@ class OrderPaymentForm(forms.ModelForm):
         }
 
     def clean_amount(self):
-        from decimal import Decimal
+        from decimal import Decimal, InvalidOperation
         amount = self.cleaned_data.get('amount')
         if amount:
             converted = bangla_to_english_number(str(amount).strip())
@@ -338,6 +364,57 @@ class OrderPaymentForm(forms.ModelForm):
                 value = Decimal(converted)
                 if value <= 0:
                     raise forms.ValidationError('পেমেন্টের পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        return Decimal('0')
+
+
+class StockManagementForm(forms.Form):
+    """স্টক ব্যবস্থাপনা ফর্ম"""
+    
+    operation_type = forms.ChoiceField(
+        label='অপারেশন',
+        choices=[
+            ('add', 'স্টক যোগ করুন'),
+            ('remove', 'স্টক কমান'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'onchange': 'updateFormTitle()'
+        })
+    )
+    
+    quantity = forms.CharField(
+        label='পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ১০ বা 10',
+            'autocomplete': 'off',
+        })
+    )
+    
+    notes = forms.CharField(
+        label='নোট',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'কারণ বা নোট লিখুন (ঐচ্ছিক)'
+        })
+    )
+    
+    def clean_quantity(self):
+        from decimal import Decimal, InvalidOperation
+        quantity = self.cleaned_data.get('quantity')
+        if quantity:
+            converted = bangla_to_english_number(str(quantity).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('পরিমাণ ০ এর বেশি হতে হবে')
                 return value
             except (ValueError, InvalidOperation):
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন')

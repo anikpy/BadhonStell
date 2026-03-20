@@ -73,13 +73,31 @@ class InventoryProduct(models.Model):
         verbose_name = 'ইনভেন্টরি পণ্য'
         verbose_name_plural = 'ইনভেন্টরি পণ্যসমূহ'
         ordering = ['name']
+        # Prevent duplicate products with same name and unit
+        unique_together = [['name', 'unit']]
 
     def __str__(self):
         return f"{self.name} ({self.stock_quantity} {self.get_unit_display()})"
+    
+    def add_stock(self, quantity):
+        """Add stock to existing product"""
+        if quantity <= 0:
+            raise ValueError("স্টক পরিমাণ ০-এর বেশি হতে হবে")
+        self.stock_quantity += quantity
+        self.save()
+    
+    def remove_stock(self, quantity):
+        """Remove stock from existing product"""
+        if quantity <= 0:
+            raise ValueError("স্টক পরিমাণ ০-এর বেশি হতে হবে")
+        if self.stock_quantity < quantity:
+            raise ValueError(f"অপর্যাপ্ত স্টক! বর্তমান স্টক: {self.stock_quantity}")
+        self.stock_quantity -= quantity
+        self.save()
 
 
 class Order(models.Model):
-    """অর্ডার মডেল - কাস্টম পণ্যের জন্য"""
+    """অর্ডার মডেল - একাধিক পণ্যের জন্য"""
     STATUS_CHOICES = [
         ('pending', 'চলমান'),
         ('ready', 'প্রস্তুত'),
@@ -93,9 +111,7 @@ class Order(models.Model):
 
     customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
     mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
-    product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
-    product_description = models.TextField(verbose_name='পণ্যের বিবরণ')
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য')
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য', default=0)
     cash_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নগদ পরিশোধ', default=0)
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False)
     initial_payment_migrated = models.BooleanField(default=False, verbose_name='প্রাথমিক পেমেন্ট OrderPayment-এ স্থানান্তরিত')
@@ -112,17 +128,50 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        # বাকি টাকা অটো ক্যালকুলেশন
-        # Note: cash_paid is now updated by signal from OrderPayment records
-        # Only calculate due_amount here for new orders before any payments
-        if not self.pk:  # New order
-            self.due_amount = self.total_price - self.cash_paid
-        else:  # Existing order - let signal handle it
-            pass
+        # Calculate total_price from items if not set
+        if not self.total_price:
+            total = sum(item.total_price for item in self.items.all())
+            self.total_price = total
+        
+        # Calculate due_amount
+        self.due_amount = self.total_price - self.cash_paid
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.customer_name} - {self.product_name}"
+        return f"{self.customer_name} - Order #{self.pk}"
+
+
+class OrderItem(models.Model):
+    """অর্ডার আইটেম - একটি অর্ডারে একাধিক পণ্য"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name='অর্ডার')
+    product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    product_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য', editable=False)
+    
+    class Meta:
+        verbose_name = 'অর্ডার আইটেম'
+        verbose_name_plural = 'অর্ডার আইটেমসমূহ'
+    
+    def save(self, *args, **kwargs):
+        # Calculate total_price
+        self.total_price = self.quantity * self.unit_price
+        
+        # Check stock availability for inventory products
+        try:
+            inventory_product = InventoryProduct.objects.filter(name__iexact=self.product_name).first()
+            if inventory_product:
+                if inventory_product.stock_quantity < self.quantity:
+                    raise ValueError(f"অপর্যাপ্ত স্টক! {self.product_name}-এর বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}, অর্ডার করা হয়েছে: {self.quantity}")
+        except:
+            pass  # If no matching inventory product found, skip stock check
+        
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.product_name} × {self.quantity} - Order #{self.order.pk}"
 
 
 class Invoice(models.Model):

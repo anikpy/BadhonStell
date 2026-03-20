@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin-panel/inventory/create/', views.inventory_product_create, name='inventory_product_create'),
     path('admin-panel/inventory/<int:pk>/edit/', views.inventory_product_edit, name='inventory_product_edit'),
     path('admin-panel/inventory/<int:pk>/delete/', views.inventory_product_delete, name='inventory_product_delete'),
+    path('admin-panel/inventory/<int:pk>/stock/', views.stock_management, name='stock_management'),
 
 
     # ইনভয়েস/ভাউচার URLs

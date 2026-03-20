@@ -5,8 +5,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import JsonResponse
-from .models import ShopInfo, Product, Order, InventoryProduct, Invoice, InvoiceItem
-from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm
+from .models import ShopInfo, Product, Order, InventoryProduct, Invoice, InvoiceItem, OrderItem
+from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm
 from decimal import Decimal
 import json
 
@@ -104,8 +104,8 @@ def order_list(request):
         orders = orders.filter(
             Q(customer_name__icontains=search_query) |
             Q(mobile_number__icontains=search_query) |
-            Q(product_name__icontains=search_query)
-        )
+            Q(items__product_name__icontains=search_query)
+        ).distinct()
 
     if status_filter:
         orders = orders.filter(status=status_filter)
@@ -120,50 +120,204 @@ def order_list(request):
 
 @login_required
 def order_create(request):
-    """নতুন অর্ডার তৈরি"""
+    """নতুন অর্ডার তৈরি - একাধিক পণ্য"""
+    products = InventoryProduct.objects.filter(is_active=True)
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in products
+    ])
+
     if request.method == 'POST':
         form = OrderForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'অর্ডার সফলভাবে তৈরি হয়েছে!')
-            return redirect('order_list')
+        items_json_str = request.POST.get('items_json', '[]')
+
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        elif form.is_valid():
+            try:
+                # Validate items and calculate total
+                total_price = Decimal('0')
+                validated_items = []
+                for item in items_data:
+                    product_name = item.get('product_name', '').strip()
+                    quantity = Decimal(str(item.get('quantity', 0)))
+                    unit_price = Decimal(str(item.get('unit_price', 0)))
+                    
+                    if not product_name:
+                        raise ValueError("পণ্যের নাম লিখুন")
+                    if quantity <= 0:
+                        raise ValueError(f"{product_name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if unit_price <= 0:
+                        raise ValueError(f"{product_name}: মূল্য ০-এর বেশি হতে হবে")
+                    
+                    # Check stock availability for inventory products
+                    try:
+                        inventory_product = InventoryProduct.objects.filter(name__iexact=product_name).first()
+                        if inventory_product:
+                            if inventory_product.stock_quantity < quantity:
+                                raise ValueError(f"{product_name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}")
+                    except:
+                        pass  # If no matching inventory product found, skip stock check
+                    
+                    item_total = quantity * unit_price
+                    total_price += item_total
+                    
+                    validated_items.append({
+                        'product_name': product_name,
+                        'product_description': item.get('product_description', ''),
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                    })
+
+                # Save order
+                order = form.save(commit=False)
+                order.total_price = total_price
+                order.save()
+
+                # Create OrderItem records
+                for item_data in validated_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=item_data['product_name'],
+                        product_description=item_data['product_description'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price'],
+                    )
+
+                messages.success(request, f'✅ অর্ডার #{order.pk} সফলভাবে তৈরি হয়েছে!')
+                return redirect('order_list')
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
     else:
         form = OrderForm()
 
-    context = {'form': form}
+    context = {
+        'form': form,
+        'products_json': products_json,
+    }
     return render(request, 'admin_panel/order_form.html', context)
 
 
 @login_required
 def order_edit(request, pk):
-    """অর্ডার সম্পাদনা"""
+    """অর্ডার সম্পাদনা - একাধিক পণ্য"""
     order = get_object_or_404(Order, pk=pk)
+
+    products = InventoryProduct.objects.filter(is_active=True)
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in products
+    ])
+
+    # Build existing items for template pre-population
+    existing_items = [
+        {
+            'product_name': item.product_name,
+            'product_description': item.product_description or '',
+            'quantity': float(item.quantity),
+            'unit_price': float(item.unit_price),
+        }
+        for item in order.items.all()
+    ]
 
     if request.method == 'POST':
         form = OrderForm(request.POST, instance=order)
-        if form.is_valid():
-            # Save other fields but preserve dates unless explicitly provided
-            order_instance = form.save(commit=False)
-            # If admin provided a new order_date, use it; otherwise keep existing
-            new_order_date = form.cleaned_data.get('order_date')
-            if new_order_date:
-                order_instance.order_date = new_order_date
-            else:
-                order_instance.order_date = order.order_date
+        items_json_str = request.POST.get('items_json', '[]')
 
-            new_delivery_date = form.cleaned_data.get('delivery_date')
-            if new_delivery_date:
-                order_instance.delivery_date = new_delivery_date
-            else:
-                order_instance.delivery_date = order.delivery_date
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
 
-            order_instance.save()
-            messages.success(request, 'অর্ডার সফলভাবে আপডেট হয়েছে!')
-            return redirect('order_list')
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        elif form.is_valid():
+            try:
+                # Validate items and calculate total
+                total_price = Decimal('0')
+                validated_items = []
+                for item in items_data:
+                    product_name = item.get('product_name', '').strip()
+                    quantity = Decimal(str(item.get('quantity', 0)))
+                    unit_price = Decimal(str(item.get('unit_price', 0)))
+                    
+                    if not product_name:
+                        raise ValueError("পণ্যের নাম লিখুন")
+                    if quantity <= 0:
+                        raise ValueError(f"{product_name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if unit_price <= 0:
+                        raise ValueError(f"{product_name}: মূল্য ০-এর বেশি হতে হবে")
+                    
+                    item_total = quantity * unit_price
+                    total_price += item_total
+                    
+                    validated_items.append({
+                        'product_name': product_name,
+                        'product_description': item.get('product_description', ''),
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                    })
+
+                # Update order
+                order_instance = form.save(commit=False)
+                order_instance.total_price = total_price
+                
+                # Preserve dates if not provided
+                new_order_date = form.cleaned_data.get('order_date')
+                if new_order_date:
+                    order_instance.order_date = new_order_date
+                else:
+                    order_instance.order_date = order.order_date
+
+                new_delivery_date = form.cleaned_data.get('delivery_date')
+                if new_delivery_date:
+                    order_instance.delivery_date = new_delivery_date
+                else:
+                    order_instance.delivery_date = order.delivery_date
+                
+                order_instance.save()
+
+                # Delete old items and create new ones
+                order.items.all().delete()
+                for item_data in validated_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=item_data['product_name'],
+                        product_description=item_data['product_description'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price'],
+                    )
+
+                messages.success(request, '✅ অর্ডার সফলভাবে আপডেট হয়েছে!')
+                return redirect('order_list')
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
     else:
         form = OrderForm(instance=order)
 
-    context = {'form': form, 'order': order}
+    context = {
+        'form': form,
+        'order': order,
+        'products_json': products_json,
+        'edit_items_json': json.dumps(existing_items),
+    }
     return render(request, 'admin_panel/order_form.html', context)
 
 
@@ -200,8 +354,8 @@ def completed_order_list(request):
         orders = orders.filter(
             Q(customer_name__icontains=search_query) |
             Q(mobile_number__icontains=search_query) |
-            Q(product_name__icontains=search_query)
-        )
+            Q(items__product_name__icontains=search_query)
+        ).distinct()
 
     paginator = Paginator(orders, 15)
     page_obj = paginator.get_page(page_number)
@@ -304,6 +458,40 @@ def inventory_product_delete(request, pk):
     product.delete()
     messages.success(request, '✅ পণ্য সফলভাবে মুছে ফেলা হয়েছে!')
     return redirect('inventory_product_list')
+
+
+@login_required
+def stock_management(request, pk):
+    """স্টক ব্যবস্থাপনা - স্টক যোগ/কমানো"""
+    product = get_object_or_404(InventoryProduct, pk=pk)
+    
+    if request.method == 'POST':
+        form = StockManagementForm(request.POST)
+        if form.is_valid():
+            operation_type = form.cleaned_data['operation_type']
+            quantity = form.cleaned_data['quantity']
+            notes = form.cleaned_data['notes']
+            
+            try:
+                if operation_type == 'add':
+                    product.add_stock(quantity)
+                    messages.success(request, f'✅ {quantity} {product.get_unit_display()} স্টক যোগ করা হয়েছে!')
+                elif operation_type == 'remove':
+                    product.remove_stock(quantity)
+                    messages.success(request, f'✅ {quantity} {product.get_unit_display()} স্টক কমানো হয়েছে!')
+                
+                return redirect('inventory_product_list')
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
+    else:
+        form = StockManagementForm()
+    
+    context = {
+        'form': form,
+        'product': product,
+        'operation_title': 'স্টক ব্যবস্থাপনা'
+    }
+    return render(request, 'admin_panel/stock_management.html', context)
 
 
 

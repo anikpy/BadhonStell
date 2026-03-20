@@ -131,6 +131,29 @@
             font-size: 0.85rem;
         }
         
+        .products-section {
+            margin: 20px 0;
+        }
+        
+        .products-section table {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .products-section th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .products-section tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .products-section tr:hover {
+            background-color: #e9ecef;
+        }
+        
         .print-button {
             text-align: center;
             margin-bottom: 20px;
@@ -241,6 +264,31 @@
                 padding-top: 10px;
                 font-size: 0.75rem;
             }
+            
+            .products-section {
+                margin: 15px 0;
+            }
+            
+            .products-section table {
+                border: 1px solid #000;
+                font-size: 0.8rem;
+            }
+            
+            .products-section th {
+                background: #f8f9fa !important;
+                color: #000 !important;
+                padding: 6px 8px !important;
+                font-size: 0.8rem !important;
+            }
+            
+            .products-section td {
+                padding: 6px 8px !important;
+                font-size: 0.75rem !important;
+            }
+            
+            .products-section tr:nth-child(even) {
+                background-color: #f8f9fa !important;
+            }
         }
         
         @media (max-width: 768px) {
@@ -260,6 +308,15 @@
             .signature-section {
                 grid-template-columns: 1fr;
                 gap: 60px;
+            }
+            
+            .products-section table {
+                font-size: 0.8rem;
+            }
+            
+            .products-section th,
+            .products-section td {
+                padding: 6px 4px !important;
             }
         }
     </style>
@@ -293,16 +350,6 @@
             </div>
             
             <div class="info-row">
-                <div class="info-label">পণ্যের নাম:</div>
-                <div class="info-value">{{ order.product_name }}</div>
-            </div>
-            
-            <div class="info-row">
-                <div class="info-label">পণ্যের বিবরণ:</div>
-                <div class="info-value">{{ order.product_description }}</div>
-            </div>
-            
-            <div class="info-row">
                 <div class="info-label">অর্ডার নেওয়ার তারিখ:</div>
                 <div class="info-value">{{ order.order_date|date:"d/m/Y" }}</div>
             </div>
@@ -311,6 +358,37 @@
                 <div class="info-label">ডেলিভারির তারিখ:</div>
                 <div class="info-value">{{ order.delivery_date|date:"d/m/Y" }}</div>
             </div>
+        </div>
+        
+        <!-- Products Table -->
+        <div class="products-section">
+            <h3 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 5px;">📦 পণ্যের তালিকা</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 10px; text-align: left; font-weight: 600;">পণ্যের নাম</th>
+                        <th style="padding: 10px; text-align: left; font-weight: 600;">বিবরণ</th>
+                        <th style="padding: 10px; text-align: right; font-weight: 600;">পরিমাণ</th>
+                        <th style="padding: 10px; text-align: right; font-weight: 600;">একক মূল্য</th>
+                        <th style="padding: 10px; text-align: right; font-weight: 600;">মোট মূল্য</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items.all %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 10px;">{{ item.product_name }}</td>
+                        <td style="padding: 10px;">{{ item.product_description|default:"-" }}</td>
+                        <td style="padding: 10px; text-align: right;">{{ item.quantity }}</td>
+                        <td style="padding: 10px; text-align: right;">৳ {{ item.unit_price }}</td>
+                        <td style="padding: 10px; text-align: right; font-weight: 600;">৳ {{ item.total_price }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="padding: 20px; text-align: center; color: #666;">কোন পণ্য পাওয়া যায়নি</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         
         <div class="price-section">

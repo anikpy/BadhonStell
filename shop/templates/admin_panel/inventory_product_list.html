@@ -249,6 +249,7 @@
 
         <div class="product-actions">
             <a href="{% url 'inventory_product_edit' product.pk %}" class="btn btn-primary">✏️ সম্পাদনা</a>
+            <a href="{% url 'stock_management' product.pk %}" class="btn btn-warning">📦 স্টক</a>
             <a href="{% url 'inventory_product_delete' product.pk %}" class="btn btn-danger" onclick="return confirm('আপনি কি নিশ্চিত যে এই পণ্যটি মুছে ফেলতে চান?')">🗑️ মুছুন</a>
         </div>
     </div>

@@ -1,0 +1,220 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}স্টক ব্যবস্থাপনা - {{ product.name }} - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .product-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+    
+    .product-info h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.5rem;
+    }
+    
+    .product-info .stock-info {
+        font-size: 1.2rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 5px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #218838;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #c82333;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #856404;
+    }
+    
+    .warning-box strong {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="product-info">
+        <h3>📦 {{ product.name }}</h3>
+        <div class="stock-info">
+            বর্তমান স্টক: {{ product.stock_quantity }} {{ product.get_unit_display }}
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2 class="card-title">{{ operation_title }}</h2>
+        
+        {% if product.stock_quantity == 0 %}
+        <div class="warning-box">
+            <strong>⚠️ সতর্কতা:</strong> বর্তমানে এই পণ্যটির স্টক নেই!
+        </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                {{ form.operation_type.label_tag }}
+                {{ form.operation_type }}
+            </div>
+            
+            <div class="form-group">
+                {{ form.quantity.label_tag }}
+                {{ form.quantity }}
+            </div>
+            
+            <div class="form-group">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">
+                    ✅ সম্পাদনা করুন
+                </button>
+                <a href="{% url 'inventory_product_list' %}" class="btn btn-secondary">❌ বাতিল</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // বাংলা সংখ্যা সাপোর্ট
+    document.addEventListener('DOMContentLoaded', function() {
+        const banglaInputs = document.querySelectorAll('.bangla-number-input');
+
+        banglaInputs.forEach(function(input) {
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+
+            let isComposing = false;
+
+            input.addEventListener('compositionstart', function() {
+                isComposing = true;
+            });
+
+            input.addEventListener('compositionend', function() {
+                isComposing = false;
+            });
+
+            input.addEventListener('input', function(e) {
+                if (isComposing) {
+                    return;
+                }
+            });
+        });
+    });
+    
+    // ফর্ম টাইটেল আপডেট করুন
+    function updateFormTitle() {
+        const operationType = document.querySelector('select[name="operation_type"]');
+        const titleElement = document.querySelector('.card-title');
+        
+        if (operationType.value === 'add') {
+            titleElement.textContent = '📈 স্টক যোগ করুন';
+        } else if (operationType.value === 'remove') {
+            titleElement.textContent = '📉 স্টক কমান';
+        } else {
+            titleElement.textContent = 'স্টক ব্যবস্থাপনা';
+        }
+    }
+    
+    // পেজ লোড হলে টাইটেল আপডেট করুন
+    updateFormTitle();
+</script>
+{% endblock %}

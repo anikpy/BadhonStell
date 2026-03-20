@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .form-container {
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
     }
     
@@ -66,6 +66,99 @@
         font-weight: 600;
         color: #2c3e50;
     }
+
+    /* Product items table styles */
+    .items-section {
+        margin: 30px 0;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        background: #f9f9f9;
+    }
+    
+    .items-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    
+    .items-table th,
+    .items-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .items-table th {
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .item-row input,
+    .item-row select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .item-row input:focus,
+    .item-row select:focus {
+        border-color: #667eea;
+        outline: none;
+    }
+    
+    .remove-item {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+    
+    .remove-item:hover {
+        background: #c82333;
+    }
+    
+    .add-item-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    
+    .add-item-btn:hover {
+        background: #218838;
+    }
+    
+    .total-section {
+        text-align: right;
+        margin-top: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    
+    .total-amount {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
     
     @media (max-width: 768px) {
         .form-row {
@@ -74,6 +167,15 @@
         
         .form-actions {
             flex-direction: column;
+        }
+        
+        .items-table {
+            font-size: 0.8rem;
+        }
+        
+        .items-header {
+            flex-direction: column;
+            gap: 10px;
         }
     }
 </style>
@@ -93,6 +195,7 @@
         <form method="post" id="orderForm">
             {% csrf_token %}
             
+            <!-- Customer Information -->
             <div class="form-row">
                 <div class="form-group">
                     {{ form.customer_name.label_tag }}
@@ -105,29 +208,57 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                {{ form.product_name.label_tag }}
-                {{ form.product_name }}
-            </div>
-            
-            <div class="form-group">
-                {{ form.product_description.label_tag }}
-                {{ form.product_description }}
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    {{ form.total_price.label_tag }}
-                    {{ form.total_price }}
+            <!-- Product Items Section -->
+            <div class="items-section">
+                <div class="items-header">
+                    <h3>📦 পণ্যের তালিকা</h3>
+                    <button type="button" class="add-item-btn" onclick="addItem()">
+                        ➕ পণ্য যোগ করুন
+                    </button>
                 </div>
                 
+                <table class="items-table" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th width="25%">পণ্যের নাম</th>
+                            <th width="30%">বিবরণ</th>
+                            <th width="15%">পরিমাণ</th>
+                            <th width="15%">একক মূল্য</th>
+                            <th width="15%">মোট মূল্য</th>
+                            <th width="5%">কর্ম</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTableBody">
+                        <!-- Items will be added here dynamically -->
+                    </tbody>
+                </table>
+                
+                <!-- Hidden field for items JSON -->
+                {{ form.items_json }}
+                
+                <!-- Total Section -->
+                <div class="total-section">
+                    <div class="total-amount">
+                        সর্বমোট মূল্য: <span id="totalAmount">০</span> টাকা
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Information -->
+            <div class="form-row">
                 <div class="form-group">
                     {{ form.cash_paid.label_tag }}
                     {{ form.cash_paid }}
                     <p class="help-text">বাকি টাকা স্বয়ংক্রিয়ভাবে হিসাব হবে</p>
                 </div>
+                
+                <div class="form-group">
+                    <label>বাকি টাকা</label>
+                    <input type="text" class="form-control calculated-field" id="dueAmount" readonly value="০">
+                </div>
             </div>
             
+            <!-- Order Information -->
             <div class="form-row">
                 <div class="form-group">
                     {{ form.order_date.label_tag }}
@@ -167,38 +298,215 @@
 </div>
 
 <script>
-    // বাংলা সংখ্যা সাপোর্ট - composition events ব্যবহার করে
-    document.addEventListener('DOMContentLoaded', function() {
-        const banglaInputs = document.querySelectorAll('.bangla-number-input');
-
-        banglaInputs.forEach(function(input) {
-            // Prevent any auto-correction or auto-complete
-            input.setAttribute('autocorrect', 'off');
-            input.setAttribute('autocapitalize', 'off');
-            input.setAttribute('spellcheck', 'false');
-
-            // Allow composition (for Bengali input methods)
-            let isComposing = false;
-
-            input.addEventListener('compositionstart', function() {
-                isComposing = true;
-            });
-
-            input.addEventListener('compositionend', function() {
-                isComposing = false;
-            });
-
-            // Don't interfere during composition
-            input.addEventListener('input', function(e) {
-                if (isComposing) {
-                    return; // Don't do anything while composing
-                }
-            });
-
-            console.log('✅ বাংলা ইনপুট সক্রিয় করা হয়েছে:', input.id);
+    // Product data from server
+    const products = {{ products_json|safe }};
+    
+    // Edit items (for edit mode)
+    const editItems = {% if edit_items_json %}{{ edit_items_json|safe }}{% else %}[]{% endif %};
+    
+    let itemCount = 0;
+    
+    // Bangla to English number conversion
+    function banglaToEnglishNumber(text) {
+        const banglaDigits = {
+            '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+            '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9'
+        };
+        
+        if (!text) return text;
+        
+        let result = String(text);
+        for (let bangla in banglaDigits) {
+            result = result.replace(new RegExp(bangla, 'g'), banglaDigits[bangla]);
+        }
+        return result;
+    }
+    
+    // English to Bangla number conversion
+    function englishToBanglaNumber(text) {
+        const englishDigits = {
+            '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
+            '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
+        };
+        
+        if (!text) return text;
+        
+        let result = String(text);
+        for (let english in englishDigits) {
+            result = result.replace(new RegExp(english, 'g'), englishDigits[english]);
+        }
+        return result;
+    }
+    
+    // Add new item row
+    function addItem() {
+        const tbody = document.getElementById('itemsTableBody');
+        const row = document.createElement('tr');
+        row.className = 'item-row';
+        row.id = 'item-' + itemCount;
+        
+        const productOptions = products.map(p => 
+            '<option value="' + p.id + '">' + p.name + ' (' + p.unit + ')</option>'
+        ).join('');
+        
+        row.innerHTML = 
+            '<td>' +
+                '<input type="text" class="product-name" placeholder="পণ্যের নাম" required>' +
+                '<select class="product-select" onchange="selectProduct(' + itemCount + ', this.value)">' +
+                    '<option value="">পণ্য নির্বাচন করুন</option>' +
+                    productOptions +
+                '</select>' +
+            '</td>' +
+            '<td>' +
+                '<input type="text" class="product-description" placeholder="পণ্যের বিবরণ">' +
+            '</td>' +
+            '<td>' +
+                '<input type="text" class="quantity" placeholder="পরিমাণ" required onchange="calculateItemTotal(' + itemCount + ')">' +
+            '</td>' +
+            '<td>' +
+                '<input type="text" class="unit-price" placeholder="একক মূল্য" required onchange="calculateItemTotal(' + itemCount + ')">' +
+            '</td>' +
+            '<td>' +
+                '<input type="text" class="item-total" readonly value="০">' +
+            '</td>' +
+            '<td>' +
+                '<button type="button" class="remove-item" onclick="removeItem(' + itemCount + ')">মুছুন</button>' +
+            '</td>';
+        
+        tbody.appendChild(row);
+        itemCount++;
+        updateTotals();
+    }
+    
+    // Select product from dropdown
+    function selectProduct(itemId, productId) {
+        const row = document.getElementById('item-' + itemId);
+        const product = products.find(p => p.id == productId);
+        
+        if (product) {
+            row.querySelector('.product-name').value = product.name;
+            row.querySelector('.unit-price').value = englishToBanglaNumber(product.price);
+            row.querySelector('.product-description').value = product.name + ' (' + product.unit + ')';
+            calculateItemTotal(itemId);
+        }
+    }
+    
+    // Calculate item total
+    function calculateItemTotal(itemId) {
+        const row = document.getElementById('item-' + itemId);
+        const quantity = parseFloat(banglaToEnglishNumber(row.querySelector('.quantity').value) || 0);
+        const unitPrice = parseFloat(banglaToEnglishNumber(row.querySelector('.unit-price').value) || 0);
+        const total = quantity * unitPrice;
+        
+        row.querySelector('.item-total').value = englishToBanglaNumber(total.toFixed(2));
+        updateTotals();
+    }
+    
+    // Remove item
+    function removeItem(itemId) {
+        const row = document.getElementById('item-' + itemId);
+        row.remove();
+        updateTotals();
+    }
+    
+    // Update totals
+    function updateTotals() {
+        const rows = document.querySelectorAll('.item-row');
+        let total = 0;
+        
+        rows.forEach(row => {
+            const itemTotal = parseFloat(banglaToEnglishNumber(row.querySelector('.item-total').value) || 0);
+            total += itemTotal;
         });
-
-        console.log('✅ বাংলা সংখ্যা সাপোর্ট সক্রিয় আছে');
+        
+        document.getElementById('totalAmount').textContent = englishToBanglaNumber(total.toFixed(2));
+        updateDueAmount();
+    }
+    
+    // Update due amount
+    function updateDueAmount() {
+        const total = parseFloat(banglaToEnglishNumber(document.getElementById('totalAmount').textContent) || 0);
+        const cashPaid = parseFloat(banglaToEnglishNumber(document.querySelector('input[name="cash_paid"]').value) || 0);
+        const due = total - cashPaid;
+        
+        document.getElementById('dueAmount').value = englishToBanglaNumber(due.toFixed(2));
+    }
+    
+    // Collect items data
+    function collectItemsData() {
+        const rows = document.querySelectorAll('.item-row');
+        const items = [];
+        
+        rows.forEach(row => {
+            const productName = row.querySelector('.product-name').value.trim();
+            const productDescription = row.querySelector('.product-description').value.trim();
+            const quantity = parseFloat(banglaToEnglishNumber(row.querySelector('.quantity').value) || 0);
+            const unitPrice = parseFloat(banglaToEnglishNumber(row.querySelector('.unit-price').value) || 0);
+            
+            if (productName && quantity > 0 && unitPrice > 0) {
+                items.push({
+                    product_name: productName,
+                    product_description: productDescription,
+                    quantity: quantity,
+                    unit_price: unitPrice
+                });
+            }
+        });
+        
+        return items;
+    }
+    
+    // Form submission
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        const items = collectItemsData();
+        
+        if (items.length === 0) {
+            e.preventDefault();
+            alert('কমপক্ষে একটি পণ্য যোগ করুন!');
+            return;
+        }
+        
+        // Set items JSON
+        document.querySelector('input[name="items_json"]').value = JSON.stringify(items);
+    });
+    
+    // Cash paid change event
+    document.querySelector('input[name="cash_paid"]').addEventListener('input', updateDueAmount);
+    
+    // Initialize form
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add initial item if not in edit mode
+        if (editItems.length === 0) {
+            addItem();
+        } else {
+            // Load edit items
+            editItems.forEach(item => {
+                addItem();
+                const lastRow = document.querySelectorAll('.item-row')[document.querySelectorAll('.item-row').length - 1];
+                lastRow.querySelector('.product-name').value = item.product_name;
+                lastRow.querySelector('.product-description').value = item.product_description;
+                lastRow.querySelector('.quantity').value = englishToBanglaNumber(item.quantity);
+                lastRow.querySelector('.unit-price').value = englishToBanglaNumber(item.unit_price);
+                calculateItemTotal(itemCount - 1);
+            });
+        }
+        
+        // Set default dates
+        const today = new Date().toISOString().split('T')[0];
+        const orderDateField = document.querySelector('input[name="order_date"]');
+        const deliveryDateField = document.querySelector('input[name="delivery_date"]');
+        
+        if (!orderDateField.value) {
+            orderDateField.value = today;
+        }
+        
+        if (!deliveryDateField.value) {
+            const deliveryDate = new Date();
+            deliveryDate.setDate(deliveryDate.getDate() + 7);
+            deliveryDateField.value = deliveryDate.toISOString().split('T')[0];
+        }
+        
+        console.log('✅ মাল্টি-পণ্য অর্ডার ফর্ম সক্রিয় করা হয়েছে');
     });
 </script>
 {% endblock %}
