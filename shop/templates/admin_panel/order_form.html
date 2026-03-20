@@ -346,7 +346,7 @@
         row.id = 'item-' + itemCount;
         
         const productOptions = products.map(p => 
-            '<option value="' + p.id + '">' + p.name + ' (' + p.unit + ')</option>'
+            '<option value="' + p.id + '">' + p.name + ' (স্টক: ' + p.stock + ')</option>'
         ).join('');
         
         row.innerHTML = 
@@ -356,6 +356,7 @@
                     '<option value="">পণ্য নির্বাচন করুন</option>' +
                     productOptions +
                 '</select>' +
+                '<span class="stock-warn" id="stock-warn-' + itemCount + '" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>' +
             '</td>' +
             '<td>' +
                 '<input type="text" class="product-description" placeholder="পণ্যের বিবরণ">' +
@@ -387,7 +388,7 @@
             row.querySelector('.product-name').value = product.name;
             row.querySelector('.unit-price').value = englishToBanglaNumber(product.price);
             row.querySelector('.product-description').value = product.name + ' (' + product.unit + ')';
-            calculateItemTotal(itemId);
+            calculateItemTotal(itemId); // This will also check stock
         }
     }
     
@@ -397,8 +398,23 @@
         const quantity = parseFloat(banglaToEnglishNumber(row.querySelector('.quantity').value) || 0);
         const unitPrice = parseFloat(banglaToEnglishNumber(row.querySelector('.unit-price').value) || 0);
         const total = quantity * unitPrice;
-        
         row.querySelector('.item-total').value = englishToBanglaNumber(total.toFixed(2));
+        
+        // Stock validation
+        const productSelect = row.querySelector('.product-select');
+        const stockWarn = document.getElementById('stock-warn-' + itemId);
+        
+        if (productSelect.value && quantity > 0) {
+            const selectedProduct = products.find(p => p.id == productSelect.value);
+            if (selectedProduct && quantity > selectedProduct.stock) {
+                stockWarn.style.display = 'block';
+            } else {
+                stockWarn.style.display = 'none';
+            }
+        } else {
+            stockWarn.style.display = 'none';
+        }
+        
         updateTotals();
     }
     
