@@ -410,19 +410,20 @@ function addRow(prefill) {
         onProductChange(idx, this.value);
     });
     tr.querySelector('.row-qty').addEventListener('input', () => {
-        updateRowSubtotal(idx); updateGrandTotal();
+        recalcRow(idx); updateGrandTotal();
     });
     tr.querySelector('.row-discount-input').addEventListener('input', () => {
-        updateRowSubtotal(idx); updateGrandTotal();
+        recalcRow(idx); updateGrandTotal();
     });
 
-    updateRowSubtotal(idx);
+    recalcRow(idx);
     updateGrandTotal();
 }
 
 function removeRow(idx) {
     const tr = document.querySelector(`#items-tbody tr[data-idx="${idx}"]`);
     if (tr) tr.remove();
+    updateAllStockWarnings(); // Update stock warnings for remaining rows
     updateGrandTotal();
 }
 
@@ -437,7 +438,7 @@ function onProductChange(idx, productId) {
         priceInput.value      = '';
         unitLabel.textContent = '';
     }
-    updateRowSubtotal(idx);
+    recalcRow(idx);
     updateGrandTotal();
 }
 
