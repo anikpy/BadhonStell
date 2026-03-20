@@ -474,6 +474,54 @@ function updateRowSubtotal(idx) {
     }
 }
 
+function recalcRow(idx) {
+    const prodSel = document.querySelector(`.row-product[data-idx="${idx}"]`);
+    const qtyInput = document.querySelector(`.row-qty[data-idx="${idx}"]`);
+    const discInput = document.querySelector(`.row-discount-input[data-idx="${idx}"]`);
+
+    const productId = prodSel.value;
+    const product = productMap[productId];
+    const qty = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+    const disc = parseFloat(discInput.value) || 0;
+
+    const gross = qty * (product?.price || 0);
+    const saving = (gross * disc) / 100;
+    const net = gross - saving;
+
+    const cell = document.getElementById(`subtotal-cell-${idx}`);
+    const savLabel = document.getElementById(`saving-label-${idx}`);
+    const stockWrn = document.getElementById(`stock-warn-${idx}`);
+
+    if (cell) {
+        cell.firstChild.textContent = '৳' + net.toFixed(2);
+    }
+    if (savLabel) {
+        if (saving > 0) {
+            savLabel.textContent = `সাশ্রয়: ৳${saving.toFixed(2)}`;
+            savLabel.style.display = 'block';
+        } else {
+            savLabel.style.display = 'none';
+        }
+    }
+
+    // Stock warning with cross-row checking
+    if (productId && product && qty > 0) {
+        const usedInOtherRows = getTotalUsedStock(productId, idx);
+        const totalRequested = usedInOtherRows + qty;
+        
+        if (totalRequested > product.stock) {
+            stockWrn.style.display = 'block';
+            stockWrn.innerHTML = `⚠️ স্টক অপর্যাপ্ত! ব্যবহৃত: ${usedInOtherRows}, অনুরোধ: ${qty}, মোট: ${totalRequested}, পাওয়া: ${product.stock}`;
+        } else {
+            stockWrn.style.display = 'none';
+        }
+    } else if (stockWrn) {
+        stockWrn.style.display = 'none';
+    }
+    
+    updateAllStockWarnings(); // Update all other rows too
+}
+
 function updateGrandTotal() {
     const rows = document.querySelectorAll('#items-tbody tr');
     let totalGross = 0, totalSaving = 0;
@@ -519,6 +567,61 @@ function syncItemsJson() {
         }
     });
     document.getElementById('items-json-field').value = JSON.stringify(items);
+}
+
+// Calculate total used stock for a product across all rows
+function getTotalUsedStock(productId, excludeIdx = null) {
+    let totalUsed = 0;
+    const rows = document.querySelectorAll('#items-tbody tr');
+    
+    rows.forEach(row => {
+        const rowIdx = row.dataset.idx;
+        if (rowIdx != excludeIdx) { // Exclude current row if specified
+            const prodSel = row.querySelector('.row-product');
+            const qtyInput = row.querySelector('.row-qty');
+            
+            if (prodSel.value == productId) {
+                const quantity = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+                totalUsed += quantity;
+            }
+        }
+    });
+    
+    return totalUsed;
+}
+
+// Update stock warnings for all rows
+function updateAllStockWarnings() {
+    const rows = document.querySelectorAll('#items-tbody tr');
+    
+    rows.forEach(row => {
+        const rowIdx = row.dataset.idx;
+        const prodSel = row.querySelector('.row-product');
+        const qtyInput = row.querySelector('.row-qty');
+        const stockWrn = document.getElementById(`stock-warn-${rowIdx}`);
+        
+        if (prodSel.value && qtyInput.value) {
+            const productId = prodSel.value;
+            const product = productMap[productId];
+            const quantity = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+            
+            if (product && quantity > 0) {
+                const usedInOtherRows = getTotalUsedStock(productId, rowIdx);
+                const totalRequested = usedInOtherRows + quantity;
+                
+                if (totalRequested > product.stock) {
+                    stockWrn.style.display = 'block';
+                    stockWrn.innerHTML = `⚠️ স্টক অপর্যাপ্ত! ব্যবহৃত: ${usedInOtherRows}, অনুরোধ: ${quantity}, মোট: ${totalRequested}, পাওয়া: ${product.stock}`;
+                } else {
+                    stockWrn.style.display = 'none';
+                }
+            } else {
+                stockWrn.style.display = 'none';
+            }
+        } else {
+            stockWrn.style.display = 'none';
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

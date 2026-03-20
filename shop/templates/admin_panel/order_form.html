@@ -392,6 +392,27 @@
         }
     }
     
+    // Calculate total used stock for a product across all rows
+    function getTotalUsedStock(productId, excludeItemId = null) {
+        let totalUsed = 0;
+        const rows = document.querySelectorAll('.item-row');
+        
+        rows.forEach(row => {
+            const rowId = row.id.replace('item-', '');
+            if (rowId != excludeItemId) { // Exclude current row if specified
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.quantity');
+                
+                if (productSelect.value == productId) {
+                    const quantity = parseFloat(banglaToEnglishNumber(quantityInput.value) || 0);
+                    totalUsed += quantity;
+                }
+            }
+        });
+        
+        return totalUsed;
+    }
+    
     // Calculate item total
     function calculateItemTotal(itemId) {
         const row = document.getElementById('item-' + itemId);
@@ -400,28 +421,69 @@
         const total = quantity * unitPrice;
         row.querySelector('.item-total').value = englishToBanglaNumber(total.toFixed(2));
         
-        // Stock validation
+        // Stock validation with cross-row checking
         const productSelect = row.querySelector('.product-select');
         const stockWarn = document.getElementById('stock-warn-' + itemId);
         
         if (productSelect.value && quantity > 0) {
             const selectedProduct = products.find(p => p.id == productSelect.value);
-            if (selectedProduct && quantity > selectedProduct.stock) {
-                stockWarn.style.display = 'block';
-            } else {
-                stockWarn.style.display = 'none';
+            if (selectedProduct) {
+                const usedInOtherRows = getTotalUsedStock(productSelect.value, itemId);
+                const totalRequested = usedInOtherRows + quantity;
+                
+                if (totalRequested > selectedProduct.stock) {
+                    stockWarn.style.display = 'block';
+                    stockWarn.innerHTML = `⚠️ স্টক অপর্যাপ্ত! ব্যবহৃত: ${usedInOtherRows}, অনুরোধ: ${quantity}, মোট: ${totalRequested}, পাওয়া: ${selectedProduct.stock}`;
+                } else {
+                    stockWarn.style.display = 'none';
+                }
             }
         } else {
             stockWarn.style.display = 'none';
         }
         
+        updateAllStockWarnings(); // Update all other rows too
         updateTotals();
+    }
+    
+    // Update stock warnings for all rows
+    function updateAllStockWarnings() {
+        const rows = document.querySelectorAll('.item-row');
+        
+        rows.forEach(row => {
+            const rowId = row.id.replace('item-', '');
+            const productSelect = row.querySelector('.product-select');
+            const quantityInput = row.querySelector('.quantity');
+            const stockWarn = document.getElementById('stock-warn-' + rowId);
+            
+            if (productSelect.value && quantityInput.value) {
+                const quantity = parseFloat(banglaToEnglishNumber(quantityInput.value) || 0);
+                const selectedProduct = products.find(p => p.id == productSelect.value);
+                
+                if (selectedProduct && quantity > 0) {
+                    const usedInOtherRows = getTotalUsedStock(productSelect.value, rowId);
+                    const totalRequested = usedInOtherRows + quantity;
+                    
+                    if (totalRequested > selectedProduct.stock) {
+                        stockWarn.style.display = 'block';
+                        stockWarn.innerHTML = `⚠️ স্টক অপর্যাপ্ত! ব্যবহৃত: ${usedInOtherRows}, অনুরোধ: ${quantity}, মোট: ${totalRequested}, পাওয়া: ${selectedProduct.stock}`;
+                    } else {
+                        stockWarn.style.display = 'none';
+                    }
+                } else {
+                    stockWarn.style.display = 'none';
+                }
+            } else {
+                stockWarn.style.display = 'none';
+            }
+        });
     }
     
     // Remove item
     function removeItem(itemId) {
         const row = document.getElementById('item-' + itemId);
         row.remove();
+        updateAllStockWarnings(); // Update stock warnings for remaining rows
         updateTotals();
     }
     
