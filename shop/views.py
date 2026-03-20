@@ -120,8 +120,8 @@ def order_list(request):
 
 @login_required
 def order_create(request):
-    """নতুন অর্ডার তৈরি - একাধিক পণ্য"""
-    products = InventoryProduct.objects.filter(is_active=True)
+    """নতুন অর্ডার তৈরি - একাধিক পণ্য সাপোর্ট"""
+    products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
     products_json = json.dumps([
         {
             'id': p.pk,
@@ -185,7 +185,7 @@ def order_create(request):
                 order.total_price = total_price
                 order.save()
 
-                # Create OrderItem records
+                # Create OrderItem records and update stock
                 for item_data in validated_items:
                     OrderItem.objects.create(
                         order=order,
@@ -194,6 +194,14 @@ def order_create(request):
                         quantity=item_data['quantity'],
                         unit_price=item_data['unit_price'],
                     )
+                    
+                    # Deduct stock from inventory
+                    try:
+                        inventory_product = InventoryProduct.objects.filter(name__iexact=item_data['product_name']).first()
+                        if inventory_product:
+                            inventory_product.remove_stock(item_data['quantity'])
+                    except:
+                        pass  # If no matching inventory product, skip stock update
 
                 messages.success(request, f'✅ অর্ডার #{order.pk} সফলভাবে তৈরি হয়েছে!')
                 return redirect('order_list')
@@ -526,7 +534,7 @@ def invoice_list(request):
 @login_required
 def invoice_create(request):
     """নতুন ইনভয়েস তৈরি - একাধিক পণ্য সাপোর্ট"""
-    products = InventoryProduct.objects.filter(is_active=True)
+    products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
     products_json = json.dumps([
         {
             'id': p.pk,
