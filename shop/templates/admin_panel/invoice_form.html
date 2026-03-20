@@ -333,7 +333,11 @@
 
 <script>
 const PRODUCTS   = {{ products_json|safe }};
-const EDIT_ITEMS = {{ edit_items_json|default:"[]"|safe }};
+{% if edit_items_json %}
+const EDIT_ITEMS = {{ edit_items_json|safe }};
+{% else %}
+const EDIT_ITEMS = [];
+{% endif %}
 
 const productMap = {};
 PRODUCTS.forEach(p => { productMap[p.id] = p; });
@@ -482,7 +486,7 @@ function recalcRow(idx) {
 
     const productId = prodSel.value;
     const product = productMap[productId];
-    const qty = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+    const qty = parseFloat(b2e(qtyInput.value) || 0);
     const disc = parseFloat(discInput.value) || 0;
 
     const gross = qty * (product?.price || 0);
@@ -582,7 +586,7 @@ function getTotalUsedStock(productId, excludeIdx = null) {
             const qtyInput = row.querySelector('.row-qty');
             
             if (prodSel.value == productId) {
-                const quantity = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+                const quantity = parseFloat(b2e(qtyInput.value) || 0);
                 totalUsed += quantity;
             }
         }
@@ -604,7 +608,7 @@ function updateAllStockWarnings() {
         if (prodSel.value && qtyInput.value) {
             const productId = prodSel.value;
             const product = productMap[productId];
-            const quantity = parseFloat(banglaToEnglishNumber(qtyInput.value) || 0);
+            const quantity = parseFloat(b2e(qtyInput.value) || 0);
             
             if (product && quantity > 0) {
                 const usedInOtherRows = getTotalUsedStock(productId, rowIdx);
@@ -626,13 +630,27 @@ function updateAllStockWarnings() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Remove existing listeners and add a simple one
+    const addBtn = document.getElementById('add-row-btn');
+    if (addBtn) {
+        // Clone button to remove all event listeners
+        const newBtn = addBtn.cloneNode(true);
+        addBtn.parentNode.replaceChild(newBtn, addBtn);
+        
+        // Add simple click handler
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            addRow();
+        });
+    }
+    
     if (EDIT_ITEMS && EDIT_ITEMS.length > 0) {
         EDIT_ITEMS.forEach(item => addRow(item));
     } else {
         addRow();
     }
 
-    document.getElementById('add-row-btn').addEventListener('click', () => addRow());
     document.querySelector('input[name="paid_amount"]')
             ?.addEventListener('input', updateGrandTotal);
 
