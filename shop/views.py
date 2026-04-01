@@ -4,8 +4,21 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
-from django.http import JsonResponse
-from .models import ShopInfo, Product, Order, InventoryProduct, Invoice, InvoiceItem, OrderItem
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum, Count, Q, Avg, F
+from decimal import Decimal
+from .models import (
+    ShopInfo,
+    Product,
+    Order,
+    InventoryProduct,
+    Invoice,
+    InvoiceItem,
+    OrderItem,
+    Payment,
+    OrderPayment,
+)
 from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm
 from decimal import Decimal
 import json
@@ -283,23 +296,20 @@ def order_edit(request, pk):
                         'unit_price': unit_price,
                     })
 
-                # Update order
+                # Update order: lock original order_date, allow delivery_date update
                 order_instance = form.save(commit=False)
                 order_instance.total_price = total_price
-                
-                # Preserve dates if not provided
-                new_order_date = form.cleaned_data.get('order_date')
-                if new_order_date:
-                    order_instance.order_date = new_order_date
-                else:
-                    order_instance.order_date = order.order_date
 
+                # অর্ডার নেওয়ার মূল তারিখ সবসময় অপরিবর্তিত থাকবে
+                order_instance.order_date = order.order_date
+
+                # ডেলিভারির তারিখ আপডেট করা যাবে (না দিলে পুরোনোই থাকবে)
                 new_delivery_date = form.cleaned_data.get('delivery_date')
                 if new_delivery_date:
                     order_instance.delivery_date = new_delivery_date
                 else:
                     order_instance.delivery_date = order.delivery_date
-                
+
                 order_instance.save()
 
                 # Delete old items and create new ones
@@ -731,6 +741,8 @@ def invoice_edit(request, pk):
                 new_invoice = form.save(commit=False)
                 new_invoice.subtotal = grand_subtotal
                 new_invoice.discount_percentage = Decimal('0')
+                # বিক্রয়ের তারিখ সবসময় মূল ইনভয়েসের মতোই থাকবে
+                new_invoice.sale_date = old_invoice.sale_date
                 new_invoice.original_invoice = old_invoice.original_invoice or old_invoice
                 new_invoice.save()
 
@@ -893,6 +905,93 @@ def payment_create(request, invoice_pk):
         'invoice': invoice,
     }
     return render(request, 'admin_panel/payment_form.html', context)
+
+
+@login_required
+def payment_edit(request, pk):
+    """Edit an existing Payment for an invoice.
+
+    Keeps invoice.paid_amount and invoice.due_amount consistent and
+    prevents overpayment when the amount is changed.
+    """
+    payment = get_object_or_404(Payment, pk=pk)
+    invoice = payment.invoice
+
+    if request.method == 'POST':
+        form = PaymentForm(request.POST, instance=payment)
+        if form.is_valid():
+            updated_payment = form.save(commit=False)
+            new_amount = updated_payment.amount
+
+            # Sum of all other payments for this invoice
+            other_total = sum(p.amount for p in invoice.payments.exclude(pk=payment.pk))
+            max_allowed = invoice.total_amount - other_total
+
+            if new_amount > max_allowed:
+                messages.error(
+                    request,
+                    f'❌ অতিরিক্ত পেমেন্ট! সর্বোচ্চ পরিমাণ: ৳{max_allowed}',
+                )
+            else:
+                # Save updated payment
+                payment.amount = updated_payment.amount
+                payment.payment_date = updated_payment.payment_date
+                payment.notes = updated_payment.notes
+                payment.save()
+
+                # Recalculate invoice totals from all Payment records
+                total_paid = sum(p.amount for p in invoice.payments.all())
+                Invoice.objects.filter(pk=invoice.pk).update(
+                    paid_amount=total_paid,
+                    due_amount=invoice.total_amount - total_paid,
+                )
+
+                messages.success(request, '✅ পেমেন্ট সফলভাবে আপডেট করা হয়েছে!')
+                return redirect('invoice_detail', pk=invoice.pk)
+    else:
+        form = PaymentForm(instance=payment)
+
+    # For display: use Payment records as source of truth
+    invoice.refresh_from_db()
+    total_paid = sum(p.amount for p in invoice.payments.all())
+    if invoice.payments.exists():
+        display_paid = total_paid
+    else:
+        display_paid = invoice.paid_amount
+
+    invoice.paid_amount = display_paid
+    invoice.due_amount = invoice.total_amount - display_paid
+
+    context = {
+        'form': form,
+        'invoice': invoice,
+        'payment': payment,
+    }
+    return render(request, 'admin_panel/payment_form.html', context)
+
+
+@login_required
+def payment_delete(request, pk):
+    """Delete a Payment and update the parent invoice totals.
+
+    Follows the same pattern as invoice_delete (GET with confirm in template).
+    """
+    payment = get_object_or_404(Payment, pk=pk)
+    invoice = payment.invoice
+
+    try:
+        payment.delete()
+        # Recalculate invoice totals from remaining Payment records
+        total_paid = sum(p.amount for p in invoice.payments.all())
+        Invoice.objects.filter(pk=invoice.pk).update(
+            paid_amount=total_paid,
+            due_amount=invoice.total_amount - total_paid,
+        )
+        messages.success(request, '✅ পেমেন্ট সফলভাবে মুছে ফেলা হয়েছে!')
+    except Exception as e:
+        messages.error(request, f'❌ পেমেন্ট মুছতে ত্রুটি: {str(e)}')
+
+    return redirect('invoice_detail', pk=invoice.pk)
 
 
 @login_required
@@ -1191,3 +1290,175 @@ def order_payment_create(request, order_pk):
         'order': order,
     }
     return render(request, 'admin_panel/order_payment_form.html', context)
+
+
+@login_required
+def order_payment_edit(request, pk):
+    """Edit an existing OrderPayment for a custom order.
+
+    Uses the same overpayment protection logic and relies on the
+    OrderPayment signals to keep Order.cash_paid and Order.due_amount
+    in sync.
+    """
+    payment = get_object_or_404(OrderPayment, pk=pk)
+    order = payment.order
+
+    if request.method == 'POST':
+        form = OrderPaymentForm(request.POST, instance=payment)
+        if form.is_valid():
+            updated_payment = form.save(commit=False)
+            new_amount = updated_payment.amount
+
+            # Sum of all other payments for this order
+            other_total = sum(p.amount for p in order.payments.exclude(pk=payment.pk))
+            total_price = order.total_price
+            max_allowed = total_price - other_total
+
+            if new_amount > max_allowed:
+                messages.error(
+                    request,
+                    f'❌ অতিরিক্ত পেমেন্ট! মোট মূল্য: ৳{order.total_price}, অন্য পেমেন্টসমূহ: ৳{other_total}। সর্বোচ্চ পরিমাণ: ৳{max_allowed}',
+                )
+            else:
+                payment.amount = updated_payment.amount
+                payment.payment_date = updated_payment.payment_date
+                payment.notes = updated_payment.notes
+                payment.save()
+
+                # Signal will update order.cash_paid and order.due_amount
+                order.refresh_from_db()
+                messages.success(request, '✅ পেমেন্ট সফলভাবে আপডেট করা হয়েছে!')
+                return redirect('order_customer_profile', mobile_number=order.mobile_number)
+    else:
+        form = OrderPaymentForm(instance=payment)
+
+    # Ensure latest totals are displayed
+    order.refresh_from_db()
+
+    context = {
+        'form': form,
+        'order': order,
+        'payment': payment,
+    }
+    return render(request, 'admin_panel/order_payment_form.html', context)
+
+
+@login_required
+def order_payment_delete(request, pk):
+    """Delete an OrderPayment and update the parent order totals."""
+    payment = get_object_or_404(OrderPayment, pk=pk)
+    order = payment.order
+
+    try:
+        payment.delete()
+        # Signal will recalculate cash_paid and due_amount
+        order.refresh_from_db()
+        messages.success(request, '✅ পেমেন্ট সফলভাবে মুছে ফেলা হয়েছে!')
+    except Exception as e:
+        messages.error(request, f'❌ পেমেন্ট মুছতে ত্রুটি: {str(e)}')
+
+    return redirect('order_customer_profile', mobile_number=order.mobile_number)
+
+
+@login_required
+def admin_statistics(request):
+    """অ্যাডমিন স্ট্যাটিস্টিক্স পেজ - শুধুমাত্র সুপার অ্যাডমিনের জন্য"""
+    if not request.user.is_superuser:
+        messages.error(request, '❌ আপনার এই পেজে অ্যাক্সেস করার অনুমতি নেই!')
+        return redirect('admin_dashboard')
+    
+    # তারিখ গণনা
+    today = timezone.now().date()
+    one_month_ago = today - timedelta(days=30)
+    
+    # পণ্য স্ট্যাটিস্টিক্স
+    total_products = InventoryProduct.objects.count()
+    active_products = InventoryProduct.objects.filter(is_active=True).count()
+    inactive_products = total_products - active_products
+    
+    # মোট পণ্যের মূল্য (স্টক × ইউনিট প্রাইস)
+    total_inventory_value = InventoryProduct.objects.filter(
+        is_active=True
+    ).aggregate(
+        total_value=Sum(F('stock_quantity') * F('price_per_unit'))
+    )['total_value'] or Decimal('0')
+    
+    # স্টক স্ট্যাটিস্টিক্স
+    products_with_stock = InventoryProduct.objects.filter(
+        is_active=True, 
+        stock_quantity__gt=0
+    ).count()
+    out_of_stock_products = active_products - products_with_stock
+    
+    # শেষ ১ মাসের অর্ডার স্ট্যাটিস্টিক্স
+    last_month_orders = Order.objects.filter(created_at__date__gte=one_month_ago)
+    total_orders_last_month = last_month_orders.count()
+    
+    # শেষ ১ মাসের অর্ডারের মোট মূল্য
+    total_order_value_last_month = last_month_orders.aggregate(
+        total=Sum('total_price')
+    )['total'] or Decimal('0')
+    
+    # শেষ ১ মাসের ইনভয়েস স্ট্যাটিস্টিক্স
+    last_month_invoices = Invoice.objects.filter(created_at__date__gte=one_month_ago)
+    total_invoices_last_month = last_month_invoices.count()
+    
+    # শেষ ১ মাসের ইনভয়েসের মোট মূল্য
+    total_invoice_value_last_month = last_month_invoices.aggregate(
+        total=Sum('subtotal')
+    )['total'] or Decimal('0')
+    
+    # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস)
+    total_sales_last_month = total_order_value_last_month + total_invoice_value_last_month
+    
+    # গড় অর্ডার মূল্য
+    avg_order_value = last_month_orders.aggregate(
+        avg=Avg('total_price')
+    )['avg'] or Decimal('0')
+    
+    # গড় ইনভয়েস মূল্য
+    avg_invoice_value = last_month_invoices.aggregate(
+        avg=Avg('subtotal')
+    )['avg'] or Decimal('0')
+    
+    # টপ ১০ সবচেয়ে বেশি মূল্যের পণ্য
+    top_valuable_products = InventoryProduct.objects.filter(
+        is_active=True
+    ).order_by(
+        -(F('stock_quantity') * F('price_per_unit'))
+    )[:10]
+    
+    # টপ ১০ সবচেয়ে বেশি স্টকের পণ্য
+    top_stock_products = InventoryProduct.objects.filter(
+        is_active=True
+    ).order_by('-stock_quantity')[:10]
+    
+    # কম স্টকের পণ্য (১০ টির কম)
+    low_stock_products = InventoryProduct.objects.filter(
+        is_active=True,
+        stock_quantity__lt=10,
+        stock_quantity__gt=0
+    ).order_by('stock_quantity')[:10]
+    
+    context = {
+        'total_products': total_products,
+        'active_products': active_products,
+        'inactive_products': inactive_products,
+        'total_inventory_value': total_inventory_value,
+        'products_with_stock': products_with_stock,
+        'out_of_stock_products': out_of_stock_products,
+        'total_orders_last_month': total_orders_last_month,
+        'total_invoices_last_month': total_invoices_last_month,
+        'total_order_value_last_month': total_order_value_last_month,
+        'total_invoice_value_last_month': total_invoice_value_last_month,
+        'total_sales_last_month': total_sales_last_month,
+        'avg_order_value': avg_order_value,
+        'avg_invoice_value': avg_invoice_value,
+        'top_valuable_products': top_valuable_products,
+        'top_stock_products': top_stock_products,
+        'low_stock_products': low_stock_products,
+        'one_month_ago': one_month_ago,
+        'today': today,
+    }
+    
+    return render(request, 'admin_panel/admin_statistics.html', context)

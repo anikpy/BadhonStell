@@ -19,6 +19,8 @@ urlpatterns = [
     path('admin-panel/orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
     path('admin-panel/orders/<int:pk>/complete/', views.order_complete, name='order_complete'),
     path('admin-panel/orders/<int:order_pk>/payment/', views.order_payment_create, name='order_payment_create'),
+    path('admin-panel/orders/payments/<int:pk>/edit/', views.order_payment_edit, name='order_payment_edit'),
+    path('admin-panel/orders/payments/<int:pk>/delete/', views.order_payment_delete, name='order_payment_delete'),
     path('admin-panel/orders/<int:pk>/voucher/', views.order_voucher, name='order_voucher'),
 
     # ইনভেন্টরি পণ্য ম্যানেজমেন্ট URLs
@@ -36,6 +38,8 @@ urlpatterns = [
     path('admin-panel/invoices/<int:pk>/edit/', views.invoice_edit, name='invoice_edit'),
     path('admin-panel/invoices/<int:pk>/delete/', views.invoice_delete, name='invoice_delete'),
     path('admin-panel/invoices/<int:invoice_pk>/payment/', views.payment_create, name='payment_create'),
+    path('admin-panel/payments/<int:pk>/edit/', views.payment_edit, name='payment_edit'),
+    path('admin-panel/payments/<int:pk>/delete/', views.payment_delete, name='payment_delete'),
     path('admin-panel/customer/<str:mobile_number>/', views.customer_profile, name='customer_profile'),
     path('admin-panel/order-customer/<str:mobile_number>/', views.order_customer_profile, name='order_customer_profile'),
 
@@ -44,5 +48,8 @@ urlpatterns = [
     path('admin-panel/users/create/', views.user_create, name='user_create'),
     path('admin-panel/users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
     path('admin-panel/users/<int:user_id>/reset-password/', views.user_reset_password, name='user_reset_password'),
+
+    # অ্যাডমিন স্ট্যাটিস্টিক্স URLs (শুধু সুপার অ্যাডমিনের জন্য)
+    path('admin-panel/statistics/', views.admin_statistics, name='admin_statistics'),
 
 ]

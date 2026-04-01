@@ -1,44 +1,121 @@
 {% extends 'admin_panel/base.html' %}
 
-{% block title %}পেমেন্ট যোগ করুন - অ্যাডমিন প্যানেল{% endblock %}
+{% block title %}{% if payment %}পেমেন্ট এডিট করুন{% else %}পেমেন্ট যোগ করুন{% endif %} - অ্যাডমিন প্যানেল{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 720px;
+        margin: 30px auto;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #263238;
+    }
+
+    .form-group .form-control,
+    textarea.form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #dbe7ef;
+        font-size: 1rem;
+    }
+
+    .form-group .form-control:focus,
+    textarea.form-control:focus {
+        outline: none;
+        box-shadow: 0 4px 18px rgba(102,126,234,0.08);
+        border-color: #667eea;
+    }
+
+    .help-text {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .error {
+        color: #c62828;
+        font-size: 0.9rem;
+        margin-top: 4px;
+        display: block;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="form-container">
-    <div class="card">
-        <h2 class="card-title">💵 পেমেন্ট যোগ করুন</h2>
-        
-        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-            <p><strong>ইনভয়েস:</strong> {{ invoice.invoice_number }}</p>
-            <p><strong>ক্রেতা:</strong> {{ invoice.customer_name }}</p>
-            <p><strong>মোট টাকা:</strong> ৳{{ invoice.total_amount }}</p>
-            <p><strong>পরিশোধিত:</strong> ৳{{ invoice.paid_amount }}</p>
-            <p style="color: red; font-size: 1.2em;"><strong>বাকি:</strong> ৳{{ invoice.due_amount }}</p>
-        </div>
-        
-        <form method="post">
-            {% csrf_token %}
-            
-            <div class="form-group">
-                {{ form.payment_date.label_tag }}
-                {{ form.payment_date }}
-            </div>
-            
-            <div class="form-group">
-                {{ form.amount.label_tag }}
-                {{ form.amount }}
-                <small style="color: #666;">সর্বোচ্চ: ৳{{ invoice.due_amount }}</small>
-            </div>
-            
-            <div class="form-group">
-                {{ form.notes.label_tag }}
-                {{ form.notes }}
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-success">✅ পেমেন্ট যোগ করুন</button>
-                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-danger">❌ বাতিল</a>
-            </div>
-        </form>
+    <div class="form-container">
+        <div class="card">
+	            <h2 class="card-title">
+	                {% if payment %}
+	                💾 পেমেন্ট এডিট করুন
+	                {% else %}
+	                💵 পেমেন্ট যোগ করুন
+	                {% endif %}
+	            </h2>
+	        
+	        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+	            <p><strong>ইনভয়েস:</strong> {{ invoice.invoice_number }}</p>
+	            <p><strong>ক্রেতা:</strong> {{ invoice.customer_name }}</p>
+	            <p>
+	                <strong>মোট টাকাঃ</strong> ৳{{ invoice.total_amount }} |
+	                <strong>পরিশোধিত:</strong> ৳{{ invoice.paid_amount }} |
+	                <strong>বাকি:</strong> <span style="color:#c62828;">৳{{ invoice.due_amount }}</span>
+	            </p>
+	        </div>
+	        
+	        <form method="post">
+	            {% csrf_token %}
+	            
+	            <div class="form-group">
+	                {{ form.payment_date.label_tag }}
+	                {{ form.payment_date }}
+	                {% if form.payment_date.errors %}
+	                <span class="error">{{ form.payment_date.errors.0 }}</span>
+	                {% endif %}
+	            </div>
+	            
+	            <div class="form-group">
+	                {{ form.amount.label_tag }}
+	                {{ form.amount }}
+	                {% if form.amount.errors %}
+	                <span class="error">{{ form.amount.errors.0 }}</span>
+	                {% endif %}
+	                <small class="help-text">
+	                    মোট টাকা: ৳{{ invoice.total_amount }} |
+	                    ইতিমধ্যে পরিশোধিত: ৳{{ invoice.paid_amount }} |
+	                    সর্বোচ্চ পেমেন্ট: ৳{{ invoice.due_amount }}
+	                </small>
+	            </div>
+	            
+	            <div class="form-group">
+	                {{ form.notes.label_tag }}
+	                {{ form.notes }}
+	                {% if form.notes.errors %}
+	                <span class="error">{{ form.notes.errors.0 }}</span>
+	                {% endif %}
+	            </div>
+	            
+	            <div class="form-actions">
+	                <button type="submit" class="btn btn-success">
+	                    {% if payment %}
+	                    💾 পেমেন্ট আপডেট করুন
+	                    {% else %}
+	                    ✅ পেমেন্ট যোগ করুন
+	                    {% endif %}
+	                </button>
+	                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-danger">❌ বাতিল</a>
+	            </div>
+	        </form>
     </div>
 </div>
 

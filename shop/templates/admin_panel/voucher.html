@@ -366,7 +366,8 @@
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                        <th style="padding: 10px; text-align: left; font-weight: 600;">পণ্যের নাম</th>
+	                        <th style="padding: 10px; text-align: left; font-weight: 600;">তারিখ</th>
+	                        <th style="padding: 10px; text-align: left; font-weight: 600;">পণ্যের নাম</th>
                         <th style="padding: 10px; text-align: left; font-weight: 600;">বিবরণ</th>
                         <th style="padding: 10px; text-align: right; font-weight: 600;">পরিমাণ</th>
                         <th style="padding: 10px; text-align: right; font-weight: 600;">একক মূল্য</th>
@@ -376,7 +377,8 @@
                 <tbody>
                     {% for item in order.items.all %}
                     <tr style="border-bottom: 1px solid #dee2e6;">
-                        <td style="padding: 10px;">{{ item.product_name }}</td>
+	                        <td style="padding: 10px;">{{ order.order_date|date:"d/m/Y" }}</td>
+	                        <td style="padding: 10px;">{{ item.product_name }}</td>
                         <td style="padding: 10px;">{{ item.product_description|default:"-" }}</td>
                         <td style="padding: 10px; text-align: right;">{{ item.quantity }}</td>
                         <td style="padding: 10px; text-align: right;">৳ {{ item.unit_price }}</td>
