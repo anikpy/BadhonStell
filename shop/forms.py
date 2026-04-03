@@ -245,6 +245,16 @@ class InvoiceForm(forms.ModelForm):
         })
     )
 
+    global_discount = forms.CharField(
+        label='মোট ডিসকাউন্ট (%)',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫ বা 5',
+            'autocomplete': 'off',
+        })
+    )
+
     class Meta:
         model = Invoice
         fields = ['customer_name', 'mobile_number', 'paid_amount', 'sale_date', 'notes']
@@ -278,6 +288,26 @@ class InvoiceForm(forms.ModelForm):
             except ValueError:
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
         return 0
+
+    def clean_global_discount(self):
+        """মোট ডিসকাউন্ট (%) ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
+        from decimal import Decimal
+
+        value = self.cleaned_data.get('global_discount')
+        if value in (None, ''):
+            return Decimal('0')
+
+        converted = bangla_to_english_number(str(value).strip())
+        converted = converted.replace(',', '').replace(' ', '')
+        try:
+            disc = Decimal(converted)
+        except (ValueError, InvalidOperation):
+            raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+
+        if disc < 0 or disc > 100:
+            raise forms.ValidationError('ডিসকাউন্ট ০ থেকে ১০০ এর মধ্যে হতে হবে')
+
+        return disc
 
 
 class PaymentForm(forms.ModelForm):

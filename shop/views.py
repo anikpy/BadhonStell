@@ -594,10 +594,13 @@ def invoice_create(request):
                         'discount_percentage': disc_pct,
                     })
 
-                # Save invoice header (multi-item mode; no global discount)
+                # Save invoice header (multi-item mode) with optional extra total discount
                 invoice = form.save(commit=False)
                 invoice.subtotal = grand_subtotal
-                invoice.discount_percentage = Decimal('0')
+                global_discount = form.cleaned_data.get('global_discount')
+                if global_discount is None:
+                    global_discount = Decimal('0')
+                invoice.discount_percentage = global_discount
                 invoice.save()
 
                 # Create InvoiceItem rows and deduct stock
@@ -737,10 +740,13 @@ def invoice_edit(request, pk):
                     if item['product'].stock_quantity < item['quantity']:
                         raise ValueError(f"{item['product'].name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {item['product'].stock_quantity}")
 
-                # Create new invoice (no global discount — discounts are per-item)
+                # Create new invoice (with optional extra total discount on top of per-item discounts)
                 new_invoice = form.save(commit=False)
                 new_invoice.subtotal = grand_subtotal
-                new_invoice.discount_percentage = Decimal('0')
+                global_discount = form.cleaned_data.get('global_discount')
+                if global_discount is None:
+                    global_discount = Decimal('0')
+                new_invoice.discount_percentage = global_discount
                 # বিক্রয়ের তারিখ সবসময় মূল ইনভয়েসের মতোই থাকবে
                 new_invoice.sale_date = old_invoice.sale_date
                 new_invoice.original_invoice = old_invoice.original_invoice or old_invoice
@@ -774,6 +780,7 @@ def invoice_edit(request, pk):
             'paid_amount': old_invoice.paid_amount,
             'notes': old_invoice.notes,
             'sale_date': old_invoice.sale_date,
+            'global_discount': old_invoice.discount_percentage,
         })
 
     # Build existing items for template pre-population (includes per-item discount)
@@ -1403,9 +1410,9 @@ def admin_statistics(request):
     last_month_invoices = Invoice.objects.filter(created_at__date__gte=one_month_ago)
     total_invoices_last_month = last_month_invoices.count()
     
-    # শেষ ১ মাসের ইনভয়েসের মোট মূল্য
+    # শেষ ১ মাসের ইনভয়েসের মোট মূল্য (ডিসকাউন্টের পরে প্রকৃত বিক্রয় মূল্য)
     total_invoice_value_last_month = last_month_invoices.aggregate(
-        total=Sum('subtotal')
+        total=Sum('total_amount')
     )['total'] or Decimal('0')
     
     # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস)
@@ -1439,7 +1446,48 @@ def admin_statistics(request):
         stock_quantity__lt=10,
         stock_quantity__gt=0
     ).order_by('stock_quantity')[:10]
-    
+
+    # কাস্টমারদের বাকি টাকা (অর্ডার + ইনভয়েস)
+    order_dues_qs = Order.objects.filter(due_amount__gt=0)
+    invoice_dues_qs = Invoice.objects.filter(due_amount__gt=0, is_latest=True)
+
+    total_order_due = order_dues_qs.aggregate(total=Sum('due_amount'))['total'] or Decimal('0')
+    total_invoice_due = invoice_dues_qs.aggregate(total=Sum('due_amount'))['total'] or Decimal('0')
+    total_due_all = total_order_due + total_invoice_due
+
+    from collections import defaultdict
+    customer_map = defaultdict(lambda: {
+        'customer_name': '',
+        'mobile_number': '',
+        'order_due': Decimal('0'),
+        'invoice_due': Decimal('0'),
+        'total_due': Decimal('0'),
+    })
+
+    for row in order_dues_qs.values('customer_name', 'mobile_number').annotate(total=Sum('due_amount')):
+        key = row['mobile_number'] or row['customer_name'] or 'UNKNOWN'
+        entry = customer_map[key]
+        entry['customer_name'] = row['customer_name'] or entry['customer_name']
+        entry['mobile_number'] = row['mobile_number'] or entry['mobile_number']
+        entry['order_due'] += row['total'] or Decimal('0')
+
+    for row in invoice_dues_qs.values('customer_name', 'mobile_number').annotate(total=Sum('due_amount')):
+        key = row['mobile_number'] or row['customer_name'] or 'UNKNOWN'
+        entry = customer_map[key]
+        entry['customer_name'] = row['customer_name'] or entry['customer_name']
+        entry['mobile_number'] = row['mobile_number'] or entry['mobile_number']
+        entry['invoice_due'] += row['total'] or Decimal('0')
+
+    # মোট বাকি হিসাব করে সাজানো লিস্ট (টপ ১০)
+    top_due_customers = []
+    for entry in customer_map.values():
+        entry['total_due'] = entry['order_due'] + entry['invoice_due']
+        if entry['total_due'] > 0:
+            top_due_customers.append(entry)
+
+    top_due_customers.sort(key=lambda x: x['total_due'], reverse=True)
+    top_due_customers = top_due_customers[:10]
+
     context = {
         'total_products': total_products,
         'active_products': active_products,
@@ -1457,6 +1505,10 @@ def admin_statistics(request):
         'top_valuable_products': top_valuable_products,
         'top_stock_products': top_stock_products,
         'low_stock_products': low_stock_products,
+        'total_order_due': total_order_due,
+        'total_invoice_due': total_invoice_due,
+        'total_due_all': total_due_all,
+        'top_due_customers': top_due_customers,
         'one_month_ago': one_month_ago,
         'today': today,
     }

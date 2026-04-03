@@ -86,30 +86,40 @@
                     </tr>
                 {% endif %}
             </tbody>
-            <tfoot>
-                {% if invoice.items.all %}
-                    <tr>
-                        <td colspan="6" style="text-align:right;"><strong>গ্রস মোট:</strong></td>
-                        <td><strong>৳{{ invoice.total_gross_amount }}</strong></td>
-                    </tr>
-                    {% if invoice.total_item_savings > 0 %}
-                    <tr>
-                        <td colspan="6" style="text-align:right;"><strong>মোট ছাড়:</strong></td>
-                        <td><strong style="color:#c62828;">- ৳{{ invoice.total_item_savings }}</strong></td>
-                    </tr>
-                    {% endif %}
-                {% else %}
-                    <tr>
-                        <td colspan="6" style="text-align: right;"><strong>সাবটোটাল:</strong></td>
-                        <td><strong>৳{{ invoice.subtotal }}</strong></td>
-                    </tr>
-                    {% if invoice.discount_percentage > 0 %}
-                    <tr>
-                        <td colspan="6" style="text-align: right;"><strong>ছাড় ({{ invoice.discount_percentage }}%):</strong></td>
-                        <td><strong style="color:#c62828;">- ৳{{ invoice.discount_amount }}</strong></td>
-                    </tr>
-                    {% endif %}
-                {% endif %}
+	            <tfoot>
+	                {% if invoice.items.all %}
+	                    <tr>
+	                        <td colspan="6" style="text-align:right;"><strong>গ্রস মোট:</strong></td>
+	                        <td><strong>৳{{ invoice.total_gross_amount }}</strong></td>
+	                    </tr>
+	                    {% if invoice.total_item_savings > 0 %}
+	                    <tr>
+	                        <td colspan="6" style="text-align:right;"><strong>লাইন ডিসকাউন্ট মোট:</strong></td>
+	                        <td><strong style="color:#c62828;">- ৳{{ invoice.total_item_savings }}</strong></td>
+	                    </tr>
+	                    {% endif %}
+	                    <tr>
+	                        <td colspan="6" style="text-align:right;"><strong>সাবটোটাল (লাইন ডিসকাউন্টের পর):</strong></td>
+	                        <td><strong>৳{{ invoice.subtotal }}</strong></td>
+	                    </tr>
+	                    {% if invoice.discount_amount > 0 %}
+	                    <tr>
+	                        <td colspan="6" style="text-align:right;"><strong>অতিরিক্ত মোট ডিসকাউন্ট ({{ invoice.discount_percentage }}%):</strong></td>
+	                        <td><strong style="color:#c62828;">- ৳{{ invoice.discount_amount }}</strong></td>
+	                    </tr>
+	                    {% endif %}
+	                {% else %}
+	                    <tr>
+	                        <td colspan="6" style="text-align: right;"><strong>সাবটোটাল:</strong></td>
+	                        <td><strong>৳{{ invoice.subtotal }}</strong></td>
+	                    </tr>
+	                    {% if invoice.discount_percentage > 0 %}
+	                    <tr>
+	                        <td colspan="6" style="text-align: right;"><strong>ছাড় ({{ invoice.discount_percentage }}%):</strong></td>
+	                        <td><strong style="color:#c62828;">- ৳{{ invoice.discount_amount }}</strong></td>
+	                    </tr>
+	                    {% endif %}
+	                {% endif %}
                 <tr class="total-row">
                     <td colspan="6" style="text-align: right;"><strong>মোট টাকা:</strong></td>
                     <td><strong>৳{{ invoice.total_amount }}</strong></td>

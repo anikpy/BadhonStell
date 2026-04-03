@@ -291,13 +291,32 @@
         </div>
     </div>
     
-    <div class="stat-card" style="border-left-color: #28a745; background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);">
-        <div class="stat-title">🎯 শেষ ১ মাসের মোট বিক্রয়</div>
-        <div class="stat-value text-success">৳{{ total_sales_last_month|floatformat:2 }}</div>
-        <div class="stat-description">অর্ডার + ইনভয়েস মোট আয়</div>
-    </div>
+	    <div class="stat-card" style="border-left-color: #28a745; background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);">
+	        <div class="stat-title">🎯 শেষ ১ মাসের মোট বিক্রয়</div>
+	        <div class="stat-value text-success">৳{{ total_sales_last_month|floatformat:2 }}</div>
+	        <div class="stat-description">অর্ডার + ইনভয়েস মোট আয়</div>
+	    </div>
 
-    <!-- টপ টেন টেবিল -->
+	    <!-- বাকি টাকার স্ট্যাটিস্টিক্স -->
+	    <div class="stats-grid" style="margin-top: 20px;">
+	        <div class="stat-card danger">
+	            <div class="stat-title">মোট বাকি (সব কাস্টমার)</div>
+	            <div class="stat-value text-danger">৳{{ total_due_all|floatformat:2 }}</div>
+	            <div class="stat-description">অর্ডার + ইনভয়েস থেকে বাকি</div>
+	        </div>
+	        <div class="stat-card warning">
+	            <div class="stat-title">অর্ডার থেকে বাকি</div>
+	            <div class="stat-value text-warning">৳{{ total_order_due|floatformat:2 }}</div>
+	            <div class="stat-description">সকল কাস্টম অর্ডারের বাকি</div>
+	        </div>
+	        <div class="stat-card info">
+	            <div class="stat-title">ইনভয়েস থেকে বাকি</div>
+	            <div class="stat-value text-info">৳{{ total_invoice_due|floatformat:2 }}</div>
+	            <div class="stat-description">সকল বিক্রয় ইনভয়েসের বাকি</div>
+	        </div>
+	    </div>
+
+	    <!-- টপ টেন টেবিল -->
     <div class="row">
         <div class="col-6">
             <div class="table-container">
@@ -368,33 +387,62 @@
         </div>
     </div>
 
-    <!-- কম স্টকের পণ্য -->
-    {% if low_stock_products %}
-    <div class="table-container">
-        <h3 class="section-title">⚠️ কম স্টকের পণ্য (১০ টির কম)</h3>
-        <table class="stats-table">
-            <thead>
-                <tr>
-                    <th>পণ্যের নাম</th>
-                    <th>বর্তমান স্টক</th>
-                    <th>ইউনিট</th>
-                    <th>ইউনিট মূল্য</th>
-                    <th>স্ট্যাটাস</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for product in low_stock_products %}
-                <tr>
-                    <td>{{ product.name }}</td>
-                    <td class="font-weight-bold text-danger">{{ product.stock_quantity }}</td>
-                    <td>{{ product.get_unit_display }}</td>
-                    <td>৳{{ product.price_per_unit|floatformat:2 }}</td>
-                    <td><span class="badge-danger">কম স্টক</span></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% endif %}
+	    <!-- কাস্টমারদের বাকি টাকা (টপ ১০) -->
+	    {% if top_due_customers %}
+	    <div class="table-container">
+	        <h3 class="section-title">💳 কাস্টমারদের বাকি টাকা (টপ ১০)</h3>
+	        <table class="stats-table">
+	            <thead>
+	                <tr>
+	                    <th>ক্রেতার নাম</th>
+	                    <th>মোবাইল</th>
+	                    <th>অর্ডার থেকে বাকি</th>
+	                    <th>ইনভয়েস থেকে বাকি</th>
+	                    <th>মোট বাকি</th>
+	                </tr>
+	            </thead>
+	            <tbody>
+	                {% for c in top_due_customers %}
+	                <tr>
+	                    <td>{{ c.customer_name }}</td>
+	                    <td>{{ c.mobile_number }}</td>
+	                    <td>৳{{ c.order_due|floatformat:2 }}</td>
+	                    <td>৳{{ c.invoice_due|floatformat:2 }}</td>
+	                    <td class="font-weight-bold text-danger">৳{{ c.total_due|floatformat:2 }}</td>
+	                </tr>
+	                {% endfor %}
+	            </tbody>
+	        </table>
+	    </div>
+	    {% endif %}
+
+	    <!-- কম স্টকের পণ্য -->
+	    {% if low_stock_products %}
+	    <div class="table-container">
+	        <h3 class="section-title">⚠️ কম স্টকের পণ্য (১০ টির কম)</h3>
+	        <table class="stats-table">
+	            <thead>
+	                <tr>
+	                    <th>পণ্যের নাম</th>
+	                    <th>বর্তমান স্টক</th>
+	                    <th>ইউনিট</th>
+	                    <th>ইউনিট মূল্য</th>
+	                    <th>স্ট্যাটাস</th>
+	                </tr>
+	            </thead>
+	            <tbody>
+	                {% for product in low_stock_products %}
+	                <tr>
+	                    <td>{{ product.name }}</td>
+	                    <td class="font-weight-bold text-danger">{{ product.stock_quantity }}</td>
+	                    <td>{{ product.get_unit_display }}</td>
+	                    <td>৳{{ product.price_per_unit|floatformat:2 }}</td>
+	                    <td><span class="badge-danger">কম স্টক</span></td>
+	                </tr>
+	                {% endfor %}
+	            </tbody>
+	        </table>
+	    </div>
+	    {% endif %}
 </div>
 {% endblock %}

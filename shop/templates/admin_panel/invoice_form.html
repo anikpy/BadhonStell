@@ -261,36 +261,51 @@
                     </table>
                 </div>
 
-                <button type="button" class="btn-add-row" id="add-row-btn">➕ আরো পণ্য যোগ করুন</button>
+	                <button type="button" class="btn-add-row" id="add-row-btn">➕ আরো পণ্য যোগ করুন</button>
 
-                <div class="form-row" style="margin-top:16px; max-width:420px;">
-                    <div class="form-group">
-                        <label>{{ form.paid_amount.label }}</label>
-                        {{ form.paid_amount }}
-                        {% if form.paid_amount.errors %}
-                        <span class="error">{{ form.paid_amount.errors.0 }}</span>
-                        {% endif %}
-                        <small style="color:#65748b; display:block; margin-top:6px;">পুরো টাকা না দিলে বাকি থাকবে</small>
-                    </div>
-                </div>
+	                <div class="form-row" style="margin-top:16px; max-width:420px;">
+	                    <div class="form-group">
+	                        <label>{{ form.paid_amount.label }}</label>
+	                        {{ form.paid_amount }}
+	                        {% if form.paid_amount.errors %}
+	                        <span class="error">{{ form.paid_amount.errors.0 }}</span>
+	                        {% endif %}
+	                        <small style="color:#65748b; display:block; margin-top:6px;">পুরো টাকা না দিলে বাকি থাকবে</small>
+	                    </div>
+	                </div>
 
-                <!-- Grand total bar -->
-                <div class="grand-total-bar" id="grand-total-bar">
-                    <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
-                        <span>
-                            <span class="label">গ্রস:</span>
-                            <span id="display-gross" style="font-weight:600; color:#1b5e20; margin-left:4px;">৳০</span>
-                        </span>
-                        <span>
-                            <span class="label">মোট ছাড়:</span>
-                            <span id="display-discount-amount" style="font-weight:600; color:#c62828; margin-left:4px;">- ৳০</span>
-                        </span>
-                    </div>
-                    <div>
-                        <span class="label">নেট মোট:</span>
-                        <span class="value" id="display-total">৳০</span>
-                    </div>
-                </div>
+	                <div class="form-row" style="margin-top:8px; max-width:420px;">
+	                    <div class="form-group">
+	                        <label>{{ form.global_discount.label }}</label>
+	                        {{ form.global_discount }}
+	                        {% if form.global_discount.errors %}
+	                        <span class="error">{{ form.global_discount.errors.0 }}</span>
+	                        {% endif %}
+	                        <small style="color:#65748b; display:block; margin-top:6px;">সব পণ্যের নেট টোটাল-এর উপর অতিরিক্ত ডিসকাউন্ট (%)</small>
+	                    </div>
+	                </div>
+
+	                <!-- Grand total bar -->
+	                <div class="grand-total-bar" id="grand-total-bar">
+	                    <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+	                        <span>
+	                            <span class="label">গ্রস:</span>
+	                            <span id="display-gross" style="font-weight:600; color:#1b5e20; margin-left:4px;">৳০</span>
+	                        </span>
+	                        <span>
+	                            <span class="label">লাইন ডিসকাউন্ট মোট:</span>
+	                            <span id="display-discount-amount" style="font-weight:600; color:#c62828; margin-left:4px;">- ৳০</span>
+	                        </span>
+	                        <span>
+	                            <span class="label">মোট ডিসকাউন্ট:</span>
+	                            <span id="display-global-discount-amount" style="font-weight:600; color:#c62828; margin-left:4px;">- ৳০</span>
+	                        </span>
+	                    </div>
+	                    <div>
+	                        <span class="label">নেট মোট:</span>
+	                        <span class="value" id="display-total">৳০</span>
+	                    </div>
+	                </div>
                 <div class="due-bar">
                     বাকি থাকবে: <strong id="display-due" style="color:#d32f2f;">৳০</strong>
                 </div>
@@ -541,16 +556,33 @@ function updateGrandTotal() {
         totalSaving += (gross * disc) / 100;
     });
 
-    const net  = totalGross - totalSaving;
+    const baseNet = totalGross - totalSaving;
+
+    // Extra global discount on top of per-item discount
+    const globalInput = document.querySelector('input[name="global_discount"]');
+    let globalPct = parseNum(globalInput?.value);
+    if (globalPct < 0) globalPct = 0;
+    if (globalPct > 100) globalPct = 100;
+
+    const globalDiscountAmount = baseNet * (globalPct / 100.0);
+    const net  = baseNet - globalDiscountAmount;
     const paid = parseNum(document.querySelector('input[name="paid_amount"]')?.value);
     const due  = net - paid;
 
-    document.getElementById('display-gross').textContent           = '৳' + totalGross.toFixed(2);
-    document.getElementById('display-discount-amount').textContent = '- ৳' + totalSaving.toFixed(2);
-    document.getElementById('display-total').textContent           = '৳' + net.toFixed(2);
-    const dueEl = document.getElementById('display-due');
-    dueEl.textContent  = '৳' + due.toFixed(2);
-    dueEl.style.color  = due > 0 ? '#d32f2f' : '#2e7d32';
+    const grossEl   = document.getElementById('display-gross');
+    const lineDiscEl = document.getElementById('display-discount-amount');
+    const globalDiscEl = document.getElementById('display-global-discount-amount');
+    const totalEl   = document.getElementById('display-total');
+    const dueEl     = document.getElementById('display-due');
+
+    if (grossEl)      grossEl.textContent      = '৳' + totalGross.toFixed(2);
+    if (lineDiscEl)   lineDiscEl.textContent   = '- ৳' + totalSaving.toFixed(2);
+    if (globalDiscEl) globalDiscEl.textContent = '- ৳' + globalDiscountAmount.toFixed(2);
+    if (totalEl)      totalEl.textContent      = '৳' + net.toFixed(2);
+    if (dueEl) {
+        dueEl.textContent = '৳' + due.toFixed(2);
+        dueEl.style.color = due > 0 ? '#d32f2f' : '#2e7d32';
+    }
 
     syncItemsJson();
 }
@@ -652,6 +684,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.querySelector('input[name="paid_amount"]')
+            ?.addEventListener('input', updateGrandTotal);
+
+    document.querySelector('input[name="global_discount"]')
             ?.addEventListener('input', updateGrandTotal);
 
     document.querySelector('.invoice-form').addEventListener('submit', function(e) {
