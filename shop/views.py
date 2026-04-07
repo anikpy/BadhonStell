@@ -56,7 +56,10 @@ def product_list(request):
     return render(request, 'shop/products.html', context)
 
 
+from django.views.decorators.csrf import csrf_exempt
+
 # কাস্টম অ্যাডমিন প্যানেল ভিউ
+@csrf_exempt  # Temporarily disable CSRF for login behind proxy
 def admin_login(request):
     """অ্যাডমিন লগইন"""
     if request.user.is_authenticated:

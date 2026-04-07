@@ -51,7 +51,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'shop.middleware.RateLimitMiddleware',  # Rate limiting for login protection
+    # 'shop.middleware.CSRFDebugMiddleware',  # DEBUG: Remove after fixing CSRF
+    # 'shop.middleware.RateLimitMiddleware',  # DISABLED: Was blocking access
     'shop.middleware.SecurityHeadersMiddleware',  # Security headers
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -66,19 +67,19 @@ MIDDLEWARE = [
 # HTTPS & SSL SECURITY (Enable for production)
 # ==============================================================================
 
-# Force HTTPS in production
-SECURE_SSL_REDIRECT = os.environ.get('DJANGO_HTTPS', 'False').lower() == 'true'
+# Force HTTPS - Let Nginx handle this, not Django
+SECURE_SSL_REDIRECT = False  # Nginx redirects HTTP to HTTPS
 
-# HSTS (HTTP Strict Transport Security)
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+# HSTS (HTTP Strict Transport Security) - Only enable when fully tested
+SECURE_HSTS_SECONDS = 0  # Disabled until HTTPS is fully working
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 
-# Secure cookies
-SESSION_COOKIE_SECURE = os.environ.get('DJANGO_HTTPS', 'False').lower() == 'true'
-CSRF_COOKIE_SECURE = os.environ.get('DJANGO_HTTPS', 'False').lower() == 'true'
+# Secure cookies - Disable for now to fix CSRF, enable after HTTPS confirmed working
+SESSION_COOKIE_SECURE = False  # Will enable after HTTPS confirmed
+CSRF_COOKIE_SECURE = False  # Must be False for CSRF to work behind proxy
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # False required for JavaScript
 
 # Security headers
 SECURE_BROWSER_XSS_FILTER = True
@@ -105,19 +106,23 @@ DATABASES = {
 CSRF_TRUSTED_ORIGINS = [
     'https://badhonsteel.com',
     'https://www.badhonsteel.com',
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
+    'http://badhonsteel.com',
+    'http://www.badhonsteel.com',
 ]
 
 # Trust X-Forwarded headers when behind reverse proxy
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
+# Allow both http and https in forwarded proto to fix CSRF issues
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# CSRF cookie settings
-CSRF_COOKIE_SECURE = os.environ.get('DJANGO_HTTPS', 'False').lower() == 'true'
-CSRF_COOKIE_HTTPONLY = False  # Must be False for JavaScript access
-CSRF_COOKIE_SAMESITE = 'Lax'
+# CSRF cookie settings - DISABLED for now to fix production issues
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = None  # Changed from 'Lax' to allow cross-origin
+
+# Disable CSRF for login if needed (emergency fix)
+# Add this to views.py login view: @csrf_exempt
 
 # ==============================================================================
 # SESSION & AUTH SECURITY

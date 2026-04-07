@@ -4,8 +4,33 @@ Prevents brute force attacks on login and admin pages
 """
 
 import time
+import logging
 from django.http import HttpResponseForbidden
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
+
+
+class CSRFDebugMiddleware:
+    """
+    Debug middleware to log CSRF-related headers for troubleshooting
+    Remove this after fixing the issue
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        # Log CSRF-related info for debugging
+        if request.method == 'POST':
+            logger.info(f"CSRF Debug - Host: {request.get_host()}")
+            logger.info(f"CSRF Debug - Scheme: {request.scheme}")
+            logger.info(f"CSRF Debug - is_secure: {request.is_secure()}")
+            logger.info(f"CSRF Debug - X-Forwarded-Proto: {request.META.get('HTTP_X_FORWARDED_PROTO', 'Not set')}")
+            logger.info(f"CSRF Debug - Origin: {request.META.get('HTTP_ORIGIN', 'Not set')}")
+            logger.info(f"CSRF Debug - Referer: {request.META.get('HTTP_REFERER', 'Not set')}")
+        
+        response = self.get_response(request)
+        return response
 
 
 class RateLimitMiddleware:
