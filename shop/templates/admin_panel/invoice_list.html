@@ -52,6 +52,17 @@
             </select>
         </div>
         
+        <!-- Payment Status Filter -->
+        <div style="min-width: 150px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">💳 পেমেন্ট স্ট্যাটাস</label>
+            <select name="payment_status" onchange="this.form.submit()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <option value="" {% if not payment_status %}selected{% endif %}>সব পেমেন্ট</option>
+                <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>✅ পরিশোধিত</option>
+                <option value="due" {% if payment_status == 'due' %}selected{% endif %}>❌ বাকি</option>
+                <option value="partial" {% if payment_status == 'partial' %}selected{% endif %}>💰 আংশিক পরিশোধ</option>
+            </select>
+        </div>
+        
         <!-- Custom Date Range (shown only when custom is selected) -->
         {% if date_filter == 'custom' %}
         <div style="min-width: 140px;">
@@ -66,7 +77,7 @@
         
         <!-- Per Page -->
         <div style="min-width: 120px;">
-            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">� পেজ সাইজ</label>
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">📄 পেজ সাইজ</label>
             <select name="per_page" onchange="this.form.submit()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                 <option value="15" {% if per_page == 15 %}selected{% endif %}>15 প্রতি পৃষ্ঠা</option>
                 <option value="50" {% if per_page == 50 %}selected{% endif %}>50 প্রতি পৃষ্ঠা</option>
@@ -189,15 +200,15 @@
 {% if page_obj.has_other_pages %}
 <nav class="pagination-nav" style="margin-top: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
     {% if page_obj.has_previous %}
-    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
-    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}" class="btn btn-sm">◀ আগে</a>
     {% endif %}
     <span class="pagination-info" style="align-self: center; padding: 8px 12px; background: #f8f9fa; border-radius: 5px;">
         পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
     </span>
     {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">পরের ▶</a>
-    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
     {% endif %}
 </nav>
 {% endif %}

@@ -130,13 +130,13 @@
 <div class="search-filter-section">
     <form method="get" class="search-form">
         <div class="form-group">
-            <label for="search">সার্চ করুন</label>
+            <label for="search">🔍 সার্চ করুন</label>
             <input type="text" id="search" name="search" value="{{ search_query }}" 
                    placeholder="নাম, মোবাইল বা পণ্যের নাম লিখুন">
         </div>
         
         <div class="form-group">
-            <label for="status">অবস্থা</label>
+            <label for="status">📋 অবস্থা</label>
             <select id="status" name="status">
                 <option value="">সব অবস্থা</option>
                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>চলমান</option>
@@ -144,7 +144,55 @@
             </select>
         </div>
         
+        <!-- Date Filter -->
         <div class="form-group">
+            <label for="date_filter">📅 তারিখ ফিল্টার</label>
+            <select id="date_filter" name="date_filter" onchange="this.form.submit()">
+                <option value="" {% if not date_filter %}selected{% endif %}>সব সময়</option>
+                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>📆 আজ</option>
+                <option value="week" {% if date_filter == 'week' %}selected{% endif %}>📅 এই সপ্তাহ</option>
+                <option value="month" {% if date_filter == 'month' %}selected{% endif %}>📅 এই মাস</option>
+                <option value="year" {% if date_filter == 'year' %}selected{% endif %}>📅 এই বছর</option>
+                <option value="custom" {% if date_filter == 'custom' %}selected{% endif %}>📊 কাস্টম</option>
+            </select>
+        </div>
+        
+        <!-- Custom Date Range -->
+        {% if date_filter == 'custom' %}
+        <div class="form-group">
+            <label for="from_date">শুরু তারিখ</label>
+            <input type="date" id="from_date" name="from_date" value="{{ from_date }}">
+        </div>
+        <div class="form-group">
+            <label for="to_date">শেষ তারিখ</label>
+            <input type="date" id="to_date" name="to_date" value="{{ to_date }}">
+        </div>
+        {% endif %}
+        
+        <!-- Payment Status -->
+        <div class="form-group">
+            <label for="payment_status">💳 পেমেন্ট স্ট্যাটাস</label>
+            <select id="payment_status" name="payment_status" onchange="this.form.submit()">
+                <option value="" {% if not payment_status %}selected{% endif %}>সব পেমেন্ট</option>
+                <option value="paid" {% if payment_status == 'paid' %}selected{% endif %}>✅ পরিশোধিত</option>
+                <option value="due" {% if payment_status == 'due' %}selected{% endif %}>❌ বাকি</option>
+                <option value="partial" {% if payment_status == 'partial' %}selected{% endif %}>💰 আংশিক পরিশোধ</option>
+            </select>
+        </div>
+        
+        <!-- Per Page -->
+        <div class="form-group">
+            <label for="per_page">📄 পেজ সাইজ</label>
+            <select id="per_page" name="per_page" onchange="this.form.submit()">
+                <option value="15" {% if per_page == 15 %}selected{% endif %}>15 প্রতি পৃষ্ঠা</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50 প্রতি পৃষ্ঠা</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100 প্রতি পৃষ্ঠা</option>
+                <option value="200" {% if per_page == 200 %}selected{% endif %}>200 প্রতি পৃষ্ঠা</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>&nbsp;</label>
             <button type="submit" class="btn">🔍 সার্চ</button>
         </div>
     </form>
@@ -239,6 +287,24 @@
             </tbody>
         </table>
     </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="pagination-nav" style="margin-top: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+        {% endif %}
+        <span class="pagination-info" style="align-self: center; padding: 8px 12px; background: #f8f9fa; border-radius: 5px;">
+            পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
+        </span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if payment_status %}&payment_status={{ payment_status }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    
     {% else %}
     <div class="no-orders">
         <p>কোনো অর্ডার পাওয়া যায়নি।</p>

@@ -112,9 +112,53 @@ def order_list(request):
     """অর্ডার তালিকা - শুধু চলমান অর্ডার"""
     search_query = request.GET.get('search', '')
     status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date_filter', '')
+    from_date = request.GET.get('from_date', '')
+    to_date = request.GET.get('to_date', '')
+    payment_status = request.GET.get('payment_status', '')
+    page_number = request.GET.get('page', 1)
+    per_page = request.GET.get('per_page', '15')
+    
+    # Validate per_page
+    try:
+        per_page = int(per_page)
+        if per_page not in [15, 50, 100, 200]:
+            per_page = 15
+    except ValueError:
+        per_page = 15
 
     # Dashboard: only ongoing/pending orders (completed orders appear only on completed page)
     orders = Order.objects.exclude(status='completed').order_by('status', '-created_at')
+    
+    # Apply date filters
+    today = timezone.now().date()
+    
+    if date_filter == 'today':
+        orders = orders.filter(order_date=today)
+    elif date_filter == 'week':
+        week_ago = today - timedelta(days=7)
+        orders = orders.filter(order_date__gte=week_ago)
+    elif date_filter == 'month':
+        month_ago = today - timedelta(days=30)
+        orders = orders.filter(order_date__gte=month_ago)
+    elif date_filter == 'year':
+        year_ago = today - timedelta(days=365)
+        orders = orders.filter(order_date__gte=year_ago)
+    elif date_filter == 'custom' and from_date and to_date:
+        try:
+            from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+            to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
+            orders = orders.filter(order_date__range=[from_date_obj, to_date_obj])
+        except ValueError:
+            pass
+    
+    # Apply payment status filter
+    if payment_status == 'paid':
+        orders = orders.filter(due_amount=0)
+    elif payment_status == 'due':
+        orders = orders.filter(due_amount__gt=0)
+    elif payment_status == 'partial':
+        orders = orders.filter(cash_paid__gt=0, due_amount__gt=0)
 
     if search_query:
         orders = orders.filter(
@@ -125,11 +169,21 @@ def order_list(request):
 
     if status_filter:
         orders = orders.filter(status=status_filter)
+    
+    # Pagination
+    paginator = Paginator(orders, per_page)
+    page_obj = paginator.get_page(page_number)
 
     context = {
-        'orders': orders,
+        'orders': page_obj,
+        'page_obj': page_obj,
         'search_query': search_query,
         'status_filter': status_filter,
+        'date_filter': date_filter,
+        'from_date': from_date,
+        'to_date': to_date,
+        'payment_status': payment_status,
+        'per_page': per_page,
     }
     return render(request, 'admin_panel/order_list.html', context)
 
@@ -527,6 +581,7 @@ def invoice_list(request):
     date_filter = request.GET.get('date_filter', '')
     from_date = request.GET.get('from_date', '')
     to_date = request.GET.get('to_date', '')
+    payment_status = request.GET.get('payment_status', '')
     
     # Validate per_page
     try:
@@ -537,6 +592,14 @@ def invoice_list(request):
         per_page = 15
 
     invoices = Invoice.objects.filter(is_latest=True)
+    
+    # Apply payment status filter
+    if payment_status == 'paid':
+        invoices = invoices.filter(due_amount=0)
+    elif payment_status == 'due':
+        invoices = invoices.filter(due_amount__gt=0)
+    elif payment_status == 'partial':
+        invoices = invoices.filter(paid_amount__gt=0, due_amount__gt=0)
     
     # Apply date filters
     today = timezone.now().date()
@@ -588,11 +651,14 @@ def invoice_list(request):
         'date_filter': date_filter,
         'from_date': from_date,
         'to_date': to_date,
+        'payment_status': payment_status,
         'total_count': total_count,
         'total_amount': total_amount,
         'total_paid': total_paid,
         'total_due': total_due,
+        'debug': True,  # Debug flag
     }
+    print(f"DEBUG invoice_list: date_filter={date_filter}, per_page={per_page}, payment_status={payment_status}")  # Debug output
     return render(request, 'admin_panel/invoice_list.html', context)
 
 
