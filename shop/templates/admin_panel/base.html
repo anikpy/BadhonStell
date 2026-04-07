@@ -257,6 +257,8 @@
                 <a href="{% url 'completed_order_list' %}" {% if request.resolver_match.url_name == 'completed_order_list' %}class="active"{% endif %}>✅ সম্পন্ন</a>
                 <a href="{% url 'inventory_product_list' %}" {% if 'inventory' in request.resolver_match.url_name %}class="active"{% endif %}>📦 ইনভেন্টরি</a>
                 <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>
+                <a href="{% url 'due_accounts_list' %}" {% if request.resolver_match.url_name == 'due_accounts_list' %}class="active"{% endif %}>📝 বাকি খাতা</a>
+                <a href="{% url 'customer_list' %}" {% if request.resolver_match.url_name == 'customer_list' %}class="active"{% endif %}>👥 কাস্টমার লিস্ট</a>
                 {% if request.user.is_superuser %}
                 <a href="{% url 'admin_statistics' %}" {% if request.resolver_match.url_name == 'admin_statistics' %}class="active"{% endif %}>📊 স্ট্যাটিস্টিক্স</a>
                 <a href="{% url 'user_management' %}" {% if request.resolver_match.url_name == 'user_management' %}class="active"{% endif %}>👥 ইউজার</a>

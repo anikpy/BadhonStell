@@ -1,0 +1,127 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}কাস্টমার লিস্ট{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        👥 কাস্টমার লিস্ট
+        <div style="float: right; font-size: 0.9rem; color: #666;">
+            {% if page_obj %}
+            মোট {{ page_obj.paginator.count }} জন কাস্টমার
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Search Form -->
+    <div style="margin-bottom: 20px;">
+        <form method="get" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="search" value="{{ search_query }}" 
+                   placeholder="কাস্টমারের নাম বা মোবাইল নাম্বার দিন..." 
+                   style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: 'Noto Sans Bengali', sans-serif;">
+            <button type="submit" class="btn btn-info">🔍 খুঁজুন</button>
+            {% if search_query %}
+            <a href="{% url 'customer_list' %}" class="btn btn-warning">✖ ক্লিয়ার</a>
+            {% endif %}
+        </form>
+    </div>
+    
+    {% if customers %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">ক্রমিক</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">কাস্টমারের নাম</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">মোবাইল নাম্বার</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #495057;">মোট অর্ডার</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #495057;">মোট বিক্রয়</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #495057;">মোট ক্রয়</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #28a745;">পরিশোধিত</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #dc3545;">বাকি</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">শেষ ক্রয়</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #495057;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr style="border-bottom: 1px solid #dee2e6; {% if customer.total_due > 0 %}background-color: #fff8dc;{% endif %}">
+                    <td style="padding: 10px 8px;">{{ forloop.counter0|add:page_obj.start_index }}</td>
+                    <td style="padding: 10px 8px; font-weight: 500;">{{ customer.customer_name }}</td>
+                    <td style="padding: 10px 8px;">{{ customer.mobile_number }}</td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="background-color: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">{{ customer.total_orders }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="background-color: #f3e5f5; color: #7b1fa2; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">{{ customer.total_invoices }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 500;">৳{{ customer.total_amount|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #28a745;">৳{{ customer.total_paid|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: #dc3545;">
+                        {% if customer.total_due > 0 %}৳{{ customer.total_due|floatformat:2 }}{% else %}-{% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; font-size: 0.9rem;">
+                        {% if customer.last_buy_date %}
+                        {{ customer.last_buy_date|date:"d M Y" }}<br>
+                        <span style="color: #666; font-size: 0.8rem;">{{ customer.last_buy_date|timesince }} আগে</span>
+                        {% else %}
+                        <span style="color: #999;">নেই</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        {% if customer.total_orders > 0 %}
+                        <a href="{% url 'order_customer_profile' customer.mobile_number %}" class="btn btn-sm btn-info">📋 অর্ডার</a>
+                        {% endif %}
+                        {% if customer.total_invoices > 0 %}
+                        <a href="{% url 'customer_profile' customer.mobile_number %}" class="btn btn-sm btn-success">💰 বিক্রয়</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background-color: #f8f9fa; font-weight: 700; border-top: 2px solid #dee2e6;">
+                    <td colspan="5" style="padding: 12px 8px; text-align: right;">মোট:</td>
+                    <td style="padding: 12px 8px; text-align: right;">৳{{ total_amount|floatformat:2 }}</td>
+                    <td style="padding: 12px 8px; text-align: right; color: #28a745;">৳{{ total_paid|floatformat:2 }}</td>
+                    <td style="padding: 12px 8px; text-align: right; color: #dc3545;">৳{{ total_due|floatformat:2 }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="text-align: center; margin-top: 20px;">
+        <div style="display: inline-flex; gap: 5px; align-items: center;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm" style="padding: 8px 12px;">⏮️ প্রথম</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm" style="padding: 8px 12px;">◀️ আগে</a>
+            {% endif %}
+            
+            <span style="padding: 8px 12px; font-weight: 600;">
+                পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }} এর
+            </span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm" style="padding: 8px 12px;">পরে ▶️</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm" style="padding: 8px 12px;">শেষ ⏭️</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">👥</div>
+        <h3>কোনো কাস্টমার পাওয়া যায়নি</h3>
+        <p>এখনো কোনো কাস্টমার যোগ করা হয়নি!</p>
+        {% if search_query %}
+        <p><a href="{% url 'customer_list' %}" class="btn btn-info">সব কাস্টমার দেখুন</a></p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -52,4 +52,8 @@ urlpatterns = [
     # অ্যাডমিন স্ট্যাটিস্টিক্স URLs (শুধু সুপার অ্যাডমিনের জন্য)
     path('admin-panel/statistics/', views.admin_statistics, name='admin_statistics'),
 
+    # বাকি খাতা এবং কাস্টমার লিস্ট URLs
+    path('admin-panel/due-accounts/', views.due_accounts_list, name='due_accounts_list'),
+    path('admin-panel/customers/', views.customer_list, name='customer_list'),
+
 ]

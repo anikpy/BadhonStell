@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.db.models import Sum, Count, Q, Avg, F
 from decimal import Decimal
 from .models import (
@@ -517,26 +517,78 @@ def stock_management(request, pk):
 
 @login_required
 def invoice_list(request):
-    """ইনভয়েস তালিকা"""
+    """ইনভয়েস তালিকা - তারিখ ফিল্টার এবং কনফিগারেবল পেজিনেশন সহ"""
     search_query = request.GET.get('search', '')
     page_number = request.GET.get('page', 1)
+    per_page = request.GET.get('per_page', '15')
+    date_filter = request.GET.get('date_filter', '')
+    from_date = request.GET.get('from_date', '')
+    to_date = request.GET.get('to_date', '')
+    
+    # Validate per_page
+    try:
+        per_page = int(per_page)
+        if per_page not in [15, 50, 100, 200]:
+            per_page = 15
+    except ValueError:
+        per_page = 15
 
     invoices = Invoice.objects.filter(is_latest=True)
-
+    
+    # Apply date filters
+    today = timezone.now().date()
+    
+    if date_filter == 'today':
+        invoices = invoices.filter(sale_date=today)
+    elif date_filter == 'week':
+        week_ago = today - timedelta(days=7)
+        invoices = invoices.filter(sale_date__gte=week_ago)
+    elif date_filter == 'month':
+        month_ago = today - timedelta(days=30)
+        invoices = invoices.filter(sale_date__gte=month_ago)
+    elif date_filter == 'year':
+        year_ago = today - timedelta(days=365)
+        invoices = invoices.filter(sale_date__gte=year_ago)
+    elif date_filter == 'custom' and from_date and to_date:
+        try:
+            from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+            to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
+            invoices = invoices.filter(sale_date__range=[from_date_obj, to_date_obj])
+        except ValueError:
+            pass
+    
+    # Apply search filter
     if search_query:
         invoices = invoices.filter(
             Q(invoice_number__icontains=search_query) |
             Q(customer_name__icontains=search_query) |
             Q(mobile_number__icontains=search_query)
         )
+    
+    # Order by date (newest first)
+    invoices = invoices.order_by('-sale_date', '-created_at')
 
-    paginator = Paginator(invoices, 15)
+    paginator = Paginator(invoices, per_page)
     page_obj = paginator.get_page(page_number)
+    
+    # Calculate statistics
+    total_count = invoices.count()
+    total_amount = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
+    total_paid = invoices.aggregate(total=Sum('paid_amount'))['total'] or 0
+    total_due = invoices.aggregate(total=Sum('due_amount'))['total'] or 0
 
     context = {
         'invoices': page_obj,
         'page_obj': page_obj,
         'search_query': search_query,
+        'per_page': per_page,
+        'date_filter': date_filter,
+        'from_date': from_date,
+        'to_date': to_date,
+        'total_count': total_count,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'total_due': total_due,
     }
     return render(request, 'admin_panel/invoice_list.html', context)
 
@@ -1173,7 +1225,7 @@ def user_create(request):
 বাধন স্টিল সিস্টেম
                 ''',
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['aniklpu01@gmail.com'],
+                recipient_list=[],
                 fail_silently=False,
             )
 
@@ -1514,3 +1566,230 @@ def admin_statistics(request):
     }
     
     return render(request, 'admin_panel/admin_statistics.html', context)
+
+
+# ==================== বাকি খাতা (Due Accounts) ====================
+
+@login_required
+def due_accounts_list(request):
+    """বাকি খাতা - সব অর্ডার যেগুলোর বাকি আছে"""
+    search_query = request.GET.get('search', '')
+    page_number = request.GET.get('page', 1)
+    
+    # Get all orders with due amounts (both from Order and Invoice models)
+    orders_with_due = Order.objects.filter(due_amount__gt=0).order_by('-created_at')
+    invoices_with_due = Invoice.objects.filter(due_amount__gt=0, is_latest=True).order_by('-created_at')
+    
+    # Combine and search
+    if search_query:
+        orders_with_due = orders_with_due.filter(
+            Q(customer_name__icontains=search_query) |
+            Q(mobile_number__icontains=search_query)
+        )
+        invoices_with_due = invoices_with_due.filter(
+            Q(customer_name__icontains=search_query) |
+            Q(mobile_number__icontains=search_query)
+        )
+    
+    # Create combined list with type information
+    due_items = []
+    
+    # Add orders
+    for order in orders_with_due:
+        due_items.append({
+            'type': 'order',
+            'id': order.pk,
+            'customer_name': order.customer_name,
+            'mobile_number': order.mobile_number,
+            'total_amount': order.total_price,
+            'paid_amount': order.cash_paid,
+            'due_amount': order.due_amount,
+            'date': order.order_date,
+            'created_at': order.created_at,
+            'status': order.status,
+            'delivery_status': order.delivery_status,
+        })
+    
+    # Add invoices
+    for invoice in invoices_with_due:
+        # Calculate actual paid amount from payments if they exist
+        total_paid = sum(p.amount for p in invoice.payments.all()) if invoice.payments.exists() else invoice.paid_amount
+        actual_due = invoice.total_amount - total_paid
+        
+        if actual_due > 0:  # Only show if there's actually due
+            due_items.append({
+                'type': 'invoice',
+                'id': invoice.pk,
+                'customer_name': invoice.customer_name,
+                'mobile_number': invoice.mobile_number,
+                'total_amount': invoice.total_amount,
+                'paid_amount': total_paid,
+                'due_amount': actual_due,
+                'date': invoice.sale_date,
+                'created_at': invoice.created_at,
+                'invoice_number': invoice.invoice_number,
+            })
+    
+    # Sort by created_at (newest first)
+    due_items.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Calculate totals
+    total_amount = sum(item['total_amount'] for item in due_items)
+    total_paid = sum(item['paid_amount'] for item in due_items)
+    total_due = sum(item['due_amount'] for item in due_items)
+    
+    # Pagination - 100 items per page
+    paginator = Paginator(due_items, 100)
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'due_items': page_obj,
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'total_due': total_due,
+    }
+    return render(request, 'admin_panel/due_accounts_list.html', context)
+
+
+# ==================== কাস্টমার লিস্ট (Customer List) ====================
+
+@login_required
+def customer_list(request):
+    """কাস্টমার লিস্ট - সব কাস্টমারের তথ্য (শুধু সুপার অ্যাডমিনের জন্য)"""
+    if not request.user.is_superuser:
+        messages.error(request, '❌ এই পেজে প্রবেশাধিকার নেই! শুধুমাত্র অ্যাডমিনের জন্য।')
+        return redirect('admin_dashboard')
+    
+    search_query = request.GET.get('search', '')
+    page_number = request.GET.get('page', 1)
+    
+    # Get all unique customers from both Order and Invoice models
+    order_customers = Order.objects.values('customer_name', 'mobile_number').distinct()
+    invoice_customers = Invoice.objects.filter(is_latest=True).values('customer_name', 'mobile_number').distinct()
+    
+    # Combine unique customers
+    all_customers = {}
+    
+    # Process order customers
+    for customer in order_customers:
+        key = (customer['customer_name'], customer['mobile_number'])
+        if key not in all_customers:
+            all_customers[key] = {
+                'customer_name': customer['customer_name'],
+                'mobile_number': customer['mobile_number'],
+                'total_orders': 0,
+                'total_invoices': 0,
+                'total_order_amount': 0,
+                'total_invoice_amount': 0,
+                'total_order_paid': 0,
+                'total_invoice_paid': 0,
+                'total_order_due': 0,
+                'total_invoice_due': 0,
+                'last_order_date': None,
+                'last_invoice_date': None,
+            }
+    
+    # Process invoice customers
+    for customer in invoice_customers:
+        key = (customer['customer_name'], customer['mobile_number'])
+        if key not in all_customers:
+            all_customers[key] = {
+                'customer_name': customer['customer_name'],
+                'mobile_number': customer['mobile_number'],
+                'total_orders': 0,
+                'total_invoices': 0,
+                'total_order_amount': 0,
+                'total_invoice_amount': 0,
+                'total_order_paid': 0,
+                'total_invoice_paid': 0,
+                'total_order_due': 0,
+                'total_invoice_due': 0,
+                'last_order_date': None,
+                'last_invoice_date': None,
+            }
+    
+    # Calculate statistics for each customer
+    for key, customer_data in all_customers.items():
+        name, mobile = key
+        
+        # Order statistics
+        orders = Order.objects.filter(customer_name=name, mobile_number=mobile)
+        customer_data['total_orders'] = orders.count()
+        customer_data['total_order_amount'] = orders.aggregate(total=Sum('total_price'))['total'] or 0
+        customer_data['total_order_paid'] = orders.aggregate(total=Sum('cash_paid'))['total'] or 0
+        customer_data['total_order_due'] = orders.aggregate(total=Sum('due_amount'))['total'] or 0
+        
+        # Get last order date
+        last_order = orders.order_by('-created_at').first()
+        if last_order:
+            customer_data['last_order_date'] = last_order.created_at
+        
+        # Invoice statistics
+        invoices = Invoice.objects.filter(customer_name=name, mobile_number=mobile, is_latest=True)
+        customer_data['total_invoices'] = invoices.count()
+        customer_data['total_invoice_amount'] = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        # Calculate actual paid amounts from payments
+        total_invoice_paid = 0
+        total_invoice_due = 0
+        for invoice in invoices:
+            invoice_paid = sum(p.amount for p in invoice.payments.all()) if invoice.payments.exists() else invoice.paid_amount
+            total_invoice_paid += invoice_paid
+            total_invoice_due += (invoice.total_amount - invoice_paid)
+        
+        customer_data['total_invoice_paid'] = total_invoice_paid
+        customer_data['total_invoice_due'] = total_invoice_due
+        
+        # Get last invoice date
+        last_invoice = invoices.order_by('-created_at').first()
+        if last_invoice:
+            customer_data['last_invoice_date'] = last_invoice.created_at
+        
+        # Calculate totals
+        customer_data['total_amount'] = customer_data['total_order_amount'] + customer_data['total_invoice_amount']
+        customer_data['total_paid'] = customer_data['total_order_paid'] + customer_data['total_invoice_paid']
+        customer_data['total_due'] = customer_data['total_order_due'] + customer_data['total_invoice_due']
+        
+        # Determine last buy date
+        if customer_data['last_order_date'] and customer_data['last_invoice_date']:
+            customer_data['last_buy_date'] = max(customer_data['last_order_date'], customer_data['last_invoice_date'])
+        elif customer_data['last_order_date']:
+            customer_data['last_buy_date'] = customer_data['last_order_date']
+        elif customer_data['last_invoice_date']:
+            customer_data['last_buy_date'] = customer_data['last_invoice_date']
+        else:
+            customer_data['last_buy_date'] = None
+    
+    # Convert to list and apply search filter
+    customers_list = list(all_customers.values())
+    
+    if search_query:
+        customers_list = [
+            customer for customer in customers_list
+            if search_query.lower() in customer['customer_name'].lower() 
+            or search_query in customer['mobile_number']
+        ]
+    
+    # Sort by last buy date (most recent first)
+    customers_list.sort(key=lambda x: x['last_buy_date'] or timezone.datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    
+    # Calculate totals for all customers
+    total_amount = sum(c['total_amount'] for c in customers_list)
+    total_paid = sum(c['total_paid'] for c in customers_list)
+    total_due = sum(c['total_due'] for c in customers_list)
+    
+    # Pagination
+    paginator = Paginator(customers_list, 50)  # 50 customers per page
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'customers': page_obj,
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'total_due': total_due,
+    }
+    return render(request, 'admin_panel/customer_list.html', context)

@@ -8,14 +8,78 @@
     <a href="{% url 'invoice_create' %}" class="btn btn-primary">➕ নতুন বিক্রয়</a>
 </div>
 
-<!-- সার্চ বক্স -->
-<div class="search-box" style="margin-bottom: 20px;">
-    <form method="get" style="display: flex; gap: 10px;">
-        <input type="text" name="search" class="form-control" placeholder="মোবাইল নাম্বার বা নাম দিয়ে খুঁজুন..." value="{{ search_query }}" style="flex: 1;">
-        <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
-        {% if search_query %}
-        <a href="{% url 'invoice_list' %}" class="btn btn-secondary">✖️ রিসেট</a>
+<!-- Statistics Summary -->
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700;">{{ total_count }}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">মোট ইনভয়েস</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700;">৳{{ total_amount|floatformat:2 }}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">মোট বিক্রয়</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #a8e6cf;">৳{{ total_paid|floatformat:2 }}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">পরিশোধিত</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #ffd3b6;">৳{{ total_due|floatformat:2 }}</div>
+            <div style="font-size: 0.9rem; opacity: 0.9;">বাকি</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter & Search Box -->
+<div class="filter-box" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <!-- Search -->
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">🔍 খোঁজ</label>
+            <input type="text" name="search" class="form-control" placeholder="নাম, মোবাইল বা ইনভয়েস নং" value="{{ search_query }}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        
+        <!-- Date Filter -->
+        <div style="min-width: 150px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">📅 তারিখ ফিল্টার</label>
+            <select name="date_filter" onchange="this.form.submit()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <option value="" {% if not date_filter %}selected{% endif %}>সব সময়</option>
+                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>📆 আজ</option>
+                <option value="week" {% if date_filter == 'week' %}selected{% endif %}>📅 এই সপ্তাহ</option>
+                <option value="month" {% if date_filter == 'month' %}selected{% endif %}>📅 এই মাস</option>
+                <option value="year" {% if date_filter == 'year' %}selected{% endif %}>📅 এই বছর</option>
+                <option value="custom" {% if date_filter == 'custom' %}selected{% endif %}>📊 কাস্টম</option>
+            </select>
+        </div>
+        
+        <!-- Custom Date Range (shown only when custom is selected) -->
+        {% if date_filter == 'custom' %}
+        <div style="min-width: 140px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">শুরু তারিখ</label>
+            <input type="date" name="from_date" value="{{ from_date }}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
+        <div style="min-width: 140px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">শেষ তারিখ</label>
+            <input type="date" name="to_date" value="{{ to_date }}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+        </div>
         {% endif %}
+        
+        <!-- Per Page -->
+        <div style="min-width: 120px;">
+            <label style="display: block; font-size: 0.85rem; color: #666; margin-bottom: 5px;">� পেজ সাইজ</label>
+            <select name="per_page" onchange="this.form.submit()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                <option value="15" {% if per_page == 15 %}selected{% endif %}>15 প্রতি পৃষ্ঠা</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50 প্রতি পৃষ্ঠা</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100 প্রতি পৃষ্ঠা</option>
+                <option value="200" {% if per_page == 200 %}selected{% endif %}>200 প্রতি পৃষ্ঠা</option>
+            </select>
+        </div>
+        
+        <!-- Buttons -->
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="btn btn-primary">🔍 ফিল্টার</button>
+            <a href="{% url 'invoice_list' %}" class="btn btn-secondary">✖️ রিসেট</a>
+        </div>
     </form>
 </div>
 
@@ -104,10 +168,16 @@
             {% if not invoices_by_customer %}
             <tr>
                 <td colspan="9" style="text-align: center; padding: 40px;">
-                    {% if search_query %}
-                    কোনো ফলাফল পাওয়া যায়নি। <a href="{% url 'invoice_list' %}">সব দেখুন</a>
+                    {% if search_query or date_filter %}
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🔍</div>
+                    <h3>কোনো ফলাফল পাওয়া যায়নি</h3>
+                    <p>আপনার ফিল্টার অনুযায়ী কোনো ইনভয়েস পাওয়া যায়নি।</p>
+                    <a href="{% url 'invoice_list' %}" class="btn btn-primary">সব ইনভয়েস দেখুন</a>
                     {% else %}
-                    কোনো বিক্রয় রেকর্ড নেই। <a href="{% url 'invoice_create' %}">নতুন বিক্রয় করুন</a>
+                    <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+                    <h3>কোনো বিক্রয় রেকর্ড নেই</h3>
+                    <p>এখনো কোনো বিক্রয় যোগ করা হয়নি।</p>
+                    <a href="{% url 'invoice_create' %}" class="btn btn-primary">নতুন বিক্রয় করুন</a>
                     {% endif %}
                 </td>
             </tr>
@@ -119,15 +189,15 @@
 {% if page_obj.has_other_pages %}
 <nav class="pagination-nav" style="margin-top: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
     {% if page_obj.has_previous %}
-    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
-    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">◀ আগে</a>
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">◀ আগে</a>
     {% endif %}
-    <span class="pagination-info" style="align-self: center; padding: 8px 12px;">
+    <span class="pagination-info" style="align-self: center; padding: 8px 12px; background: #f8f9fa; border-radius: 5px;">
         পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (মোট {{ page_obj.paginator.count }}টি)
     </span>
     {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">পরের ▶</a>
-    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">পরের ▶</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_filter %}&date_filter={{ date_filter }}{% endif %}{% if from_date %}&from_date={{ from_date }}{% endif %}{% if to_date %}&to_date={{ to_date }}{% endif %}{% if per_page != 15 %}&per_page={{ per_page }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
     {% endif %}
 </nav>
 {% endif %}
@@ -170,6 +240,12 @@
 .btn-sm {
     padding: 5px 10px;
     font-size: 14px;
+}
+
+.filter-box input:focus, .filter-box select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 </style>
 {% endblock %}
