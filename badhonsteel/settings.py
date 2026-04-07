@@ -101,6 +101,24 @@ DATABASES = {
     }
 }
 
+# CSRF & CORS - Required for production behind reverse proxy
+CSRF_TRUSTED_ORIGINS = [
+    'https://badhonsteel.com',
+    'https://www.badhonsteel.com',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+
+# Trust X-Forwarded headers when behind reverse proxy
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# CSRF cookie settings
+CSRF_COOKIE_SECURE = os.environ.get('DJANGO_HTTPS', 'False').lower() == 'true'
+CSRF_COOKIE_HTTPONLY = False  # Must be False for JavaScript access
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # ==============================================================================
 # SESSION & AUTH SECURITY
 # ==============================================================================
