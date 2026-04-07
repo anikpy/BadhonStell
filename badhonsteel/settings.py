@@ -51,9 +51,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    # 'shop.middleware.CSRFDebugMiddleware',  # DEBUG: Remove after fixing CSRF
-    # 'shop.middleware.RateLimitMiddleware',  # DISABLED: Was blocking access
-    'shop.middleware.SecurityHeadersMiddleware',  # Security headers
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
