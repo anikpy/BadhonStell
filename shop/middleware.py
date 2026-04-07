@@ -21,10 +21,10 @@ class RateLimitMiddleware:
         '/admin/',
     ]
     
-    # Rate limit settings
-    MAX_REQUESTS = 5  # Maximum requests
-    TIME_WINDOW = 300  # Time window in seconds (5 minutes)
-    BLOCK_DURATION = 1800  # Block duration in seconds (30 minutes)
+    # Rate limit settings - RELAXED for development
+    MAX_REQUESTS = 50  # Maximum requests (increased from 5)
+    TIME_WINDOW = 600  # Time window in seconds (10 minutes)
+    BLOCK_DURATION = 600  # Block duration in seconds (10 minutes)
     
     def __init__(self, get_response):
         self.get_response = get_response
@@ -40,8 +40,8 @@ class RateLimitMiddleware:
             if cache.get(block_key):
                 return HttpResponseForbidden(
                     '<h1>🚫 Access Blocked</h1>'
-                    '<p>Too many login attempts. Please try again after 30 minutes.</p>'
-                    '<p>অনেকবার লগইন করার চেষ্টা করেছেন। ৩০ মিনিট পর আবার চেষ্টা করুন।</p>'
+                    '<p>Too many requests. Please try again after 10 minutes.</p>'
+                    '<p>অনেকবার চেষ্টা করেছেন। ১০ মিনিট পর আবার চেষ্টা করুন।</p>'
                 )
             
             # Check rate limit
@@ -59,8 +59,8 @@ class RateLimitMiddleware:
                 cache.set(block_key, True, self.BLOCK_DURATION)
                 return HttpResponseForbidden(
                     '<h1>🚫 Access Blocked</h1>'
-                    '<p>Too many login attempts. Please try again after 30 minutes.</p>'
-                    '<p>অনেকবার লগইন করার চেষ্টা করেছেন। ৩০ মিনিট পর আবার চেষ্টা করুন।</p>'
+                    '<p>Too many requests. Please try again after 10 minutes.</p>'
+                    '<p>অনেকবার চেষ্টা করেছেন। ১০ মিনিট পর আবার চেষ্টা করুন।</p>'
                 )
             
             # Add current request
