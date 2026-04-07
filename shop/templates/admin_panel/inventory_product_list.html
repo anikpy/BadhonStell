@@ -206,9 +206,23 @@
 </div>
 
 <div class="search-section">
-    <form method="get" class="search-form">
-        <input type="text" name="search" placeholder="পণ্যের নাম দিয়ে খুঁজুন..." value="{{ search_query }}" class="search-input">
+    <form method="get" class="search-form" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 200px;">
+            <input type="text" name="search" placeholder="পণ্যের নাম দিয়ে খুঁজুন..." value="{{ search_query }}" class="search-input">
+        </div>
+        <div>
+            <select name="stock_filter" style="padding: 10px 15px; border: 2px solid #e0e0e0; border-radius: 5px; font-family: 'Noto Sans Bengali', sans-serif; cursor: pointer;">
+                <option value="" {% if not stock_filter %}selected{% endif %}>📦 সব স্টক</option>
+                <option value="zero" {% if stock_filter == 'zero' %}selected{% endif %}>❌ শূন্য স্টক (Out of Stock)</option>
+                <option value="low" {% if stock_filter == 'low' %}selected{% endif %}>⚠️ কম স্টক (Low: 1-10)</option>
+                <option value="in_stock" {% if stock_filter == 'in_stock' %}selected{% endif %}>✅ স্টকে আছে (In Stock)</option>
+                <option value="high" {% if stock_filter == 'high' %}selected{% endif %}>📊 বেশি স্টক (High: 10+)</option>
+            </select>
+        </div>
         <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+        {% if stock_filter or search_query %}
+        <a href="{% url 'inventory_product_list' %}" class="btn btn-secondary">🔄 ক্লিয়ার</a>
+        {% endif %}
     </form>
 </div>
 

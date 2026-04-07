@@ -463,6 +463,7 @@ def order_voucher(request, pk):
 def inventory_product_list(request):
     """ইনভেন্টরি পণ্য তালিকা"""
     search_query = request.GET.get('search', '')
+    stock_filter = request.GET.get('stock_filter', '')
     page_number = request.GET.get('page', 1)
 
     products = InventoryProduct.objects.all()
@@ -472,6 +473,16 @@ def inventory_product_list(request):
             Q(name__icontains=search_query) |
             Q(description__icontains=search_query)
         )
+    
+    # Apply stock filter
+    if stock_filter == 'zero':
+        products = products.filter(stock_quantity=0)
+    elif stock_filter == 'low':
+        products = products.filter(stock_quantity__gt=0, stock_quantity__lte=10)
+    elif stock_filter == 'in_stock':
+        products = products.filter(stock_quantity__gt=0)
+    elif stock_filter == 'high':
+        products = products.filter(stock_quantity__gt=10)
 
     paginator = Paginator(products, 15)
     page_obj = paginator.get_page(page_number)
@@ -480,6 +491,7 @@ def inventory_product_list(request):
         'products': page_obj,
         'page_obj': page_obj,
         'search_query': search_query,
+        'stock_filter': stock_filter,
     }
     return render(request, 'admin_panel/inventory_product_list.html', context)
 
