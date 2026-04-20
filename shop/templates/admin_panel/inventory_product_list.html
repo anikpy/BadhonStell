@@ -202,7 +202,11 @@
 {% block content %}
 <div class="inventory-header">
     <h2>📦 ইনভেন্টরি পণ্য তালিকা</h2>
-    <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ নতুন পণ্য যোগ করুন</a>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ নতুন পণ্য যোগ করুন</a>
+        <a href="{% url 'print_inventory_pdf' %}" class="btn btn-info" target="_blank">📄 প্রিন্ট স্টক</a>
+        <a href="{% url 'print_stock_history_pdf' %}" class="btn btn-warning" target="_blank">📜 প্রিন্ট স্টক হিস্ট্রি</a>
+    </div>
 </div>
 
 <div class="search-section">

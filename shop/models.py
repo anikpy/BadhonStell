@@ -344,6 +344,32 @@ class OrderPayment(models.Model):
         super().save(*args, **kwargs)
 
 
+class StockHistory(models.Model):
+    """স্টক হিস্ট্রি - স্টক পরিবর্তন ট্র্যাকিং"""
+    OPERATION_CHOICES = [
+        ('add', 'স্টক যোগ'),
+        ('remove', 'স্টক কমানো'),
+        ('sale', 'বিক্রয়'),
+        ('adjustment', 'সমন্বয়'),
+    ]
+    
+    product = models.ForeignKey(InventoryProduct, on_delete=models.CASCADE, related_name='stock_history', verbose_name='পণ্য')
+    operation = models.CharField(max_length=20, choices=OPERATION_CHOICES, verbose_name='অপারেশন')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    previous_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পূর্ববর্তী স্টক')
+    new_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নতুন স্টক')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তারিখ ও সময়')
+    
+    class Meta:
+        verbose_name = 'স্টক হিস্ট্রি'
+        verbose_name_plural = 'স্টক হিস্ট্রিসমূহ'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.product.name} - {self.get_operation_display()} ({self.quantity})"
+
+
 # Signals to update Order totals when OrderPayment changes
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver

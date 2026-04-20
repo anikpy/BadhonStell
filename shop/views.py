@@ -8,6 +8,15 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.db.models import Sum, Count, Q, Avg, F
 from decimal import Decimal
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import os
 from .models import (
     ShopInfo,
     Product,
@@ -18,6 +27,7 @@ from .models import (
     OrderItem,
     Payment,
     OrderPayment,
+    StockHistory,
 )
 from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm
 from decimal import Decimal
@@ -560,12 +570,32 @@ def stock_management(request, pk):
             notes = form.cleaned_data['notes']
             
             try:
+                previous_quantity = product.stock_quantity
+                
                 if operation_type == 'add':
                     product.add_stock(quantity)
                     messages.success(request, f'✅ {quantity} {product.get_unit_display()} স্টক যোগ করা হয়েছে!')
+                    # Record stock history
+                    StockHistory.objects.create(
+                        product=product,
+                        operation='add',
+                        quantity=quantity,
+                        previous_quantity=previous_quantity,
+                        new_quantity=product.stock_quantity,
+                        notes=notes
+                    )
                 elif operation_type == 'remove':
                     product.remove_stock(quantity)
                     messages.success(request, f'✅ {quantity} {product.get_unit_display()} স্টক কমানো হয়েছে!')
+                    # Record stock history
+                    StockHistory.objects.create(
+                        product=product,
+                        operation='remove',
+                        quantity=quantity,
+                        previous_quantity=previous_quantity,
+                        new_quantity=product.stock_quantity,
+                        notes=notes
+                    )
                 
                 return redirect('inventory_product_list')
             except ValueError as e:
@@ -1874,3 +1904,170 @@ def customer_list(request):
         'total_due': total_due,
     }
     return render(request, 'admin_panel/customer_list.html', context)
+
+
+# ==================== PDF Generation Views ====================
+
+@login_required
+def print_inventory_pdf(request):
+    """ইনভেন্টরি স্টক পিডিএফ প্রিন্ট"""
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="inventory_stocks.pdf"'
+    
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Unit mapping to English
+    unit_map = {
+        'piece': 'Piece',
+        'feet': 'Feet',
+        'meter': 'Meter',
+        'ton': 'Ton',
+        'kg': 'Kg'
+    }
+    
+    # Get shop info
+    shop_info = ShopInfo.objects.first()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=20,
+        alignment=TA_CENTER
+    )
+    
+    if shop_info:
+        elements.append(Paragraph(f"{shop_info.name}", title_style))
+        elements.append(Paragraph("Inventory Stock Report", styles['Heading2']))
+    else:
+        elements.append(Paragraph("Inventory Stock Report", title_style))
+    
+    elements.append(Spacer(1, 12))
+    
+    # Get all products
+    products = InventoryProduct.objects.all().order_by('name')
+    
+    # Table data - using English headers for better compatibility
+    table_data = [['No.', 'Product Name', 'Unit', 'Price/Unit', 'Stock Qty', 'Total Value']]
+    
+    total_value = 0
+    for idx, product in enumerate(products, 1):
+        total_price = product.stock_quantity * product.price_per_unit
+        total_value += total_price
+        unit_display = unit_map.get(product.unit, product.unit)
+        table_data.append([
+            str(idx),
+            product.name,
+            unit_display,
+            f"Tk.{product.price_per_unit}",
+            f"{product.stock_quantity}",
+            f"Tk.{total_price}"
+        ])
+    
+    table_data.append(['', '', '', '', 'Total:', f"Tk.{total_value}"])
+    
+    # Create table
+    table = Table(table_data, colWidths=[0.5*inch, 2.5*inch, 1*inch, 1*inch, 1*inch, 1*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#667eea'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#ffffff'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f8f9fa'),
+        ('GRID', (0, 0), (-1, -1), 1, '#dddddd'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+    
+    # Footer with date
+    elements.append(Paragraph(f"Print Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    
+    doc.build(elements)
+    return response
+
+
+@login_required
+def print_stock_history_pdf(request):
+    """স্টক হিস্ট্রি পিডিএফ প্রিন্ট"""
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="stock_history.pdf"'
+    
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Get shop info
+    shop_info = ShopInfo.objects.first()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=20,
+        alignment=TA_CENTER
+    )
+    
+    if shop_info:
+        elements.append(Paragraph(f"{shop_info.name}", title_style))
+        elements.append(Paragraph("Stock History Report", styles['Heading2']))
+    else:
+        elements.append(Paragraph("Stock History Report", title_style))
+    
+    elements.append(Spacer(1, 12))
+    
+    # Get stock history
+    stock_history = StockHistory.objects.all().order_by('-created_at')[:100]  # Last 100 records
+    
+    # Table data - using English headers for better compatibility
+    table_data = [['Date', 'Product Name', 'Operation', 'Quantity', 'Before', 'After', 'Notes']]
+    
+    for history in stock_history:
+        # Map operation to English for clarity
+        operation_map = {
+            'add': 'STOCK ADDED',
+            'remove': 'STOCK REMOVED',
+            'sale': 'SOLD',
+            'adjustment': 'ADJUSTED'
+        }
+        operation_text = operation_map.get(history.operation, history.operation.upper())
+        
+        table_data.append([
+            history.created_at.strftime('%Y-%m-%d %H:%M'),
+            history.product.name,
+            operation_text,
+            f"{history.quantity}",
+            f"{history.previous_quantity}",
+            f"{history.new_quantity}",
+            history.notes[:30] if history.notes else '-'
+        ])
+    
+    # Create table
+    table = Table(table_data, colWidths=[1.2*inch, 2*inch, 1*inch, 0.6*inch, 0.6*inch, 0.6*inch, 1.5*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#667eea'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#ffffff'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f8f9fa'),
+        ('GRID', (0, 0), (-1, -1), 1, '#dddddd'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+    
+    # Footer with date
+    elements.append(Paragraph(f"Print Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    
+    doc.build(elements)
+    return response

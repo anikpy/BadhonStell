@@ -4,195 +4,652 @@
 
 {% block extra_css %}
 <style>
-    .hero {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Modern Navigation */
+    .main-nav {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 15px 0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    }
+    
+    .nav-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+    
+    .nav-logo {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #fff;
+        text-decoration: none;
+        font-family: 'Noto Sans Bengali', 'Hind Siliguri', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    
+    .nav-logo span {
+        color: #e94560;
+    }
+    
+    .nav-links {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+    }
+    
+    .nav-links a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s;
+    }
+    
+    .nav-links a:hover {
+        color: #e94560;
+    }
+    
+    .nav-login-btn {
+        background: #e94560;
         color: white;
-        padding: 80px 0;
-        text-align: center;
-    }
-    
-    .hero h1 {
-        font-size: 3rem;
-        margin-bottom: 20px;
-    }
-    
-    .hero p {
-        font-size: 1.3rem;
-        margin-bottom: 30px;
-        opacity: 0.95;
-    }
-    
-    .contact-info {
-        background-color: white;
-        padding: 15px 30px;
-        border-radius: 10px;
-        display: inline-block;
-        color: #333;
-        margin-top: 20px;
-    }
-
-    .contact-info p {
-        margin: 5px 0;
-        font-size: 1.1rem;
-        color: #333;
-    }
-
-    .admin-login-btn {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background-color: #ff6b6b;
-        color: white;
-        padding: 12px 25px;
-        border-radius: 8px;
+        padding: 10px 20px;
+        border-radius: 5px;
         text-decoration: none;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
         transition: all 0.3s;
-        z-index: 1000;
     }
-
-    .admin-login-btn:hover {
-        background-color: #ff5252;
+    
+    .nav-login-btn:hover {
+        background: #c73e54;
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+    }
+    
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(rgba(26, 26, 46, 0.9), rgba(22, 33, 62, 0.9)),
+                    url('https://images.unsplash.com/photo-1565106430482-8f6e74349ca1?w=1920');
+        background-size: cover;
+        background-position: center;
+        min-height: 90vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        position: relative;
+    }
+    
+    .hero-content h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .hero-content h1 span {
+        color: #e94560;
+    }
+    
+    .hero-content p {
+        font-size: 1.5rem;
+        margin-bottom: 30px;
+        opacity: 0.9;
+    }
+    
+    .hero-buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn-primary {
+        background: #e94560;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s;
+        display: inline-block;
+    }
+    
+    .btn-primary:hover {
+        background: #c73e54;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
+    }
+    
+    .btn-secondary {
+        background: transparent;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border: 2px solid white;
+        transition: all 0.3s;
+        display: inline-block;
+    }
+    
+    .btn-secondary:hover {
+        background: white;
+        color: #1a1a2e;
+    }
+    
+    /* Contact Bar */
+    .contact-bar {
+        background: #e94560;
+        padding: 15px 0;
         color: white;
     }
     
+    .contact-bar-content {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+    
+    .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.1rem;
+    }
+    
+    /* Products Section */
     .products-section {
-        padding: 50px 0;
+        padding: 80px 20px;
+        background: #f8f9fa;
     }
     
     .section-title {
         text-align: center;
         font-size: 2.5rem;
-        margin-bottom: 40px;
-        color: #333;
+        margin-bottom: 15px;
+        color: #1a1a2e;
     }
     
-    .product-grid {
+    .section-subtitle {
+        text-align: center;
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 50px;
+    }
+    
+    .products-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 30px;
-        margin-top: 30px;
+        max-width: 1200px;
+        margin: 0 auto;
     }
     
     .product-card {
         background: white;
         border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         transition: transform 0.3s, box-shadow 0.3s;
     }
     
     .product-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
     }
     
     .product-image {
         width: 100%;
-        height: 250px;
+        height: 220px;
         object-fit: cover;
     }
     
     .product-info {
-        padding: 20px;
+        padding: 25px;
     }
     
     .product-name {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: 600;
         margin-bottom: 10px;
-        color: #333;
+        color: #1a1a2e;
     }
     
     .product-description {
         color: #666;
-        margin-bottom: 15px;
-        line-height: 1.6;
-    }
-    
-    .product-price {
-        font-size: 1.3rem;
-        color: #667eea;
-        font-weight: 600;
+        font-size: 0.95rem;
         margin-bottom: 15px;
     }
     
-    .no-products {
+    /* Services Section */
+    .services-section {
+        padding: 80px 20px;
+        background: #1a1a2e;
+        color: white;
+    }
+    
+    .services-section .section-title {
+        color: white;
+    }
+    
+    .services-section .section-subtitle {
+        color: #aaa;
+    }
+    
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 30px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .service-card {
+        background: #16213e;
+        padding: 40px 30px;
+        border-radius: 10px;
         text-align: center;
-        padding: 50px;
-        font-size: 1.2rem;
-        color: #666;
+        transition: transform 0.3s;
+        border: 1px solid #0f3460;
     }
     
+    .service-card:hover {
+        transform: translateY(-5px);
+        border-color: #e94560;
+    }
+    
+    .service-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+    }
+    
+    .service-title {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+        color: #e94560;
+    }
+    
+    /* About Section */
+    .about-section {
+        padding: 80px 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .about-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: center;
+    }
+    
+    .about-image {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    
+    .about-image img {
+        width: 100%;
+        height: auto;
+    }
+    
+    .about-content h2 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        color: #1a1a2e;
+    }
+    
+    .about-content h2 span {
+        color: #e94560;
+    }
+    
+    .about-content p {
+        color: #666;
+        line-height: 1.8;
+        margin-bottom: 20px;
+    }
+    
+    /* Stats Section */
+    .stats-section {
+        background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+        padding: 60px 20px;
+        color: white;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 40px;
+        max-width: 1000px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    
+    .stat-item h3 {
+        font-size: 3rem;
+        margin-bottom: 10px;
+    }
+    
+    .stat-item p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    
+    /* Footer */
+    .footer {
+        background: #1a1a2e;
+        color: white;
+        padding: 50px 20px 20px;
+    }
+    
+    .footer-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 40px;
+        max-width: 1200px;
+        margin: 0 auto 40px;
+    }
+    
+    .footer-section h3 {
+        color: #e94560;
+        margin-bottom: 20px;
+        font-size: 1.3rem;
+    }
+    
+    .footer-section p, .footer-section a {
+        color: #aaa;
+        text-decoration: none;
+        line-height: 1.8;
+    }
+    
+    .footer-section a:hover {
+        color: #e94560;
+    }
+    
+    .footer-bottom {
+        border-top: 1px solid #16213e;
+        padding-top: 20px;
+        text-align: center;
+        color: #aaa;
+    }
+    
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-        .hero h1 {
-            font-size: 2rem;
+        .hero-content h1 {
+            font-size: 2.5rem;
         }
         
-        .hero p {
-            font-size: 1rem;
+        .hero-content p {
+            font-size: 1.1rem;
         }
         
-        .product-grid {
+        .nav-links {
+            display: none;
+        }
+        
+        .about-grid {
             grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        
+        .contact-bar-content {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .hero-buttons {
+            flex-direction: column;
+            align-items: center;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Admin Login Button -->
-<a href="{% url 'admin_login' %}" class="admin-login-btn">
-    🔐 অ্যাডমিন লগইন
-</a>
-
-<div class="hero">
-    <div class="container">
-        <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
-        <p>{{ shop_info.description|default:"স্টিল ও লোহার সকল ধরনের কাজ করা হয়" }}</p>
-        <a href="{% url 'product_list' %}" class="btn btn-success">পণ্য দেখুন</a>
-
-        {% if shop_info %}
-        <div class="contact-info">
-            <p><strong>📞 ফোন:</strong> {{ shop_info.phone }}</p>
-            <p><strong>💬 হোয়াটসঅ্যাপ:</strong> {{ shop_info.whatsapp }}</p>
+<!-- Navigation -->
+<nav class="main-nav">
+    <div class="nav-container">
+        <a href="{% url 'home' %}" class="nav-logo">বাধন<span>স্টিল</span></a>
+        <div class="nav-links">
+            <a href="#products">পণ্যসমূহ</a>
+            <a href="#services">সার্ভিস</a>
+            <a href="#about">আমাদের সম্পর্কে</a>
+            <a href="{% url 'admin_login' %}" class="nav-login-btn">🔐 লগইন</a>
         </div>
-        {% endif %}
+    </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="hero-content">
+        <h1>বাধন <span>স্টিল</span></h1>
+        <p>স্টিল ও লোহার সকল ধরনের কাজের জন্য বিশ্বস্ত প্রতিষ্ঠান</p>
+        <div class="hero-buttons">
+            <a href="tel:{{ shop_info.phone|default:'01712-345678' }}" class="btn-primary">📞 কল করুন</a>
+            <a href="#products" class="btn-secondary">পণ্য দেখুন</a>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Bar -->
+<div class="contact-bar">
+    <div class="contact-bar-content">
+        <div class="contact-item">
+            📞 {{ shop_info.phone|default:'০১৭১২-৩৪৫৬৭৮' }}
+        </div>
+        <div class="contact-item">
+            💬 {{ shop_info.whatsapp|default:'০১৭১২-৩৪৫৬৭৮' }}
+        </div>
+        <div class="contact-item">
+            📍 {{ shop_info.address|default:'বাধন স্টিল, চিড়াং রোড, কেন্দুয়া' }}
+        </div>
     </div>
 </div>
 
-<div class="products-section">
-    <div class="container">
-        <h2 class="section-title">আমাদের পণ্যসমূহ</h2>
-        
-        {% if products %}
-        <div class="product-grid">
-            {% for product in products|slice:":6" %}
-            <div class="product-card">
-                {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
-                {% else %}
-                <div class="product-image" style="background-color: #e0e0e0; display: flex; align-items: center; justify-content: center;">
-                    <span style="font-size: 3rem; color: #999;">📦</span>
-                </div>
-                {% endif %}
-                <div class="product-info">
-                    <h3 class="product-name">{{ product.name }}</h3>
-                    <p class="product-description">{{ product.description|truncatewords:15 }}</p>
-                    <p class="product-price">৳ {{ product.price_per_unit }}</p>
-                    <a href="tel:{{ shop_info.phone }}" class="btn">অর্ডার করতে যোগাযোগ করুন</a>
-                </div>
+<!-- Products Section -->
+<section class="products-section" id="products">
+    <h2 class="section-title">আমাদের পণ্যসমূহ</h2>
+    <p class="="section-subtitle">উচ্চমানের স্টিল পণ্য সরবরাহ</p>
+    
+    <div class="products-grid">
+        <!-- Product 1: Iron Sheet -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=220&fit=crop" alt="Iron Sheet" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">আইরন শিট</h3>
+                <p class="product-description">বিভিন্ন সাইজের উচ্চমানের আইরন শিট পাওয়া যায়</p>
             </div>
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="no-products">
-            <p>এই মুহূর্তে কোনো পণ্য নেই।</p>
+        
+        <!-- Product 2: Steel Rod -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1535191221745-6a3025094826?w=400&h=220&fit=crop" alt="Steel Rod" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">স্টিল রড</h3>
+                <p class="product-description">নির্মাণ কাজের জন্য বিভিন্ন সাইজের স্টিল রড</p>
+            </div>
         </div>
-        {% endif %}
+        
+        <!-- Product 3: Angle Bar -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?w=400&h=220&fit=crop" alt="Angle Bar" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">এঙ্গেল বার</h3>
+                <p class="product-description">গেট, গ্রিল, ও রেলিং তৈরির জন্য এঙ্গেল বার</p>
+            </div>
+        </div>
+        
+        <!-- Product 4: Flat Bar -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=220&fit=crop" alt="Flat Bar" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">ফ্ল্যাট বার</h3>
+                <p class="product-description">বিভিন্ন সাইজের ফ্ল্যাট বার স্টকে পাওয়া যায়</p>
+            </div>
+        </div>
+        
+        <!-- Product 5: GI Pipe -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=400&h=220&fit=crop" alt="GI Pipe" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">জিআই পাইপ</h3>
+                <p class="product-description">নির্মাণ কাজের জন্য জিআই পাইপ সরবরাহ</p>
+            </div>
+        </div>
+        
+        <!-- Product 6: MS Pipe -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1536895056746-a407e92d9d07?w=400&h=220&fit=crop" alt="MS Pipe" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">এমএস পাইপ</h3>
+                <p class="product-description">বিভিন্ন সাইজের এমএস পাইপ স্টকে পাওয়া যায়</p>
+            </div>
+        </div>
+        
+        <!-- Product 7: Steel Gate -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=220&fit=crop" alt="Steel Gate" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">স্টিল গেট</h3>
+                <p class="product-description">কাস্টম ডিজাইনের স্টিল গেট তৈরি করা হয়</p>
+            </div>
+        </div>
+        
+        <!-- Product 8: Steel Grill -->
+        <div class="product-card">
+            <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=220&fit=crop" alt="Steel Grill" class="product-image">
+            <div class="product-info">
+                <h3 class="product-name">স্টিল গ্রিল</h3>
+                <p class="product-description">জানালা ও বারান্দার গ্রিল তৈরি</p>
+            </div>
+        </div>
     </div>
-</div>
+</section>
+
+<!-- Services Section -->
+<section class="services-section" id="services">
+    <h2 class="section-title">আমাদের সেবাসমূহ</h2>
+    <p class="section-subtitle">পেশাদারি স্টিল ও লোহার কাজ</p>
+    
+    <div class="services-grid">
+        <div class="service-card">
+            <div class="service-icon">🏗️</div>
+            <h3 class="service-title">নির্মাণ সামগ্রী</h3>
+            <p>স্টিল ও লোহার নির্মাণ সামগ্রী সরবরাহ</p>
+        </div>
+        
+        <div class="service-card">
+            <div class="service-icon">🚪</div>
+            <h3 class="service-title">গেট তৈরি</h3>
+            <p>কাস্টম ডিজাইনের স্টিল গেট তৈরি</p>
+        </div>
+        
+        <div class="service-card">
+            <div class="service-icon">🪟</div>
+            <h3 class="service-title">গ্রিল তৈরি</h3>
+            <p>জানালা ও বারান্দার গ্রিল তৈরি</p>
+        </div>
+        
+        <div class="service-card">
+            <div class="service-icon">🛡️</div>
+            <h3 class="service-title">রেলিং তৈরি</h3>
+            <p>সিঁড়ি ও বারান্দার রেলিং তৈরি</p>
+        </div>
+        
+        <div class="service-card">
+            <div class="service-icon">🏠</div>
+            <h3 class="service-title">শেড তৈরি</h3>
+            <p>টিন শেড ও ট্রাস তৈরি</p>
+        </div>
+        
+        <div class="service-card">
+            <div class="service-icon">⚙️</div>
+            <h3 class="service-title">ওয়ার্কশপ</h3>
+            <p>স্টিল কাটিং ও বেন্ডিং সার্ভিস</p>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats-section">
+    <div class="stats-grid">
+        <div class="stat-item">
+            <h3>১৫+</h3>
+            <p>বছরের অভিজ্ঞতা</p>
+        </div>
+        <div class="stat-item">
+            <h3>১০০০+</h3>
+            <p>সন্তুষ্ট গ্রাহক</p>
+        </div>
+        <div class="stat-item">
+            <h3>৫০০+</h3>
+            <p>প্রকল্প সম্পন্ন</p>
+        </div>
+        <div class="stat-item">
+            <h3>২৪/৭</h3>
+            <p>সার্ভিস সাপোর্ট</p>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="about-section" id="about">
+    <div class="about-grid">
+        <div class="about-image">
+            <img src="https://images.unsplash.com/photo-1565106430482-8f6e74349ca1?w=800" alt="Steel Workshop">
+        </div>
+        <div class="about-content">
+            <h2>আমাদের সম্পর্কে <span>জানুন</span></h2>
+            <p>বাধন স্টিল একটি বিশ্বস্ত স্টিল ও লোহার ব্যবসা প্রতিষ্ঠান। আমরা গত ১৫+ বছর ধরে গ্রাহকদের উচ্চমানের স্টিল পণ্য ও পেশাদারি সেবা প্রদান করে আসছি।</p>
+            <p>আমাদের রয়েছে অভিজ্ঞ কারিগর ও আধুনিক মেশিনারি যা দিয়ে যেকোনো ধরনের স্টিল কাজ করা হয়। আমরা বিশ্বাস করি গুণগত মান ও গ্রাহক সন্তুষ্টি।</p>
+            <a href="tel:{{ shop_info.phone|default:'01712-345678' }}" class="btn-primary">যোগাযোগ করুন</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h3>বাধন স্টিল</h3>
+            <p>স্টিল ও লোহার সকল ধরনের কাজের জন্য বিশ্বস্ত প্রতিষ্ঠান। গুণগত মান ও ন্যায্য মূল্য আমাদের প্রতিশ্রুতি।</p>
+        </div>
+        
+        <div class="footer-section">
+            <h3>যোগাযোগ</h3>
+            <p>📞 {{ shop_info.phone|default:'০১৭১২-৩৪৫৬৭৮' }}</p>
+            <p>💬 {{ shop_info.whatsapp|default:'০১৭১২-৩৪৫৬৭৮' }}</p>
+            <p>📍 {{ shop_info.address|default:'বাধন স্টিল, চিড়াং রোড, কেন্দুয়া' }}</p>
+        </div>
+        
+        <div class="footer-section">
+            <h3>দ্রুত লিংক</h3>
+            <p><a href="{% url 'home' %}">হোম</a></p>
+            <p><a href="#products">পণ্যসমূহ</a></p>
+            <p><a href="#services">সেবাসমূহ</a></p>
+            <p><a href="{% url 'admin_login' %}">অ্যাডমিন লগইন</a></p>
+        </div>
+        
+        <div class="footer-section">
+            <h3>সময়সূচী</h3>
+            <p>শনি - বৃহস্পতি: সকাল ৯টা - রাত ৯টা</p>
+            <p>শুক্রবার: সকাল ৯টা - দুপুর ১২টা</p>
+        </div>
+    </div>
+    
+    <div class="footer-bottom">
+        <p>© ২০২৬ বাধন স্টিল। সর্বস্বত্ব সংরক্ষিত।</p>
+    </div>
+</footer>
 {% endblock %}
