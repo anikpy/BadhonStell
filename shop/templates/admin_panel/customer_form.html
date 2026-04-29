@@ -1,0 +1,55 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}{% if customer %}ক্রেতা এডিট{% else %}নতুন ক্রেতা তৈরি{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        {% if customer %}✏️ ক্রেতা এডিট{% else %}➕ নতুন ক্রেতা তৈরি{% endif %}
+        <div style="float: right;">
+            <a href="{% if customer %}{% url 'customer_detail' customer.pk %}{% else %}{% url 'customer_list_new' %}{% endif %}" class="btn btn-secondary">← ফিরুন</a>
+        </div>
+    </div>
+
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">ক্রেতার নাম *</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div style="color: #dc3545; font-size: 0.9rem; margin-top: 5px;">
+                {{ form.name.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">মোবাইল নাম্বার *</label>
+            {{ form.mobile_number }}
+            {% if form.mobile_number.errors %}
+            <div style="color: #dc3545; font-size: 0.9rem; margin-top: 5px;">
+                {{ form.mobile_number.errors }}
+            </div>
+            {% endif %}
+            <small style="color: #666;">কমপক্ষে ১১ ডিজিট (উদাহরণ: 01712345678)</small>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: 600;">ঠিকানা</label>
+            {{ form.address }}
+            {% if form.address.errors %}
+            <div style="color: #dc3545; font-size: 0.9rem; margin-top: 5px;">
+                {{ form.address.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button type="submit" class="btn btn-success">💾 সংরক্ষণ করুন</button>
+            <a href="{% if customer %}{% url 'customer_detail' customer.pk %}{% else %}{% url 'customer_list_new' %}{% endif %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

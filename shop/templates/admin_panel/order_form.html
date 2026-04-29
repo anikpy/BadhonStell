@@ -198,8 +198,23 @@
             <!-- Customer Information -->
             <div class="form-row">
                 <div class="form-group">
+                    <label>ক্রেতা খুঁজুন</label>
+                    <input type="text" id="customerSearch" placeholder="ক্রেতার নাম বা মোবাইল দিয়ে খুঁজুন..." 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px; font-family: 'Noto Sans Bengali', sans-serif;">
+                    <div id="customerSuggestions" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 5px; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; width: 100%;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>অথবা নতুন ক্রেতা</label>
+                    <button type="button" onclick="clearCustomer()" style="padding: 12px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">ক্লিয়ার</button>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
                     {{ form.customer_name.label_tag }}
                     {{ form.customer_name }}
+                    <input type="hidden" id="customer_id" name="customer_id" value="">
                 </div>
                 
                 <div class="form-group">
@@ -300,6 +315,9 @@
 <script>
     // Product data from server
     const products = {{ products_json|safe }};
+    
+    // Customer data from server
+    const customers = {{ customers_json|safe }};
     
     // Edit items (for edit mode)
     const editItems = {% if edit_items_json %}{{ edit_items_json|safe }}{% else %}[]{% endif %};
@@ -585,6 +603,62 @@
         }
         
         console.log('✅ মাল্টি-পণ্য অর্ডার ফর্ম সক্রিয় করা হয়েছে');
+    });
+
+    // Customer Search Functionality
+    const customerSearchInput = document.getElementById('customerSearch');
+    const customerSuggestions = document.getElementById('customerSuggestions');
+    const customerNameField = document.getElementById('id_customer_name');
+    const mobileNumberField = document.getElementById('id_mobile_number');
+
+    customerSearchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        if (query.length < 2) {
+            customerSuggestions.style.display = 'none';
+            return;
+        }
+
+        const filteredCustomers = customers.filter(customer => 
+            customer.name.toLowerCase().includes(query) || 
+            customer.mobile.includes(query)
+        );
+
+        if (filteredCustomers.length > 0) {
+            customerSuggestions.innerHTML = filteredCustomers.map(customer => `
+                <div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;" 
+                     onclick="selectCustomer(${customer.id}, '${customer.name}', '${customer.mobile}')">
+                    <div style="font-weight: 600;">${customer.name}</div>
+                    <div style="font-size: 0.9rem; color: #666;">${customer.mobile}</div>
+                    ${customer.address ? `<div style="font-size: 0.8rem; color: #999;">${customer.address}</div>` : ''}
+                </div>
+            `).join('');
+            customerSuggestions.style.display = 'block';
+        } else {
+            customerSuggestions.style.display = 'none';
+        }
+    });
+
+    function selectCustomer(id, name, mobile) {
+        customerNameField.value = name;
+        mobileNumberField.value = mobile;
+        customerSearchInput.value = name;
+        document.getElementById('customer_id').value = id;
+        customerSuggestions.style.display = 'none';
+    }
+
+    function clearCustomer() {
+        customerNameField.value = '';
+        mobileNumberField.value = '';
+        customerSearchInput.value = '';
+        document.getElementById('customer_id').value = '';
+        customerSuggestions.style.display = 'none';
+    }
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!customerSearchInput.contains(e.target) && !customerSuggestions.contains(e.target)) {
+            customerSuggestions.style.display = 'none';
+        }
     });
 </script>
 {% endblock %}

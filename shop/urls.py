@@ -23,6 +23,14 @@ urlpatterns = [
     path('admin-panel/orders/payments/<int:pk>/delete/', views.order_payment_delete, name='order_payment_delete'),
     path('admin-panel/orders/<int:pk>/voucher/', views.order_voucher, name='order_voucher'),
 
+    # ক্রেতা ব্যবস্থাপনা URLs (Customer Management - Custom Orders)
+    path('admin-panel/customers/new/', views.customer_list_new, name='customer_list_new'),
+    path('admin-panel/customers/new/create/', views.customer_create, name='customer_create'),
+    path('admin-panel/customers/new/<int:pk>/', views.customer_detail, name='customer_detail'),
+    path('admin-panel/customers/new/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
+    path('admin-panel/customers/new/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
+    path('admin-panel/customers/new/<int:customer_pk>/order/create/', views.order_create_for_customer, name='order_create_for_customer'),
+
     # ইনভেন্টরি পণ্য ম্যানেজমেন্ট URLs
     path('admin-panel/inventory/', views.inventory_product_list, name='inventory_product_list'),
     path('admin-panel/inventory/create/', views.inventory_product_create, name='inventory_product_create'),
@@ -30,6 +38,7 @@ urlpatterns = [
     path('admin-panel/inventory/<int:pk>/delete/', views.inventory_product_delete, name='inventory_product_delete'),
     path('admin-panel/inventory/<int:pk>/stock/', views.stock_management, name='stock_management'),
     path('admin-panel/inventory/print-pdf/', views.print_inventory_pdf, name='print_inventory_pdf'),
+    path('admin-panel/inventory/bulk-price-update/', views.bulk_price_update, name='bulk_price_update'),
     path('admin-panel/inventory/print-history-pdf/', views.print_stock_history_pdf, name='print_stock_history_pdf'),
 
 
@@ -56,6 +65,7 @@ urlpatterns = [
 
     # বাকি খাতা এবং কাস্টমার লিস্ট URLs
     path('admin-panel/due-accounts/', views.due_accounts_list, name='due_accounts_list'),
+    path('admin-panel/due-accounts/print/', views.due_accounts_print, name='due_accounts_print'),
     path('admin-panel/customers/', views.customer_list, name='customer_list'),
 
 ]

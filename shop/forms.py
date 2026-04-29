@@ -1,6 +1,6 @@
 from django import forms
 from decimal import InvalidOperation
-from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem
+from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem, Customer
 
 
 def bangla_to_english_number(text):
@@ -50,7 +50,7 @@ class OrderForm(forms.ModelForm):
         model = Order
         fields = [
             'customer_name', 'mobile_number', 'cash_paid',
-            'order_date', 'delivery_date', 'status', 'delivery_status'
+            'order_date', 'delivery_date', 'status', 'delivery_status', 'discount_percentage'
         ]
         widgets = {
             'customer_name': forms.TextInput(attrs={
@@ -61,7 +61,11 @@ class OrderForm(forms.ModelForm):
                 'class': 'form-control bangla-number-input',
                 'placeholder': 'উদাহরণ: ০১৭১২৩৪৫৬৭৮ বা 01712345678',
                 'autocomplete': 'off',
-                'inputmode': 'text',
+            }),
+            'cash_paid': forms.TextInput(attrs={
+                'class': 'form-control bangla-number-input',
+                'placeholder': 'উদাহরণ: ৫০০ বা 500',
+                'autocomplete': 'off',
             }),
             'order_date': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -77,7 +81,29 @@ class OrderForm(forms.ModelForm):
             'delivery_status': forms.Select(attrs={
                 'class': 'form-control'
             }),
+            'discount_percentage': forms.TextInput(attrs={
+                'class': 'form-control bangla-number-input',
+                'placeholder': 'ডিসকাউন্ট % (উদাহরণ: ১০ বা 10)',
+                'autocomplete': 'off',
+            }),
         }
+
+    def clean_discount_percentage(self):
+        """ডিসকাউন্ট শতাংশ ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
+        discount = self.cleaned_data.get('discount_percentage')
+        if discount:
+            converted = bangla_to_english_number(str(discount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = float(converted)
+                if value < 0:
+                    raise forms.ValidationError('ডিসকাউন্ট ০-এর কম হতে পারে না')
+                if value > 100:
+                    raise forms.ValidationError('ডিসকাউন্ট ১০০%-এর বেশি হতে পারে না')
+                return value
+            except ValueError:
+                raise forms.ValidationError('সঠিক ডিসকাউন্ট দিন')
+        return 0
 
     def clean_cash_paid(self):
         """নগদ পরিশোধ ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
@@ -449,3 +475,50 @@ class StockManagementForm(forms.Form):
             except (ValueError, InvalidOperation):
                 raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
         return Decimal('0')
+
+
+class CustomerForm(forms.ModelForm):
+    """ক্রেতা ফর্ম - কাস্টম অর্ডারের জন্য"""
+
+    class Meta:
+        model = Customer
+        fields = ['name', 'mobile_number', 'address']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ক্রেতার নাম লিখুন'
+            }),
+            'mobile_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'মোবাইল নাম্বার (উদাহরণ: 01712345678)',
+                'autocomplete': 'off',
+            }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'ঠিকানা লিখুন (ঐচ্ছিক)'
+            }),
+        }
+
+    def clean_mobile_number(self):
+        """মোবাইল নাম্বার ক্লিন করা এবং ভ্যালিডেশন"""
+        mobile = self.cleaned_data.get('mobile_number')
+        if mobile:
+            # Remove all non-digit characters
+            clean_mobile = ''.join(c for c in str(mobile) if c.isdigit())
+            
+            if not clean_mobile:
+                raise forms.ValidationError('সঠিক মোবাইল নাম্বার লিখুন')
+            
+            if len(clean_mobile) < 11:
+                raise forms.ValidationError('মোবাইল নাম্বার কমপক্ষে ১১ ডিজিট হতে হবে')
+            
+            return clean_mobile
+        return mobile
+
+    def clean_name(self):
+        """নাম ক্লিন করা"""
+        name = self.cleaned_data.get('name')
+        if name:
+            return name.strip().title()
+        return name

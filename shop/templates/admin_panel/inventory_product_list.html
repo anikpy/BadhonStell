@@ -204,6 +204,7 @@
     <h2>📦 ইনভেন্টরি পণ্য তালিকা</h2>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ নতুন পণ্য যোগ করুন</a>
+        <a href="{% url 'bulk_price_update' %}" class="btn btn-primary" style="background: #ff6b6b;">📈 বাল্ক মূল্য বৃদ্ধি</a>
         <a href="{% url 'print_inventory_pdf' %}" class="btn btn-info" target="_blank">📄 প্রিন্ট স্টক</a>
         <a href="{% url 'print_stock_history_pdf' %}" class="btn btn-warning" target="_blank">📜 প্রিন্ট স্টক হিস্ট্রি</a>
     </div>

@@ -1,0 +1,155 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}বাল্ক মূল্য বৃদ্ধি{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📈 বাল্ক পণ্যের মূল্য বৃদ্ধি
+        <div style="float: right;">
+            <a href="{% url 'inventory_product_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+    
+    <!-- Search Form -->
+    <div style="margin-bottom: 20px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+        <form method="get" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="search" value="{{ search_query }}" 
+                   placeholder="পণ্যের নাম বা বিবরণ দিন..." 
+                   style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: 'Noto Sans Bengali', sans-serif;">
+            <button type="submit" class="btn btn-info">🔍 খুঁজুন</button>
+            {% if search_query %}
+            <a href="{% url 'bulk_price_update' %}" class="btn btn-warning">✖ ক্লিয়ার</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if products %}
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Select All and Price Increase Section -->
+        <div style="margin-bottom: 20px; background: #e3f2fd; padding: 20px; border-radius: 8px; border: 2px solid #2196f3;">
+            <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="selectAll" onchange="toggleAll(this)" style="width: 20px; height: 20px;">
+                    <label for="selectAll" style="font-weight: 600; cursor: pointer;">সব নির্বাচন করুন</label>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                    <label style="font-weight: 600;">বৃদ্ধির শতাংশ (%):</label>
+                    <input type="number" name="increase_percentage" step="0.1" min="0.1" required
+                           placeholder="উদাহরণ: 10" 
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 150px;">
+                </div>
+                
+                <button type="submit" class="btn btn-success" style="padding: 10px 24px; font-weight: 600;">
+                    ✅ মূল্য বৃদ্ধি করুন
+                </button>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px 8px; text-align: center; width: 5%;">
+                            <input type="checkbox" id="selectAllHeader" onchange="toggleAll(this)" style="width: 18px; height: 18px;">
+                        </th>
+                        <th style="padding: 12px 8px; text-align: left; width: 10%;">#</th>
+                        <th style="padding: 12px 8px; text-align: left; width: 35%;">পণ্যের নাম</th>
+                        <th style="padding: 12px 8px; text-align: left; width: 20%;">বিবরণ</th>
+                        <th style="padding: 12px 8px; text-align: right; width: 15%;">বর্তমান মূল্য</th>
+                        <th style="padding: 12px 8px; text-align: right; width: 15%;">নতুন মূল্য (10%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 10px 8px; text-align: center;">
+                            <input type="checkbox" name="selected_products" value="{{ product.pk }}" class="product-checkbox" style="width: 18px; height: 18px;">
+                        </td>
+                        <td style="padding: 10px 8px;">{{ forloop.counter }}</td>
+                        <td style="padding: 10px 8px; font-weight: 500;">{{ product.name }}</td>
+                        <td style="padding: 10px 8px; font-size: 0.9rem; color: #666;">{{ product.description|default:"-"|truncatechars:30 }}</td>
+                        <td style="padding: 10px 8px; text-align: right; font-weight: 600;">৳{{ product.price_per_unit|floatformat:2 }}</td>
+                        <td style="padding: 10px 8px; text-align: right; color: #28a745; font-weight: 600;" id="new-price-{{ product.pk }}">
+                            ৳{{ product.price_per_unit|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <p style="color: #666; font-size: 0.9rem;">
+                মোট {{ products|length }} টি পণ্য পাওয়া গেছে
+            </p>
+        </div>
+    </form>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📦</div>
+        <h3>কোনো পণ্য পাওয়া যায়নি</h3>
+        <p>অন্য কীওয়ার্ড দিয়ে চেষ্টা করুন!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateNewPrices();
+}
+
+// Update new prices when percentage changes - real-time
+document.querySelector('input[name="increase_percentage"]').addEventListener('input', function() {
+    updateNewPrices();
+});
+
+function updateNewPrices() {
+    const percentage = parseFloat(document.querySelector('input[name="increase_percentage"]').value) || 0;
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const currentPriceCell = row.querySelectorAll('td')[4];
+        const newPriceCell = row.querySelectorAll('td')[5];
+        const currentPriceText = currentPriceCell.textContent.replace('৳', '').trim();
+        const currentPrice = parseFloat(currentPriceText) || 0;
+        
+        const newPrice = currentPrice * (1 + percentage / 100);
+        newPriceCell.textContent = '৳' + newPrice.toFixed(2);
+        
+        // Highlight if price is being increased
+        if (percentage > 0) {
+            newPriceCell.style.color = '#28a745';
+            newPriceCell.style.fontWeight = '700';
+        } else {
+            newPriceCell.style.color = '#666';
+            newPriceCell.style.fontWeight = '600';
+        }
+    });
+}
+
+// Sync checkboxes
+document.getElementById('selectAll').addEventListener('change', function() {
+    document.getElementById('selectAllHeader').checked = this.checked;
+});
+
+document.getElementById('selectAllHeader').addEventListener('change', function() {
+    document.getElementById('selectAll').checked = this.checked;
+    toggleAll(this);
+});
+
+// Initialize with 0% on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateNewPrices();
+});
+</script>
+{% endblock %}

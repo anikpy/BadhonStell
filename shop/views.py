@@ -28,8 +28,9 @@ from .models import (
     Payment,
     OrderPayment,
     StockHistory,
+    Customer,
 )
-from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm
+from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm, CustomerForm
 from decimal import Decimal
 import json
 
@@ -202,6 +203,7 @@ def order_list(request):
 def order_create(request):
     """নতুন অর্ডার তৈরি - একাধিক পণ্য সাপোর্ট"""
     products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+    customers = Customer.objects.all().order_by('name')
     products_json = json.dumps([
         {
             'id': p.pk,
@@ -211,6 +213,15 @@ def order_create(request):
             'stock': float(p.stock_quantity),
         }
         for p in products
+    ])
+    customers_json = json.dumps([
+        {
+            'id': c.pk,
+            'name': c.name,
+            'mobile': c.mobile_number,
+            'address': c.address or '',
+        }
+        for c in customers
     ])
 
     if request.method == 'POST':
@@ -263,6 +274,16 @@ def order_create(request):
                 # Save order
                 order = form.save(commit=False)
                 order.total_price = total_price
+                
+                # Link to customer if customer_id is provided
+                customer_id = request.POST.get('customer_id')
+                if customer_id:
+                    try:
+                        customer = Customer.objects.get(pk=customer_id)
+                        order.customer = customer
+                    except Customer.DoesNotExist:
+                        pass
+                
                 order.save()
 
                 # Create OrderItem records and update stock
@@ -293,6 +314,7 @@ def order_create(request):
     context = {
         'form': form,
         'products_json': products_json,
+        'customers_json': customers_json,
     }
     return render(request, 'admin_panel/order_form.html', context)
 
@@ -466,6 +488,257 @@ def order_voucher(request, pk):
     return render(request, 'admin_panel/voucher.html', context)
 
 
+# ==================== ক্রেতা ব্যবস্থাপনা (Customer Management) ====================
+
+@login_required
+def customer_list_new(request):
+    """ক্রেতা তালিকা - কাস্টম অর্ডারের জন্য"""
+    search_query = request.GET.get('search', '')
+    due_filter = request.GET.get('due_filter', '')
+    sort_by = request.GET.get('sort_by', '-created_at')
+    page_number = request.GET.get('page', 1)
+    
+    customers = Customer.objects.all().annotate(
+        total_orders=Count('orders'),
+        total_price=Sum('orders__total_price'),
+        total_due=Sum('orders__due_amount')
+    )
+    
+    if search_query:
+        customers = customers.filter(
+            Q(name__icontains=search_query) |
+            Q(mobile_number__icontains=search_query)
+        )
+    
+    # Filter by due payment
+    if due_filter == 'with_due':
+        customers = customers.filter(total_due__gt=0)
+    elif due_filter == 'no_due':
+        customers = customers.filter(Q(total_due__lte=0) | Q(total_due__isnull=True))
+    
+    # Sort
+    if sort_by == 'name':
+        customers = customers.order_by('name')
+    elif sort_by == '-name':
+        customers = customers.order_by('-name')
+    elif sort_by == 'due':
+        customers = customers.order_by('-total_due')
+    elif sort_by == 'orders':
+        customers = customers.order_by('-total_orders')
+    elif sort_by == 'price':
+        customers = customers.order_by('-total_price')
+    else:
+        customers = customers.order_by(sort_by)
+    
+    paginator = Paginator(customers, 20)
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'customers': page_obj,
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'due_filter': due_filter,
+        'sort_by': sort_by,
+    }
+    return render(request, 'admin_panel/customer_list_new.html', context)
+
+
+@login_required
+def customer_create(request):
+    """নতুন ক্রেতা তৈরি"""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'✅ ক্রেতা {customer.name} সফলভাবে যোগ করা হয়েছে!')
+            return redirect('customer_detail', pk=customer.pk)
+    else:
+        form = CustomerForm()
+    
+    context = {'form': form}
+    return render(request, 'admin_panel/customer_form.html', context)
+
+
+@login_required
+def customer_edit(request, pk):
+    """ক্রেতা সম্পাদনা"""
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'✅ ক্রেতা {customer.name} সফলভাবে আপডেট করা হয়েছে!')
+            return redirect('customer_detail', pk=customer.pk)
+    else:
+        form = CustomerForm(instance=customer)
+    
+    context = {'form': form, 'customer': customer}
+    return render(request, 'admin_panel/customer_form.html', context)
+
+
+@login_required
+def customer_detail(request, pk):
+    """ক্রেতা বিস্তারিত - সব অর্ডার সহ"""
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    # Get all orders for this customer
+    orders = customer.orders.all().order_by('-created_at')
+    
+    # Statistics
+    total_orders = orders.count()
+    total_price = sum(order.total_price for order in orders)
+    total_paid = sum(order.cash_paid for order in orders)
+    total_due = sum(order.due_amount for order in orders)
+    
+    # Delivery status counts
+    delivered_count = orders.filter(delivery_status='delivered').count()
+    pending_count = orders.filter(delivery_status='not_delivered').count()
+    
+    # Separate ongoing and completed orders
+    ongoing_orders = orders.exclude(status='completed')
+    completed_orders = orders.filter(status='completed')
+    
+    context = {
+        'customer': customer,
+        'orders': orders,
+        'ongoing_orders': ongoing_orders,
+        'completed_orders': completed_orders,
+        'total_orders': total_orders,
+        'total_price': total_price,
+        'total_paid': total_paid,
+        'total_due': total_due,
+        'delivered_count': delivered_count,
+        'pending_count': pending_count,
+    }
+    return render(request, 'admin_panel/customer_detail.html', context)
+
+
+@login_required
+def customer_delete(request, pk):
+    """ক্রেতা মুছে ফেলা"""
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    # Check if customer has orders
+    if customer.orders.exists():
+        messages.error(request, f'❌ এই ক্রেতার {customer.orders.count()}টি অর্ডার আছে। মুছে ফেলা যাবে না!')
+        return redirect('customer_detail', pk=customer.pk)
+    
+    customer.delete()
+    messages.success(request, '✅ ক্রেতা সফলভাবে মুছে ফেলা হয়েছে!')
+    return redirect('customer_list_new')
+
+
+@login_required
+def order_create_for_customer(request, customer_pk):
+    """নির্দিষ্ট ক্রেতার জন্য নতুন অর্ডার তৈরি"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
+    
+    products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in products
+    ])
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        items_json_str = request.POST.get('items_json', '[]')
+
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        elif form.is_valid():
+            try:
+                # Validate items and calculate total
+                total_price = Decimal('0')
+                validated_items = []
+                for item in items_data:
+                    product_name = item.get('product_name', '').strip()
+                    quantity = Decimal(str(item.get('quantity', 0)))
+                    unit_price = Decimal(str(item.get('unit_price', 0)))
+                    discount_percentage = Decimal(str(item.get('discount_percentage', 0)))
+                    
+                    if not product_name:
+                        raise ValueError("পণ্যের নাম লিখুন")
+                    if quantity <= 0:
+                        raise ValueError(f"{product_name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if unit_price <= 0:
+                        raise ValueError(f"{product_name}: মূল্য ০-এর বেশি হতে হবে")
+                    
+                    # Check stock availability for inventory products
+                    try:
+                        inventory_product = InventoryProduct.objects.filter(name__iexact=product_name).first()
+                        if inventory_product:
+                            if inventory_product.stock_quantity < quantity:
+                                raise ValueError(f"{product_name}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}")
+                    except:
+                        pass  # If no matching inventory product found, skip stock check
+                    
+                    item_total = quantity * unit_price
+                    total_price += item_total
+                    
+                    validated_items.append({
+                        'product_name': product_name,
+                        'product_description': item.get('product_description', ''),
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                        'discount_percentage': discount_percentage,
+                    })
+
+                # Save order with customer
+                order = form.save(commit=False)
+                order.customer = customer
+                order.customer_name = customer.name
+                order.mobile_number = customer.mobile_number
+                order.total_price = total_price
+                order.save()
+
+                # Create OrderItem records and update stock
+                for item_data in validated_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=item_data['product_name'],
+                        product_description=item_data['product_description'],
+                        quantity=item_data['quantity'],
+                        unit_price=item_data['unit_price'],
+                        discount_percentage=item_data['discount_percentage'],
+                    )
+                    
+                    # Deduct stock from inventory
+                    try:
+                        inventory_product = InventoryProduct.objects.filter(name__iexact=item_data['product_name']).first()
+                        if inventory_product:
+                            inventory_product.remove_stock(item_data['quantity'])
+                    except:
+                        pass  # If no matching inventory product, skip stock update
+
+                messages.success(request, f'✅ {customer.name}-এর জন্য অর্ডার #{order.pk} সফলভাবে তৈরি হয়েছে!')
+                return redirect('customer_detail', pk=customer.pk)
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
+    else:
+        form = OrderForm(initial={
+            'customer_name': customer.name,
+            'mobile_number': customer.mobile_number,
+        })
+
+    context = {
+        'form': form,
+        'products_json': products_json,
+        'customer': customer,
+    }
+    return render(request, 'admin_panel/order_form_for_customer.html', context)
+
 
 # ==================== ইনভেন্টরি পণ্য ব্যবস্থাপনা ====================
 
@@ -504,6 +777,52 @@ def inventory_product_list(request):
         'stock_filter': stock_filter,
     }
     return render(request, 'admin_panel/inventory_product_list.html', context)
+
+
+@login_required
+def bulk_price_update(request):
+    """বাল্ক পণ্যের মূল্য বৃদ্ধি"""
+    search_query = request.GET.get('search', '')
+    products = InventoryProduct.objects.all().order_by('name')
+    
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    if request.method == 'POST':
+        selected_products = request.POST.getlist('selected_products')
+        increase_percentage = request.POST.get('increase_percentage')
+        
+        if not selected_products:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য নির্বাচন করুন!')
+        elif not increase_percentage:
+            messages.error(request, '❌ বৃদ্ধির শতাংশ দিন!')
+        else:
+            try:
+                percentage = float(increase_percentage)
+                if percentage <= 0:
+                    messages.error(request, '❌ শতাংশ ০-এর বেশি হতে হবে!')
+                else:
+                    updated_count = 0
+                    for product_id in selected_products:
+                        product = InventoryProduct.objects.get(pk=product_id)
+                        new_price = product.price_per_unit * (1 + percentage / 100)
+                        product.price_per_unit = new_price
+                        product.save()
+                        updated_count += 1
+                    
+                    messages.success(request, f'✅ {updated_count} টি পণ্যের মূল্য {percentage}% বৃদ্ধি করা হয়েছে!')
+                    return redirect('inventory_product_list')
+            except ValueError:
+                messages.error(request, '❌ সঠিক শতাংশ দিন!')
+    
+    context = {
+        'products': products,
+        'search_query': search_query,
+    }
+    return render(request, 'admin_panel/bulk_price_update.html', context)
 
 
 @login_required
@@ -1707,19 +2026,22 @@ def due_accounts_list(request):
     
     # Add orders
     for order in orders_with_due:
-        due_items.append({
-            'type': 'order',
-            'id': order.pk,
-            'customer_name': order.customer_name,
-            'mobile_number': order.mobile_number,
-            'total_amount': order.total_price,
-            'paid_amount': order.cash_paid,
-            'due_amount': order.due_amount,
-            'date': order.order_date,
-            'created_at': order.created_at,
-            'status': order.status,
-            'delivery_status': order.delivery_status,
-        })
+        # Use final_price if available, otherwise total_price
+        total_amount = order.final_price if order.final_price > 0 else order.total_price
+        due_amount = order.due_amount if order.due_amount > 0 else (total_amount - order.cash_paid)
+        
+        if due_amount > 0:  # Only show if there's actually due
+            due_items.append({
+                'type': 'order',
+                'id': order.pk,
+                'customer_name': order.customer_name,
+                'mobile_number': order.mobile_number,
+                'total_amount': total_amount,
+                'paid_amount': order.cash_paid,
+                'due_amount': due_amount,
+                'date': order.created_at,
+                'status': order.status,
+            })
     
     # Add invoices
     for invoice in invoices_with_due:
@@ -1736,21 +2058,19 @@ def due_accounts_list(request):
                 'total_amount': invoice.total_amount,
                 'paid_amount': total_paid,
                 'due_amount': actual_due,
-                'date': invoice.sale_date,
-                'created_at': invoice.created_at,
-                'invoice_number': invoice.invoice_number,
+                'date': invoice.created_at,
             })
     
-    # Sort by created_at (newest first)
-    due_items.sort(key=lambda x: x['created_at'], reverse=True)
+    # Sort by date
+    due_items.sort(key=lambda x: x['date'], reverse=True)
     
     # Calculate totals
     total_amount = sum(item['total_amount'] for item in due_items)
     total_paid = sum(item['paid_amount'] for item in due_items)
     total_due = sum(item['due_amount'] for item in due_items)
     
-    # Pagination - 100 items per page
-    paginator = Paginator(due_items, 100)
+    # Pagination
+    paginator = Paginator(due_items, 20)
     page_obj = paginator.get_page(page_number)
     
     context = {
@@ -1764,144 +2084,79 @@ def due_accounts_list(request):
     return render(request, 'admin_panel/due_accounts_list.html', context)
 
 
+@login_required
+def due_accounts_print(request):
+    """বাকি খাতা প্রিন্ট - প্রিন্টেবল ফরম্যাট"""
+    shop_info = ShopInfo.objects.first()
+    
+    # Get all orders with due amounts (only custom orders for now)
+    orders_with_due = Order.objects.filter(due_amount__gt=0).select_related('customer').order_by('-created_at')
+    
+    # Group by customer to show total due per customer
+    customer_due = {}
+    total_grand_due = Decimal('0')
+    
+    for order in orders_with_due:
+        if order.customer:
+            customer_id = order.customer.pk
+            if customer_id not in customer_due:
+                customer_due[customer_id] = {
+                    'customer': order.customer,
+                    'total_due': Decimal('0'),
+                    'orders': []
+                }
+            customer_due[customer_id]['total_due'] += order.due_amount
+            customer_due[customer_id]['orders'].append(order)
+            total_grand_due += order.due_amount
+        else:
+            # For orders without customer (old orders)
+            key = f"mobile_{order.mobile_number}"
+            if key not in customer_due:
+                customer_due[key] = {
+                    'customer_name': order.customer_name,
+                    'mobile_number': order.mobile_number,
+                    'total_due': Decimal('0'),
+                    'orders': []
+                }
+            customer_due[key]['total_due'] += order.due_amount
+            customer_due[key]['orders'].append(order)
+            total_grand_due += order.due_amount
+    
+    context = {
+        'shop_info': shop_info,
+        'customer_due': customer_due,
+        'total_grand_due': total_grand_due,
+        'print_date': timezone.now(),
+    }
+    return render(request, 'admin_panel/due_accounts_print.html', context)
+
+
 # ==================== কাস্টমার লিস্ট (Customer List) ====================
 
 @login_required
 def customer_list(request):
-    """কাস্টমার লিস্ট - সব কাস্টমারের তথ্য (শুধু সুপার অ্যাডমিনের জন্য)"""
-    if not request.user.is_superuser:
-        messages.error(request, '❌ এই পেজে প্রবেশাধিকার নেই! শুধুমাত্র অ্যাডমিনের জন্য।')
-        return redirect('admin_dashboard')
-    
+    """কাস্টমার লিস্ট - সব কাস্টমারের তথ্য"""
     search_query = request.GET.get('search', '')
     page_number = request.GET.get('page', 1)
     
-    # Get all unique customers from both Order and Invoice models
-    order_customers = Order.objects.values('customer_name', 'mobile_number').distinct()
-    invoice_customers = Invoice.objects.filter(is_latest=True).values('customer_name', 'mobile_number').distinct()
-    
-    # Combine unique customers
-    all_customers = {}
-    
-    # Process order customers
-    for customer in order_customers:
-        key = (customer['customer_name'], customer['mobile_number'])
-        if key not in all_customers:
-            all_customers[key] = {
-                'customer_name': customer['customer_name'],
-                'mobile_number': customer['mobile_number'],
-                'total_orders': 0,
-                'total_invoices': 0,
-                'total_order_amount': 0,
-                'total_invoice_amount': 0,
-                'total_order_paid': 0,
-                'total_invoice_paid': 0,
-                'total_order_due': 0,
-                'total_invoice_due': 0,
-                'last_order_date': None,
-                'last_invoice_date': None,
-            }
-    
-    # Process invoice customers
-    for customer in invoice_customers:
-        key = (customer['customer_name'], customer['mobile_number'])
-        if key not in all_customers:
-            all_customers[key] = {
-                'customer_name': customer['customer_name'],
-                'mobile_number': customer['mobile_number'],
-                'total_orders': 0,
-                'total_invoices': 0,
-                'total_order_amount': 0,
-                'total_invoice_amount': 0,
-                'total_order_paid': 0,
-                'total_invoice_paid': 0,
-                'total_order_due': 0,
-                'total_invoice_due': 0,
-                'last_order_date': None,
-                'last_invoice_date': None,
-            }
-    
-    # Calculate statistics for each customer
-    for key, customer_data in all_customers.items():
-        name, mobile = key
-        
-        # Order statistics
-        orders = Order.objects.filter(customer_name=name, mobile_number=mobile)
-        customer_data['total_orders'] = orders.count()
-        customer_data['total_order_amount'] = orders.aggregate(total=Sum('total_price'))['total'] or 0
-        customer_data['total_order_paid'] = orders.aggregate(total=Sum('cash_paid'))['total'] or 0
-        customer_data['total_order_due'] = orders.aggregate(total=Sum('due_amount'))['total'] or 0
-        
-        # Get last order date
-        last_order = orders.order_by('-created_at').first()
-        if last_order:
-            customer_data['last_order_date'] = last_order.created_at
-        
-        # Invoice statistics
-        invoices = Invoice.objects.filter(customer_name=name, mobile_number=mobile, is_latest=True)
-        customer_data['total_invoices'] = invoices.count()
-        customer_data['total_invoice_amount'] = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
-        
-        # Calculate actual paid amounts from payments
-        total_invoice_paid = 0
-        total_invoice_due = 0
-        for invoice in invoices:
-            invoice_paid = sum(p.amount for p in invoice.payments.all()) if invoice.payments.exists() else invoice.paid_amount
-            total_invoice_paid += invoice_paid
-            total_invoice_due += (invoice.total_amount - invoice_paid)
-        
-        customer_data['total_invoice_paid'] = total_invoice_paid
-        customer_data['total_invoice_due'] = total_invoice_due
-        
-        # Get last invoice date
-        last_invoice = invoices.order_by('-created_at').first()
-        if last_invoice:
-            customer_data['last_invoice_date'] = last_invoice.created_at
-        
-        # Calculate totals
-        customer_data['total_amount'] = customer_data['total_order_amount'] + customer_data['total_invoice_amount']
-        customer_data['total_paid'] = customer_data['total_order_paid'] + customer_data['total_invoice_paid']
-        customer_data['total_due'] = customer_data['total_order_due'] + customer_data['total_invoice_due']
-        
-        # Determine last buy date
-        if customer_data['last_order_date'] and customer_data['last_invoice_date']:
-            customer_data['last_buy_date'] = max(customer_data['last_order_date'], customer_data['last_invoice_date'])
-        elif customer_data['last_order_date']:
-            customer_data['last_buy_date'] = customer_data['last_order_date']
-        elif customer_data['last_invoice_date']:
-            customer_data['last_buy_date'] = customer_data['last_invoice_date']
-        else:
-            customer_data['last_buy_date'] = None
-    
-    # Convert to list and apply search filter
-    customers_list = list(all_customers.values())
+    # Get all customers from Customer model with annotations
+    customers = Customer.objects.annotate(
+        total_due=Sum('orders__due_amount')
+    ).order_by('-created_at')
     
     if search_query:
-        customers_list = [
-            customer for customer in customers_list
-            if search_query.lower() in customer['customer_name'].lower() 
-            or search_query in customer['mobile_number']
-        ]
+        customers = customers.filter(
+            Q(name__icontains=search_query) |
+            Q(mobile_number__icontains=search_query)
+        )
     
-    # Sort by last buy date (most recent first)
-    customers_list.sort(key=lambda x: x['last_buy_date'] or timezone.datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    
-    # Calculate totals for all customers
-    total_amount = sum(c['total_amount'] for c in customers_list)
-    total_paid = sum(c['total_paid'] for c in customers_list)
-    total_due = sum(c['total_due'] for c in customers_list)
-    
-    # Pagination
-    paginator = Paginator(customers_list, 50)  # 50 customers per page
+    paginator = Paginator(customers, 20)
     page_obj = paginator.get_page(page_number)
     
     context = {
         'customers': page_obj,
         'page_obj': page_obj,
         'search_query': search_query,
-        'total_amount': total_amount,
-        'total_paid': total_paid,
-        'total_due': total_due,
     }
     return render(request, 'admin_panel/customer_list.html', context)
 

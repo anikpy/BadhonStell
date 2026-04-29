@@ -1,0 +1,449 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{{ customer.name }}-এর জন্য নতুন অর্ডার{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 5px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-size: 1rem;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .help-text {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .calculated-field {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    /* Product items table styles */
+    .items-section {
+        margin: 30px 0;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        background: #f9f9f9;
+    }
+    
+    .items-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    
+    .items-table th,
+    .items-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .items-table th {
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .items-table td input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .items-table td select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .remove-item-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .remove-item-btn:hover {
+        background: #c82333;
+    }
+    
+    .add-item-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    
+    .add-item-btn:hover {
+        background: #218838;
+    }
+    
+    .total-section {
+        background: #667eea;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .total-row.final {
+        font-size: 1.3rem;
+        font-weight: 700;
+        border-top: 1px solid rgba(255,255,255,0.3);
+        padding-top: 10px;
+        margin-top: 10px;
+    }
+    
+    .customer-info {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #1976d2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        ➕ {{ customer.name }}-এর জন্য নতুন অর্ডার
+        <div style="float: right;">
+            <a href="{% url 'customer_detail' customer.pk %}" class="btn btn-secondary">← ক্রেতা প্রোফাইলে ফিরুন</a>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="customer-info">
+        <strong>👤 ক্রেতা:</strong> {{ customer.name }} | 
+        <strong>📱 মোবাইল:</strong> {{ customer.mobile_number }}
+        {% if customer.address %}
+        | <strong>📍 ঠিকানা:</strong> {{ customer.address }}
+        {% endif %}
+    </div>
+
+    <form method="post" class="form-container">
+        {% csrf_token %}
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>ক্রেতার নাম</label>
+                {{ form.customer_name }}
+                <div class="help-text">অটোমেটিক ভরা হয়েছে (পরিবর্তন করা যাবে না)</div>
+            </div>
+            
+            <div class="form-group">
+                <label>মোবাইল নাম্বার</label>
+                {{ form.mobile_number }}
+                <div class="help-text">অটোমেটিক ভরা হয়েছে (পরিবর্তন করা যাবে না)</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>অর্ডার নেওয়ার তারিখ *</label>
+                {{ form.order_date }}
+            </div>
+            
+            <div class="form-group">
+                <label>ডেলিভারির তারিখ *</label>
+                {{ form.delivery_date }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>নগদ পরিশোধ</label>
+                {{ form.cash_paid }}
+                <div class="help-text">বাংলা বা ইংরেজি সংখ্যা লিখুন (উদাহরণ: ৫০০ বা 500)</div>
+            </div>
+            
+            <div class="form-group">
+                <label>ডিসকাউন্ট (%)</label>
+                {{ form.discount_percentage }}
+                <div class="help-text">মোট ডিসকাউন্ট শতাংশ (উদাহরণ: ১০ বা 10)</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>অবস্থা</label>
+                {{ form.status }}
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="items-section">
+            <div class="items-header">
+                <h3 style="margin: 0;">📦 পণ্যসমূহ</h3>
+                <button type="button" class="add-item-btn" onclick="addItem()">➕ পণ্য যোগ করুন</button>
+            </div>
+            
+            <table class="items-table" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">পণ্যের নাম</th>
+                        <th style="width: 20%;">পণ্যের বিবরণ</th>
+                        <th style="width: 10%;">পরিমাণ</th>
+                        <th style="width: 25%;">একক, মূল্য, ডিসকাউন্ট</th>
+                        <th style="width: 10%;">মোট</th>
+                        <th style="width: 5%;">অ্যাকশন</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <!-- Items will be added here dynamically -->
+                </tbody>
+            </table>
+            
+            <div class="total-section">
+                <div class="total-row">
+                    <span>মোট পণ্য:</span>
+                    <span id="totalItems">0</span>
+                </div>
+                <div class="total-row">
+                    <span>মোট মূল্য:</span>
+                    <span>৳<span id="grandTotal">0.00</span></span>
+                </div>
+                <div class="total-row" style="color: #e74c3c;">
+                    <span>মোট ডিসকাউন্ট:</span>
+                    <span>৳<span id="totalDiscount">0.00</span></span>
+                </div>
+                <div class="total-row final">
+                    <span>চূড়ান্ত মূল্য:</span>
+                    <span>৳<span id="finalTotal">0.00</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">💾 অর্ডার সংরক্ষণ করুন</button>
+            <a href="{% url 'customer_detail' customer.pk %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const products = {{ products_json|safe }};
+let itemCount = 0;
+
+function addItem() {
+    itemCount++;
+    const tbody = document.getElementById('itemsBody');
+    const row = document.createElement('tr');
+    
+    const productOptions = products.map(p => 
+        '<option value="' + p.id + '">' + p.name + ' (স্টক: ' + p.stock + ' ' + p.unit + ')</option>'
+    ).join('');
+    
+    row.innerHTML = `
+        <td>
+            <input type="text" name="product_name_${itemCount}" id="product_name_${itemCount}" placeholder="পণ্যের নাম" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <select name="product_select_${itemCount}" onchange="selectProduct(${itemCount}, this.value)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
+                <option value="">পণ্য নির্বাচন করুন</option>
+                ${productOptions}
+            </select>
+            <span id="stock-warn-${itemCount}" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>
+        </td>
+        <td>
+            <input type="text" name="product_description_${itemCount}" placeholder="পণ্যের বিবরণ" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </td>
+        <td>
+            <input type="text" name="quantity_${itemCount}" id="quantity_${itemCount}" placeholder="পরিমাণ" onchange="calculateRowTotal(${itemCount})" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </td>
+        <td>
+            <input type="text" name="unit_${itemCount}" id="unit_${itemCount}" readonly class="calculated-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="text" name="unit_price_${itemCount}" id="unit_price_${itemCount}" placeholder="একক মূল্য" onchange="calculateRowTotal(${itemCount})" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
+            <input type="text" name="discount_${itemCount}" id="discount_${itemCount}" placeholder="ডিসকাউন্ট %" onchange="calculateRowTotal(${itemCount})" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
+        </td>
+        <td>
+            <input type="text" name="row_total_${itemCount}" id="row_total_${itemCount}" readonly class="calculated-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </td>
+        <td>
+            <button type="button" class="remove-item-btn" onclick="removeItem(this)">✕</button>
+        </td>
+    `;
+    tbody.appendChild(row);
+    updateTotals();
+}
+
+function selectProduct(itemId, productId) {
+    if (!productId) return;
+    
+    const product = products.find(p => p.id == productId);
+    if (product) {
+        document.getElementById(`product_name_${itemId}`).value = product.name;
+        document.getElementById(`unit_price_${itemId}`).value = product.price;
+        document.getElementById(`unit_${itemId}`).value = product.unit;
+        
+        // Check stock warning
+        const quantity = parseFloat(document.getElementById(`quantity_${itemId}`).value) || 0;
+        const stockWarn = document.getElementById(`stock-warn-${itemId}`);
+        if (quantity > product.stock) {
+            stockWarn.style.display = 'block';
+        } else {
+            stockWarn.style.display = 'none';
+        }
+        
+        calculateRowTotal(itemId);
+    }
+}
+
+function calculateRowTotal(itemId) {
+    const quantity = parseFloat(document.getElementById(`quantity_${itemId}`).value) || 0;
+    const unitPrice = parseFloat(document.getElementById(`unit_price_${itemId}`).value) || 0;
+    const discount = parseFloat(document.getElementById(`discount_${itemId}`).value) || 0;
+    
+    const baseTotal = quantity * unitPrice;
+    const discountAmount = (baseTotal * discount) / 100;
+    const finalTotal = baseTotal - discountAmount;
+    
+    document.getElementById(`row_total_${itemId}`).value = finalTotal.toFixed(2);
+    updateTotals();
+}
+
+function removeItem(btn) {
+    const row = btn.closest('tr');
+    row.remove();
+    updateTotals();
+}
+
+function updateTotals() {
+    const rows = document.querySelectorAll('#itemsBody tr');
+    let grandTotal = 0;
+    let totalItems = rows.length;
+    
+    rows.forEach(row => {
+        const rowTotalInput = row.querySelector('input[id^="row_total_"]');
+        if (rowTotalInput) {
+            grandTotal += parseFloat(rowTotalInput.value) || 0;
+        }
+    });
+    
+    document.getElementById('totalItems').textContent = totalItems;
+    document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+    
+    // Calculate total discount from per-product discounts
+    let totalDiscount = 0;
+    rows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('input[id^="quantity_"]').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('input[id^="unit_price_"]').value) || 0;
+        const discount = parseFloat(row.querySelector('input[id^="discount_"]').value) || 0;
+        const baseTotal = quantity * unitPrice;
+        const discountAmount = (baseTotal * discount) / 100;
+        totalDiscount += discountAmount;
+    });
+    
+    document.getElementById('totalDiscount').textContent = totalDiscount.toFixed(2);
+    document.getElementById('finalTotal').textContent = (grandTotal).toFixed(2);
+}
+
+// Add first item on page load
+document.addEventListener('DOMContentLoaded', function() {
+    addItem();
+});
+
+// Form submission - collect items data
+document.querySelector('form').addEventListener('submit', function(e) {
+    const items = [];
+    const rows = document.querySelectorAll('#itemsBody tr');
+    
+    rows.forEach((row, index) => {
+        const itemId = index + 1;
+        const productName = row.querySelector(`input[name="product_name_${itemId}"]`)?.value;
+        const productDescription = row.querySelector(`input[name="product_description_${itemId}"]`)?.value || '';
+        const quantity = row.querySelector(`input[name="quantity_${itemId}"]`)?.value;
+        const unitPrice = row.querySelector(`input[name="unit_price_${itemId}"]`)?.value;
+        const discount = row.querySelector(`input[name="discount_${itemId}"]`)?.value || 0;
+        
+        if (productName && quantity && unitPrice) {
+            items.push({
+                product_name: productName,
+                product_description: productDescription,
+                quantity: parseFloat(quantity),
+                unit_price: parseFloat(unitPrice),
+                discount_percentage: parseFloat(discount),
+            });
+        }
+    });
+    
+    const itemsJson = JSON.stringify(items);
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'items_json';
+    hiddenInput.value = itemsJson;
+    this.appendChild(hiddenInput);
+});
+</script>
+{% endblock %}

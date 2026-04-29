@@ -1,0 +1,216 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} - ক্রেতা বিস্তারিত{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        👤 {{ customer.name }} - বিস্তারিত
+        <div style="float: right;">
+            <a href="{% url 'customer_list_new' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
+            <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
+            <a href="{% url 'order_create_for_customer' customer.pk %}" class="btn btn-success">➕ নতুন অর্ডার</a>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+            <div>
+                <strong>ঠিকানা:</strong><br>
+                {{ customer.address|default:"-" }}
+            </div>
+            <div>
+                <strong>তৈরির তারিখ:</strong><br>
+                {{ customer.created_at|date:"d M Y, H:i" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #1976d2;">{{ total_orders }}</div>
+            <div style="color: #666;">মোট অর্ডার</div>
+        </div>
+        <div style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #7b1fa2;">৳{{ total_price|floatformat:0 }}</div>
+            <div style="color: #666;">মোট মূল্য</div>
+        </div>
+        <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #388e3c;">৳{{ total_paid|floatformat:0 }}</div>
+            <div style="color: #666;">পরিশোধিত</div>
+        </div>
+        <div style="background-color: #ffebee; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #d32f2f;">৳{{ total_due|floatformat:0 }}</div>
+            <div style="color: #666;">বাকি</div>
+        </div>
+        <div style="background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #f57c00;">{{ pending_count }}</div>
+            <div style="color: #666;">ডেলিভারি বাকি</div>
+        </div>
+        <div style="background-color: #e0f2f1; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #00796b;">{{ delivered_count }}</div>
+            <div style="color: #666;">ডেলিভারি সম্পন্ন</div>
+        </div>
+    </div>
+
+    <!-- Ongoing Orders -->
+    {% if ongoing_orders %}
+    <h3 style="margin-bottom: 15px; color: #1976d2;">🔄 চলমান অর্ডার</h3>
+    <div style="overflow-x: auto; margin-bottom: 30px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">অর্ডার #</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">পণ্য</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">অর্ডার তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">ডেলিভারি তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">স্ট্যাটাস</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #495057;">মোট মূল্য</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #28a745;">পরিশোধিত</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #dc3545;">বাকি</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #495057;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in ongoing_orders %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px; font-weight: 500;">{{ order.pk }}</td>
+                    <td style="padding: 10px 8px;">
+                        {% for item in order.items.all %}
+                        {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td style="padding: 10px 8px;">{{ order.order_date|date:"d M Y" }}</td>
+                    <td style="padding: 10px 8px;">{{ order.delivery_date|date:"d M Y" }}</td>
+                    <td style="padding: 10px 8px;">
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; 
+                            {% if order.status == 'pending' %}background-color: #fff3cd; color: #856404;{% elif order.status == 'ready' %}background-color: #d1ecf1; color: #0c5460;{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                        {% if order.delivery_status == 'not_delivered' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background-color: #f8d7da; color: #721c24; margin-left: 5px;">
+                            ডেলিভারি বাকি
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 500;">৳{{ order.total_price|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #28a745;">৳{{ order.cash_paid|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: #dc3545;">৳{{ order.due_amount|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <a href="{% url 'order_edit' order.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                        <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm btn-info">📄 ভাউচার</a>
+                        {% if order.due_amount > 0 %}
+                        <a href="{% url 'order_payment_create' order.pk %}" class="btn btn-sm btn-success">💳 পেমেন্ট</a>
+                        {% endif %}
+                        <a href="{% url 'order_complete' order.pk %}" class="btn btn-sm btn-success">✅ সম্পন্ন</a>
+                    </td>
+                </tr>
+                <!-- Payment History Row -->
+                {% if order.payments.exists %}
+                <tr style="background-color: #fafafa;">
+                    <td colspan="9" style="padding: 10px 8px;">
+                        <strong>💰 পেমেন্ট হিস্ট্রি (Order #{{ order.pk }}):</strong>
+                        <div style="margin-top: 8px;">
+                            {% for payment in order.payments.all %}
+                            <div style="display: flex; gap: 20px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee;">
+                                <div style="width: 120px; color: #2c3e50; font-weight: 600;">{{ payment.payment_date|date:"d/m/Y" }}</div>
+                                <div style="color: green; font-weight: 700;">৳{{ payment.amount|floatformat:2 }}</div>
+                                <div style="color: #666;">{{ payment.notes|default:"-" }}</div>
+                                <a href="{% url 'order_payment_edit' payment.pk %}" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.8rem;">✏️</a>
+                                <a href="{% url 'order_payment_delete' payment.pk %}" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background: #dc3545; color: white;">✕</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Completed Orders -->
+    {% if completed_orders %}
+    <h3 style="margin-bottom: 15px; color: #388e3c;">✅ সম্পন্ন অর্ডার</h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">অর্ডার #</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">পণ্য</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">অর্ডার তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #495057;">ডেলিভারি তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #495057;">মোট মূল্য</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #28a745;">পরিশোধিত</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #dc3545;">বাকি</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600; color: #495057;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in completed_orders %}
+                <tr style="border-bottom: 1px solid #dee2e6; background-color: #f8f9fa;">
+                    <td style="padding: 10px 8px; font-weight: 500;">{{ order.pk }}</td>
+                    <td style="padding: 10px 8px;">
+                        {% for item in order.items.all %}
+                        {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td style="padding: 10px 8px;">{{ order.order_date|date:"d M Y" }}</td>
+                    <td style="padding: 10px 8px;">{{ order.delivery_date|date:"d M Y" }}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 500;">৳{{ order.total_price|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #28a745;">৳{{ order.cash_paid|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: #dc3545;">৳{{ order.due_amount|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <a href="{% url 'order_voucher' order.pk %}" class="btn btn-sm btn-info">📄 ভাউচার</a>
+                        {% if order.due_amount > 0 %}
+                        <a href="{% url 'order_payment_create' order.pk %}" class="btn btn-sm btn-success">💳 পেমেন্ট</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                <!-- Payment History Row -->
+                {% if order.payments.exists %}
+                <tr style="background-color: #fafafa;">
+                    <td colspan="8" style="padding: 10px 8px;">
+                        <strong>💰 পেমেন্ট হিস্ট্রি (Order #{{ order.pk }}):</strong>
+                        <div style="margin-top: 8px;">
+                            {% for payment in order.payments.all %}
+                            <div style="display: flex; gap: 20px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee;">
+                                <div style="width: 120px; color: #2c3e50; font-weight: 600;">{{ payment.payment_date|date:"d/m/Y" }}</div>
+                                <div style="color: green; font-weight: 700;">৳{{ payment.amount|floatformat:2 }}</div>
+                                <div style="color: #666;">{{ payment.notes|default:"-" }}</div>
+                                <a href="{% url 'order_payment_edit' payment.pk %}" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.8rem;">✏️</a>
+                                <a href="{% url 'order_payment_delete' payment.pk %}" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background: #dc3545; color: white;">✕</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if not orders %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📦</div>
+        <h3>কোনো অর্ডার নেই</h3>
+        <p>এই ক্রেতার এখনো কোনো অর্ডার নেই!</p>
+        <a href="{% url 'order_create_for_customer' customer.pk %}" class="btn btn-success">➕ প্রথম অর্ডার তৈরি করুন</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

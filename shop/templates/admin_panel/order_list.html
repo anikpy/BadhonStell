@@ -226,18 +226,29 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <strong style="font-size: 1.1em; color: #2c3e50;">
-                                        👤 {{ customer_group.list.0.customer_name }}
+                                        👤 {% if customer_group.list.0.customer %}<a href="{% url 'customer_detail' customer_group.list.0.customer.pk %}" style="color: #2c3e50; text-decoration: none;">{{ customer_group.list.0.customer_name }}</a>{% else %}{{ customer_group.list.0.customer_name }}{% endif %}
                                     </strong>
                                     <span style="color: #666; margin-left: 10px;">
-                                        📱 {{ customer_group.grouper }}
+                                        📱 {% if customer_group.list.0.customer %}<a href="{% url 'customer_detail' customer_group.list.0.customer.pk %}" style="color: #0066cc; text-decoration: none;">{{ customer_group.grouper }}</a>{% else %}{{ customer_group.grouper }}{% endif %}
                                         <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; margin-left: 10px;">
                                             {{ customer_group.list|length }} অর্ডার
                                         </span>
                                     </span>
                                 </div>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                {% if customer_group.list.0.customer %}
+                                <a href="{% url 'customer_detail' customer_group.list.0.customer.pk %}" class="btn btn-primary" style="padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
+                                    📊 ক্রেতা প্রোফাইল
+                                </a>
+                                <a href="{% url 'order_create_for_customer' customer_group.list.0.customer.pk %}" class="btn btn-success" style="padding: 8px 16px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
+                                    ➕ নতুন অর্ডার
+                                </a>
+                                {% else %}
                                 <a href="{% url 'order_customer_profile' customer_group.grouper %}" class="btn btn-primary" style="padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
                                     📊 সব অর্ডার দেখুন
                                 </a>
+                                {% endif %}
+                                </div>
                             </div>
                         </td>
                     </tr>

@@ -331,7 +331,7 @@
         <div class="voucher-header">
             <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
             <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
-            <p>📞 {{ shop_info.phone|default:"+8801727555673" }}</p>
+            <p>📞 {{ shop_info.phone|default:"01727555673" }}</p>
         </div>
         
         <div class="voucher-title">
@@ -396,17 +396,29 @@
         <div class="price-section">
             <div class="price-row">
                 <span>মোট মূল্য:</span>
-                <span>৳ {{ order.total_price }}</span>
+                <span>৳ {{ order.total_price|floatformat:2 }}</span>
+            </div>
+            
+            {% if order.discount_amount > 0 %}
+            <div class="price-row" style="color: #e74c3c;">
+                <span>ডিসকাউন্ট ({{ order.discount_percentage }}%):</span>
+                <span>-৳ {{ order.discount_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="price-row">
+                <span>চূড়ান্ত মূল্য:</span>
+                <span>৳ {{ order.final_price|floatformat:2 }}</span>
             </div>
             
             <div class="price-row">
                 <span>নগদ পরিশোধ:</span>
-                <span>৳ {{ order.cash_paid }}</span>
+                <span>৳ {{ order.cash_paid|floatformat:2 }}</span>
             </div>
             
             <div class="price-row due">
                 <span>বাকি টাকা:</span>
-                <span>৳ {{ order.due_amount }}</span>
+                <span>৳ {{ order.due_amount|floatformat:2 }}</span>
             </div>
         </div>
         
@@ -422,7 +434,7 @@
         
         <div class="footer-note">
             <p>ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
-            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: {{ shop_info.phone|default:"01XXXXXXXXX" }}</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: 01727555673</p>
         </div>
     </div>
 </body>

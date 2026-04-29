@@ -96,6 +96,23 @@ class InventoryProduct(models.Model):
         self.save()
 
 
+class Customer(models.Model):
+    """ক্রেতা মডেল - কাস্টম অর্ডারের জন্য"""
+    name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
+    mobile_number = models.CharField(max_length=20, unique=True, verbose_name='মোবাইল নাম্বার')
+    address = models.TextField(verbose_name='ঠিকানা', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'ক্রেতা'
+        verbose_name_plural = 'ক্রেতাসমূহ'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.mobile_number}"
+
+
 class Order(models.Model):
     """অর্ডার মডেল - একাধিক পণ্যের জন্য"""
     STATUS_CHOICES = [
@@ -109,9 +126,13 @@ class Order(models.Model):
         ('delivered', 'ডেলিভারি সম্পন্ন'),
     ]
 
-    customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
-    mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='orders', verbose_name='ক্রেতা', null=True, blank=True)
+    customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম', null=True, blank=True)
+    mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার', null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য', default=0)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='ডিসকাউন্ট (%)', default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='ডিসকাউন্ট টাকা', default=0)
+    final_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='চূড়ান্ত মূল্য', default=0)
     cash_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নগদ পরিশোধ', default=0)
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False)
     initial_payment_migrated = models.BooleanField(default=False, verbose_name='প্রাথমিক পেমেন্ট OrderPayment-এ স্থানান্তরিত')
@@ -133,8 +154,17 @@ class Order(models.Model):
             total = sum(item.total_price for item in self.items.all())
             self.total_price = total
         
-        # Calculate due_amount
-        self.due_amount = self.total_price - self.cash_paid
+        # Calculate discount amount
+        if self.discount_percentage > 0:
+            self.discount_amount = (self.total_price * self.discount_percentage) / 100
+        else:
+            self.discount_amount = 0
+        
+        # Calculate final price
+        self.final_price = self.total_price - self.discount_amount
+        
+        # Calculate due_amount based on final_price
+        self.due_amount = self.final_price - self.cash_paid
         
         super().save(*args, **kwargs)
 
@@ -149,6 +179,7 @@ class OrderItem(models.Model):
     product_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='ডিসকাউন্ট (%)', default=0)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য', editable=False)
     
     class Meta:
@@ -156,8 +187,15 @@ class OrderItem(models.Model):
         verbose_name_plural = 'অর্ডার আইটেমসমূহ'
     
     def save(self, *args, **kwargs):
-        # Calculate total_price
-        self.total_price = self.quantity * self.unit_price
+        # Calculate base total_price
+        base_total = self.quantity * self.unit_price
+        
+        # Apply discount if any
+        if self.discount_percentage > 0:
+            discount_amount = (base_total * self.discount_percentage) / 100
+            self.total_price = base_total - discount_amount
+        else:
+            self.total_price = base_total
         
         # Check stock availability for inventory products
         try:

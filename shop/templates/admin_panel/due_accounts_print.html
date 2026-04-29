@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বাকি খাতা - {{ shop_info.name|default:"Badhon Steel" }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .print-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .print-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .print-header h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .print-header p {
+            font-size: 1rem;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .print-title {
+            text-align: center;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .print-date {
+            text-align: right;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border: 1px solid #dee2e6;
+        }
+
+        td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .customer-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .mobile-number {
+            color: #0066cc;
+            font-weight: 500;
+        }
+
+        .due-amount {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .total-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 1.1rem;
+        }
+
+        .total-row.grand-total {
+            border-top: 2px solid #333;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .print-button button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .print-button a {
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .print-button {
+                display: none;
+            }
+            .print-container {
+                box-shadow: none;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'due_accounts_list' %}">← ফিরে যান</a>
+    </div>
+    
+    <div class="print-container">
+        <div class="print-header">
+            <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
+            <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
+            <p>📞 01727555673</p>
+        </div>
+        
+        <div class="print-title">
+            বাকি খাতা (Due Accounts)
+        </div>
+        
+        <div class="print-date">
+            প্রিন্ট তারিখ: {{ print_date|date:"d F, Y - H:i" }}
+        </div>
+
+        {% if customer_due %}
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 30%;">ক্রেতার নাম</th>
+                    <th style="width: 20%;">মোবাইল নাম্বার</th>
+                    <th style="width: 15%;">মোট অর্ডার</th>
+                    <th style="width: 15%;">সর্বমোট বাকি</th>
+                    <th style="width: 15%;">সর্বশেষ অর্ডার</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, data in customer_due.items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="customer-name">
+                        {% if data.customer %}
+                            {{ data.customer.name }}
+                        {% else %}
+                            {{ data.customer_name }}
+                        {% endif %}
+                    </td>
+                    <td class="mobile-number">
+                        {% if data.customer %}
+                            {{ data.customer.mobile_number }}
+                        {% else %}
+                            {{ data.mobile_number }}
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">{{ data.orders|length }}</td>
+                    <td class="due-amount" style="text-align: right;">৳ {{ data.total_due|floatformat:2 }}</td>
+                    <td>{{ data.orders.0.created_at|date:"d/m/Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="total-section">
+            <div class="total-row">
+                <span>মোট ক্রেতা:</span>
+                <span>{{ customer_due|length }} জন</span>
+            </div>
+            <div class="total-row grand-total">
+                <span>সর্বমোট বাকি:</span>
+                <span style="color: #dc3545;">৳ {{ total_grand_due|floatformat:2 }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: #666;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">✅</div>
+            <h3>কোনো বাকি নেই</h3>
+            <p>সব ক্রেতার বাকি পরিশোধ হয়ে গেছে!</p>
+        </div>
+        {% endif %}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 0.9rem;">
+            <p>ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: 01727555673</p>
+        </div>
+    </div>
+</body>
+</html>
