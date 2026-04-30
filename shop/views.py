@@ -120,7 +120,7 @@ def admin_dashboard(request):
 
 @login_required
 def order_list(request):
-    """অর্ডার তালিকা - শুধু চলমান অর্ডার"""
+    """অর্ডার তালিকা - ক্রেতা অনুযায়ী গ্রুপ করা"""
     search_query = request.GET.get('search', '')
     status_filter = request.GET.get('status', '')
     date_filter = request.GET.get('date_filter', '')
@@ -138,8 +138,8 @@ def order_list(request):
     except ValueError:
         per_page = 15
 
-    # Dashboard: only ongoing/pending orders (completed orders appear only on completed page)
-    orders = Order.objects.exclude(status='completed').order_by('status', '-created_at')
+    # Show all orders
+    orders = Order.objects.all().select_related('customer').prefetch_related('items').order_by('-created_at')
     
     # Apply date filters
     today = timezone.now().date()
@@ -181,12 +181,52 @@ def order_list(request):
     if status_filter:
         orders = orders.filter(status=status_filter)
     
+    # Group orders by customer
+    from collections import defaultdict
+    customer_orders = defaultdict(list)
+    for order in orders:
+        # Use customer if available, otherwise use customer_name + mobile
+        if order.customer:
+            key = f"customer_{order.customer.pk}"
+            customer_orders[key].append({
+                'order': order,
+                'customer': order.customer,
+                'customer_name': order.customer.name,
+                'mobile_number': order.customer.mobile_number,
+            })
+        else:
+            key = f"manual_{order.customer_name}_{order.mobile_number}"
+            customer_orders[key].append({
+                'order': order,
+                'customer': None,
+                'customer_name': order.customer_name,
+                'mobile_number': order.mobile_number,
+            })
+    
+    # Convert to list and sort by most recent order
+    grouped_orders = []
+    for key, order_list in customer_orders.items():
+        # Sort orders within group by most recent
+        order_list.sort(key=lambda x: x['order'].created_at, reverse=True)
+        grouped_orders.append({
+            'customer': order_list[0]['customer'],
+            'customer_name': order_list[0]['customer_name'],
+            'mobile_number': order_list[0]['mobile_number'],
+            'orders': order_list,
+            'last_order_date': order_list[0]['order'].created_at,
+            'total_orders': len(order_list),
+            'total_due': sum(o['order'].due_amount for o in order_list),
+        })
+    
+    # Sort groups by most recent order
+    grouped_orders.sort(key=lambda x: x['last_order_date'], reverse=True)
+    
     # Pagination
-    paginator = Paginator(orders, per_page)
+    paginator = Paginator(grouped_orders, per_page)
     page_obj = paginator.get_page(page_number)
 
     context = {
-        'orders': page_obj,
+        'grouped_orders': page_obj,
         'page_obj': page_obj,
         'search_query': search_query,
         'status_filter': status_filter,
@@ -432,8 +472,18 @@ def order_edit(request, pk):
 def order_delete(request, pk):
     """অর্ডার মুছে ফেলা"""
     order = get_object_or_404(Order, pk=pk)
+    
+    # Restore stock for each item before deleting
+    for item in order.items.all():
+        try:
+            inventory_product = InventoryProduct.objects.filter(name__iexact=item.product_name).first()
+            if inventory_product:
+                inventory_product.add_stock(item.quantity)
+        except:
+            pass  # If no matching inventory product, skip stock restore
+    
     order.delete()
-    messages.success(request, 'অর্ডার মুছে ফেলা হয়েছে!')
+    messages.success(request, 'অর্ডার মুছে ফেলা হয়েছে এবং স্টক পুনরুদ্ধার করা হয়েছে!')
     return redirect('order_list')
 
 
@@ -481,9 +531,32 @@ def order_voucher(request, pk):
     order = get_object_or_404(Order, pk=pk)
     shop_info = ShopInfo.objects.first()
 
+    # Get other due orders from same customer
+    other_due_orders = []
+    if order.customer:
+        other_due_orders = Order.objects.filter(
+            customer=order.customer,
+            due_amount__gt=0
+        ).exclude(pk=order.pk).order_by('-created_at')
+    else:
+        other_due_orders = Order.objects.filter(
+            customer_name=order.customer_name,
+            mobile_number=order.mobile_number,
+            due_amount__gt=0
+        ).exclude(pk=order.pk).order_by('-created_at')
+
+    # Calculate total due from other orders
+    other_due_total = sum(o.due_amount for o in other_due_orders)
+    
+    # Calculate total due from all orders (current + other)
+    total_due_all = order.due_amount + other_due_total
+
     context = {
         'order': order,
         'shop_info': shop_info,
+        'other_due_orders': other_due_orders,
+        'other_due_total': other_due_total,
+        'total_due_all': total_due_all,
     }
     return render(request, 'admin_panel/voucher.html', context)
 
@@ -657,7 +730,12 @@ def order_create_for_customer(request, customer_pk):
 
         if not items_data:
             messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
-        elif form.is_valid():
+        elif not form.is_valid():
+            # Show form errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'❌ {field}: {error}')
+        else:
             try:
                 # Validate items and calculate total
                 total_price = Decimal('0')
@@ -730,7 +808,21 @@ def order_create_for_customer(request, customer_pk):
         form = OrderForm(initial={
             'customer_name': customer.name,
             'mobile_number': customer.mobile_number,
+            'order_date': timezone.now().date(),
+            'delivery_date': (timezone.now() + timedelta(days=7)).date(),
+            'status': 'pending',
+            'delivery_status': 'not_delivered',
+            'discount_percentage': 0,
         })
+        # Make customer fields readonly
+        form.fields['customer_name'].widget.attrs['readonly'] = True
+        form.fields['customer_name'].widget.attrs['style'] = 'background-color: #f5f5f5;'
+        form.fields['mobile_number'].widget.attrs['readonly'] = True
+        form.fields['mobile_number'].widget.attrs['style'] = 'background-color: #f5f5f5;'
+        
+        # Ensure status field shows the default value
+        form.fields['status'].initial = 'pending'
+        form.fields['delivery_status'].initial = 'not_delivered'
 
     context = {
         'form': form,

@@ -81,12 +81,20 @@ class OrderForm(forms.ModelForm):
             'delivery_status': forms.Select(attrs={
                 'class': 'form-control'
             }),
-            'discount_percentage': forms.TextInput(attrs={
+            'discount_percentage': forms.NumberInput(attrs={
                 'class': 'form-control bangla-number-input',
-                'placeholder': 'ডিসকাউন্ট % (উদাহরণ: ১০ বা 10)',
-                'autocomplete': 'off',
+                'placeholder': 'উদাহরণ: ১০',
+                'step': '0.1',
+                'min': '0',
+                'max': '100'
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make status and delivery_status not required since they have defaults
+        self.fields['status'].required = False
+        self.fields['delivery_status'].required = False
 
     def clean_discount_percentage(self):
         """ডিসকাউন্ট শতাংশ ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
