@@ -19,7 +19,7 @@ def create_admin_user():
     print("Admin User তৈরি করা হচ্ছে")
     print("=" * 60)
     
-    username = 'admin'
+    username = 'badhon'
     email = 'admin@badhonsteel.com'
     password = 'Ba890717@'
     
