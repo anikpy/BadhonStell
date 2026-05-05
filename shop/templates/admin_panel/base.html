@@ -561,7 +561,6 @@
                 <a href="{% url 'admin_statistics' %}" {% if request.resolver_match.url_name == 'admin_statistics' %}class="active"{% endif %}>📊 স্ট্যাটিস্টিক্স</a>
                 <a href="{% url 'user_management' %}" {% if request.resolver_match.url_name == 'user_management' %}class="active"{% endif %}>👥 ইউজার</a>
                 {% endif %}
-                <a href="{% url 'home' %}" target="_blank">🌐 সাইট</a>
                 <a href="{% url 'admin_logout' %}" class="nav-logout">🚪 লগআউট</a>
             </nav>
         </div>
