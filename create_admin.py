@@ -6,7 +6,6 @@ Admin User তৈরি করার স্ক্রিপ্ট
 
 import os
 import django
-
 # Django setup
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'badhonsteel.settings')
 django.setup()

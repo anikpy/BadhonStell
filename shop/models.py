@@ -382,6 +382,24 @@ class OrderPayment(models.Model):
         super().save(*args, **kwargs)
 
 
+class PriceHistory(models.Model):
+    """মূল্য পরিবর্তনের ইতিহাস - বাল্ক/একক মূল্য পরিবর্তন ট্র্যাকিং"""
+    product = models.ForeignKey(InventoryProduct, on_delete=models.CASCADE, related_name='price_history', verbose_name='পণ্য')
+    old_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পুরাতন মূল্য')
+    new_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নতুন মূল্য')
+    change_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='পরিবর্তনের শতাংশ')
+    is_bulk = models.BooleanField(default=False, verbose_name='বাল্ক আপডেট')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তারিখ ও সময়')
+    
+    class Meta:
+        verbose_name = 'মূল্য ইতিহাস'
+        verbose_name_plural = 'মূল্য ইতিহাসসমূহ'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.product.name}: {self.old_price} → {self.new_price} ({self.change_percentage}%)"
+
+
 class StockHistory(models.Model):
     """স্টক হিস্ট্রি - স্টক পরিবর্তন ট্র্যাকিং"""
     OPERATION_CHOICES = [

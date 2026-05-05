@@ -219,12 +219,6 @@ class InventoryProductForm(forms.ModelForm):
             }),
         }
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance.pk:  # Editing existing product
-            self.fields['name'].widget.attrs['readonly'] = True
-            self.fields['unit'].widget.attrs['disabled'] = True
-    
     def clean_name(self):
         name = self.cleaned_data.get('name')
         if not name:

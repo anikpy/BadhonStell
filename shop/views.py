@@ -29,6 +29,7 @@ from .models import (
     OrderPayment,
     StockHistory,
     Customer,
+    PriceHistory,
 )
 from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm, CustomerForm
 from decimal import Decimal
@@ -897,12 +898,24 @@ def bulk_price_update(request):
                 if percentage <= 0:
                     messages.error(request, '❌ শতাংশ ০-এর বেশি হতে হবে!')
                 else:
+                    from decimal import Decimal
                     updated_count = 0
                     for product_id in selected_products:
-                        product = InventoryProduct.objects.get(pk=product_id)
-                        new_price = product.price_per_unit * (1 + percentage / 100)
+                        try:
+                            product = InventoryProduct.objects.get(pk=product_id)
+                        except InventoryProduct.DoesNotExist:
+                            continue
+                        old_price = product.price_per_unit
+                        new_price = product.price_per_unit * (Decimal('1') + Decimal(str(percentage)) / Decimal('100'))
                         product.price_per_unit = new_price
                         product.save()
+                        PriceHistory.objects.create(
+                            product=product,
+                            old_price=old_price,
+                            new_price=new_price,
+                            change_percentage=Decimal(str(percentage)),
+                            is_bulk=True,
+                        )
                         updated_count += 1
                     
                     messages.success(request, f'✅ {updated_count} টি পণ্যের মূল্য {percentage}% বৃদ্ধি করা হয়েছে!')
@@ -915,6 +928,87 @@ def bulk_price_update(request):
         'search_query': search_query,
     }
     return render(request, 'admin_panel/bulk_price_update.html', context)
+
+
+@login_required
+def price_history_list(request):
+    """মূল্য পরিবর্তনের ইতিহাস - রিভার্ট বাটন সহ"""
+    search_query = request.GET.get('search', '')
+    page_number = request.GET.get('page', 1)
+    
+    history = PriceHistory.objects.all().select_related('product')
+    
+    if search_query:
+        history = history.filter(product__name__icontains=search_query)
+    
+    paginator = Paginator(history, 20)
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'history': page_obj,
+        'page_obj': page_obj,
+        'search_query': search_query,
+    }
+    return render(request, 'admin_panel/price_history_list.html', context)
+
+
+@login_required
+def price_history_revert(request, pk):
+    """মূল্য পরিবর্তন রিভার্ট করুন"""
+    price_change = get_object_or_404(PriceHistory, pk=pk)
+    product = price_change.product
+    
+    # Revert to old price
+    product.price_per_unit = price_change.old_price
+    product.save()
+    
+    # Record the revert as a new history entry
+    PriceHistory.objects.create(
+        product=product,
+        old_price=price_change.new_price,
+        new_price=price_change.old_price,
+        change_percentage=price_change.change_percentage * -1,
+        is_bulk=False,
+    )
+    
+    messages.success(request, f'✅ {product.name}-এর মূল্য ৳{price_change.new_price} থেকে ৳{price_change.old_price}-এ ফিরিয়ে নেওয়া হয়েছে!')
+    return redirect('price_history_list')
+
+
+@login_required
+def price_history_bulk_revert(request):
+    """একাধিক মূল্য পরিবর্তন বাল্ক রিভার্ট"""
+    if request.method != 'POST':
+        messages.error(request, '❌ অনুগ্রহ করে রিভার্ট করার জন্য আইটেম নির্বাচন করুন')
+        return redirect('price_history_list')
+
+    ids = request.POST.getlist('selected')
+    if not ids:
+        messages.error(request, '❌ কোনো রেকর্ড নির্বাচন করা হয়নি')
+        return redirect('price_history_list')
+
+    reverted = 0
+    for pk in ids:
+        try:
+            price_change = PriceHistory.objects.get(pk=pk)
+            product = price_change.product
+            # Revert to old price
+            product.price_per_unit = price_change.old_price
+            product.save()
+            # Record the revert as a new history entry
+            PriceHistory.objects.create(
+                product=product,
+                old_price=price_change.new_price,
+                new_price=price_change.old_price,
+                change_percentage=price_change.change_percentage * -1,
+                is_bulk=False,
+            )
+            reverted += 1
+        except PriceHistory.DoesNotExist:
+            continue
+
+    messages.success(request, f'✅ নির্বাচিত {reverted}টি রেকর্ড সফলভাবে রিভার্ট করা হয়েছে')
+    return redirect('price_history_list')
 
 
 @login_required

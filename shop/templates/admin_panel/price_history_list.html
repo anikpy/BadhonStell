@@ -1,0 +1,140 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}মূল্য পরিবর্তনের ইতিহাস{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📊 মূল্য পরিবর্তনের ইতিহাস
+        <div style="float: right;">
+            <a href="{% url 'inventory_product_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+    
+    <!-- Search -->
+    <div style="margin-bottom: 20px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+        <form method="get" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="search" value="{{ search_query }}" 
+                   placeholder="পণ্যের নাম দিন..." 
+                   style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: 'Noto Sans Bengali', sans-serif;">
+            <button type="submit" class="btn btn-info">🔍 খুঁজুন</button>
+            {% if search_query %}
+            <a href="{% url 'price_history_list' %}" class="btn btn-warning">✖ ক্লিয়ার</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if history %}
+    <form method="post" action="{% url 'price_history_bulk_revert' %}">
+        {% csrf_token %}
+        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <!-- Single click revert of LAST change -->
+            <a href="{% url 'price_history_revert' history.0.pk %}" class="btn btn-danger" 
+               onclick="return confirm('সর্বশেষ পরিবর্তনটি রিভার্ট করতে চান? {{ history.0.product.name }} - ৳{{ history.0.new_price|floatformat:2 }} → ৳{{ history.0.old_price|floatformat:2 }}')"
+               style="background: #dc3545; color: white; padding: 8px 16px; border-radius: 5px; font-weight: 600;">
+                ↩ সর্বশেষটি রিভার্ট
+            </a>
+            <span style="color: #666; font-size: 0.85rem;">
+                (এক ক্লিকেই শেষ পরিবর্তন ফিরিয় নিন)
+            </span>
+        </div>
+        
+        <div style="margin-bottom: 15px; margin-top: 10px;">
+            <button type="submit" class="btn btn-warning" onclick="return confirm('নির্বাচিত রেকর্ডগুলো রিভার্ট করতে চান?')">
+                ↩ বাল্ক রিভার্ট
+            </button>
+            <span style="margin-left: 10px; color: #666; font-size: 0.9rem;">
+                (চেকবক্স নির্বাচন করে রিভার্ট করুন)
+            </span>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 12px 8px; text-align: center;"><input type="checkbox" id="select_all" onclick="toggleAll(this)"></th>
+                        <th style="padding: 12px 8px; text-align: left;">তারিখ</th>
+                        <th style="padding: 12px 8px; text-align: left;">পণ্য</th>
+                        <th style="padding: 12px 8px; text-align: right;">পুরাতন মূল্য</th>
+                        <th style="padding: 12px 8px; text-align: right;">নতুন মূল্য</th>
+                        <th style="padding: 12px 8px; text-align: center;">পরিবর্তন</th>
+                        <th style="padding: 12px 8px; text-align: center;">ধরন</th>
+                        <th style="padding: 12px 8px; text-align: center;">অ্যাকশন</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 10px 8px; text-align: center;">
+                            <input type="checkbox" name="selected" value="{{ item.pk }}">
+                        </td>
+                        <td style="padding: 10px 8px;">{{ item.created_at|date:"d/m/Y h:i A" }}</td>
+                        <td style="padding: 10px 8px; font-weight: 500;">{{ item.product.name }}</td>
+                        <td style="padding: 10px 8px; text-align: right; color: #dc3545;">৳{{ item.old_price|floatformat:2 }}</td>
+                        <td style="padding: 10px 8px; text-align: right; color: #28a745;">৳{{ item.new_price|floatformat:2 }}</td>
+                        <td style="padding: 10px 8px; text-align: center;">
+                            {% if item.change_percentage > 0 %}
+                            <span style="color: #28a745;">+{{ item.change_percentage|floatformat:2 }}%</span>
+                            {% else %}
+                            <span style="color: #dc3545;">{{ item.change_percentage|floatformat:2 }}%</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 10px 8px; text-align: center;">
+                            {% if item.is_bulk %}
+                            <span class="btn btn-sm" style="background: #17a2b8; color: white; padding: 3px 8px; border-radius: 4px;">বাল্ক</span>
+                            {% else %}
+                            <span class="btn btn-sm" style="background: #6c757d; color: white; padding: 3px 8px; border-radius: 4px;">একক</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 10px 8px; text-align: center;">
+                            <a href="{% url 'price_history_revert' item.pk %}" class="btn btn-warning btn-sm" 
+                               onclick="return confirm('{{ item.product.name }}-এর মূল্য ৳{{ item.new_price|floatformat:2 }} থেকে ৳{{ item.old_price|floatformat:2 }}-এ ফিরিয়ে নেবেন?')"
+                               style="padding: 5px 12px; font-size: 0.85rem;">↩ রিভার্ট</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+    
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div style="text-align: center; margin-top: 20px;">
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">« প্রথম</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">‹ পূর্ববর্তী</a>
+            {% endif %}
+            
+            <span style="padding: 8px 15px; font-weight: 600;">
+                পৃষ্ঠা {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">পরবর্তী ›</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-sm">শেষ »</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
+        <h3>কোনো মূল্য পরিবর্তনের ইতিহাস নেই</h3>
+        <p>বাল্ক মূল্য আপডেট করলে এখানে দেখা যাবে</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleAll(source) {
+    var checkboxes = document.querySelectorAll('input[name="selected"]');
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+</script>
+{% endblock %}
