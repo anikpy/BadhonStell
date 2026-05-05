@@ -1,0 +1,153 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} - ক্রেতার স্টেটমেন্ট{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📄 {{ customer.name }} - ক্রেতার লেনদেন বিবরণ
+        <div style="float: right;">
+            <a href="{% url 'customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরুন</a>
+            <button onclick="window.print()" class="btn btn-primary">🖨️ প্রিন্ট করুন</button>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>ক্রেতার নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+            {% if customer.address %}
+            <div>
+                <strong>ঠিকানা:</strong><br>
+                {{ customer.address }}
+            </div>
+            {% endif %}
+            <div>
+                <strong>তারিখ:</strong><br>
+                {{ now|date:"d M Y, H:i" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <form method="get" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+            <div>
+                <label><strong>শুরুর তারিখ:</strong></label><br>
+                <input type="date" name="from_date" value="{{ from_date|default:'' }}" class="form-control" style="padding: 5px 10px;">
+            </div>
+            <div>
+                <label><strong>শেষ তারিখ:</strong></label><br>
+                <input type="date" name="to_date" value="{{ to_date|default:'' }}" class="form-control" style="padding: 5px 10px;">
+            </div>
+            <div>
+                <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">🔍 ফিল্টার করুন</button>
+                {% if from_date or to_date %}
+                <a href="{% url 'customer_statement' customer.pk %}" class="btn btn-secondary" style="padding: 8px 16px; margin-left: 5px;">↻ রিসেট</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: #1976d2;">৳{{ total_debit|floatformat:2 }}</div>
+            <div style="color: #666;">মোট ক্রয়</div>
+        </div>
+        <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: #388e3c;">৳{{ total_credit|floatformat:2 }}</div>
+            <div style="color: #666;">মোট পরিশোধ</div>
+        </div>
+        <div style="background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: #f57c00;">৳{{ current_due|floatformat:2 }}</div>
+            <div style="color: #666;">বাকি</div>
+        </div>
+        <div style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 1.5rem; font-weight: 700; color: #7b1fa2;">{{ transactions|length }}</div>
+            <div style="color: #666;">লেনদেন</div>
+        </div>
+    </div>
+
+    <!-- Transaction Table -->
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+                <tr style="background-color: #4a90d9; color: white;">
+                    <th style="padding: 12px; text-align: left;">তারিখ</th>
+                    <th style="padding: 12px; text-align: left;">বিবরণ</th>
+                    <th style="padding: 12px; text-align: right;">ডেবিট (৳)</th>
+                    <th style="padding: 12px; text-align: right;">ক্রেডিট (৳)</th>
+                    <th style="padding: 12px; text-align: right;">ব্যালেন্স (৳)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr style="background-color: {% if forloop.counter0|divisibleby:2 %}#f9f9f9{% else %}#ffffff{% endif %};">
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                        {{ txn.date|date:"d/m/Y" }}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                        {{ txn.description }}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; color: {% if txn.debit > 0 %}#d32f2f{% else %}#999{% endif %};">
+                        {% if txn.debit > 0 %}{{ txn.debit|floatformat:2 }}{% endif %}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; color: {% if txn.credit > 0 %}#388e3c{% else %}#999{% endif %};">
+                        {% if txn.credit > 0 %}{{ txn.credit|floatformat:2 }}{% endif %}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold;">
+                        {{ txn.balance|floatformat:2 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding: 20px; text-align: center; color: #666;">
+                        কোনো লেনদেন পাওয়া যায়নি।
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr style="background-color: #e8f4f8; font-weight: bold;">
+                    <td colspan="2" style="padding: 12px;">সর্বমোট</td>
+                    <td style="padding: 12px; text-align: right; color: #d32f2f;">৳{{ total_debit|floatformat:2 }}</td>
+                    <td style="padding: 12px; text-align: right; color: #388e3c;">৳{{ total_credit|floatformat:2 }}</td>
+                    <td style="padding: 12px; text-align: right; color: {% if current_due > 0 %}#d32f2f{% else %}#388e3c{% endif %};">
+                        ৳{{ current_due|floatformat:2 }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer for Print -->
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; text-align: center;">
+        <p>প্রিন্ট তারিখ: {{ now|date:"d/m/Y H:i" }}</p>
+        <p>Generated by Badhon Steel Management System</p>
+    </div>
+</div>
+
+<style>
+@media print {
+    .card-title {
+        display: block !important;
+    }
+    .btn {
+        display: none !important;
+    }
+    table {
+        font-size: 12px !important;
+    }
+    th, td {
+        padding: 8px !important;
+    }
+}
+</style>
+{% endblock %}

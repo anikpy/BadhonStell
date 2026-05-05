@@ -10,6 +10,7 @@
         <div style="float: right;">
             <a href="{% url 'customer_list_new' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
             <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
+            <a href="{% url 'customer_statement' customer.pk %}?from_date={{ from_date|default:'' }}&to_date={{ to_date|default:'' }}" class="btn btn-info">📄 স্টেটমেন্ট</a>
             <a href="{% url 'order_create_for_customer' customer.pk %}" class="btn btn-success">➕ নতুন অর্ডার</a>
         </div>
     </div>

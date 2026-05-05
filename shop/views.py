@@ -704,6 +704,121 @@ def customer_delete(request, pk):
 
 
 @login_required
+def customer_statement(request, pk):
+    """ক্রেতার লেনদেনের বিবরণ - ব্যাংক স্টেটমেন্ট স্টাইলে"""
+    from datetime import datetime
+    
+    customer = get_object_or_404(Customer, pk=pk)
+    shop_info = ShopInfo.objects.first()
+    
+    # Get date filters from request
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
+    
+    # Parse dates or use defaults
+    from_date_obj = None
+    to_date_obj = None
+    
+    if from_date:
+        try:
+            from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+        except ValueError:
+            from_date_obj = None
+    
+    if to_date:
+        try:
+            to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
+        except ValueError:
+            to_date_obj = None
+    
+    # Get all orders for this customer
+    orders = customer.orders.all().order_by('order_date', 'created_at')
+    
+    # Apply date filters if provided
+    if from_date_obj:
+        orders = orders.filter(order_date__gte=from_date_obj)
+    if to_date_obj:
+        orders = orders.filter(order_date__lte=to_date_obj)
+    
+    # Build transaction list
+    transactions = []
+    running_balance = Decimal('0')
+    
+    for order in orders:
+        # Add order as a debit (amount due)
+        product_names = []
+        if hasattr(order, 'items') and order.items.exists():
+            product_names = [item.product_name for item in order.items.all()]
+        elif hasattr(order, 'product') and order.product:
+            product_names = [order.product.name]
+        
+        description = ', '.join(product_names) if product_names else 'অর্ডার'
+        if len(description) > 50:
+            description = description[:47] + '...'
+        
+        transactions.append({
+            'type': 'order',
+            'date': order.order_date if order.order_date else order.created_at.date(),
+            'description': description,
+            'debit': order.total_price,
+            'credit': Decimal('0'),
+            'balance': None,
+            'order': order,
+        })
+        
+        # Add payments as credits (with date filtering)
+        order_payments = order.payments.all()
+        if from_date_obj:
+            order_payments = order_payments.filter(payment_date__gte=from_date_obj)
+        if to_date_obj:
+            order_payments = order_payments.filter(payment_date__lte=to_date_obj)
+            
+        for payment in order_payments.order_by('payment_date'):
+            clean_notes = payment.notes.replace('প্রাথমিক পেমেন্ট (মাইগ্রেটেড)', '').strip() if payment.notes else ''
+            description = 'পেমেন্ট'
+            if clean_notes:
+                description += f' ({clean_notes})'
+            
+            transactions.append({
+                'type': 'payment',
+                'date': payment.payment_date,
+                'description': description,
+                'debit': Decimal('0'),
+                'credit': payment.amount,
+                'balance': None,
+                'payment': payment,
+            })
+    
+    # Sort transactions by date
+    transactions.sort(key=lambda x: (x['date'], x['type'] == 'payment'))
+    
+    # Calculate running balance
+    for txn in transactions:
+        running_balance += txn['debit'] - txn['credit']
+        txn['balance'] = running_balance
+    
+    # Calculate totals
+    total_debit = sum(t['debit'] for t in transactions)
+    total_credit = sum(t['credit'] for t in transactions)
+    current_due = total_debit - total_credit
+    
+    context = {
+        'customer': customer,
+        'shop_info': shop_info,
+        'transactions': transactions,
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'current_due': current_due,
+        'from_date': from_date,
+        'to_date': to_date,
+        'from_date_obj': from_date_obj,
+        'to_date_obj': to_date_obj,
+        'now': datetime.now(),
+    }
+    
+    return render(request, 'admin_panel/customer_statement.html', context)
+
+@login_required
 def order_create_for_customer(request, customer_pk):
     """নির্দিষ্ট ক্রেতার জন্য নতুন অর্ডার তৈরি"""
     customer = get_object_or_404(Customer, pk=customer_pk)
@@ -2188,67 +2303,100 @@ def admin_statistics(request):
 
 @login_required
 def due_accounts_list(request):
-    """বাকি খাতা - সব অর্ডার যেগুলোর বাকি আছে"""
+    """বাকি খাতা - সব অর্ডার যেগুলোর বাকি আছে (ক্রেতা অনুযায়ী গ্রুপকৃত)"""
     search_query = request.GET.get('search', '')
     page_number = request.GET.get('page', 1)
     
     # Get all orders with due amounts (both from Order and Invoice models)
-    orders_with_due = Order.objects.filter(due_amount__gt=0).order_by('-created_at')
+    orders_with_due = Order.objects.filter(due_amount__gt=0).select_related('customer').order_by('-created_at')
     invoices_with_due = Invoice.objects.filter(due_amount__gt=0, is_latest=True).order_by('-created_at')
     
-    # Combine and search
-    if search_query:
-        orders_with_due = orders_with_due.filter(
-            Q(customer_name__icontains=search_query) |
-            Q(mobile_number__icontains=search_query)
-        )
-        invoices_with_due = invoices_with_due.filter(
-            Q(customer_name__icontains=search_query) |
-            Q(mobile_number__icontains=search_query)
-        )
+    # Group by customer to show total due per customer
+    customer_due = {}
     
-    # Create combined list with type information
-    due_items = []
-    
-    # Add orders
+    # Process orders
     for order in orders_with_due:
         # Use final_price if available, otherwise total_price
         total_amount = order.final_price if order.final_price > 0 else order.total_price
         due_amount = order.due_amount if order.due_amount > 0 else (total_amount - order.cash_paid)
         
         if due_amount > 0:  # Only show if there's actually due
-            due_items.append({
-                'type': 'order',
-                'id': order.pk,
-                'customer_name': order.customer_name,
-                'mobile_number': order.mobile_number,
-                'total_amount': total_amount,
-                'paid_amount': order.cash_paid,
-                'due_amount': due_amount,
-                'date': order.created_at,
-                'status': order.status,
-            })
+            # Use customer object if available, otherwise customer_name
+            if order.customer:
+                customer_key = f"customer_{order.customer.pk}"
+                customer_name = order.customer.name
+                mobile_number = order.customer.mobile_number
+                customer_obj = order.customer
+            else:
+                # Fallback to customer_name for orders without customer object
+                customer_key = f"name_{order.customer_name}_{order.mobile_number}"
+                customer_name = order.customer_name
+                mobile_number = order.mobile_number
+                customer_obj = None
+            
+            if customer_key not in customer_due:
+                customer_due[customer_key] = {
+                    'customer': customer_obj,
+                    'customer_name': customer_name,
+                    'mobile_number': mobile_number,
+                    'total_amount': Decimal('0'),
+                    'paid_amount': Decimal('0'),
+                    'due_amount': Decimal('0'),
+                    'order_count': 0,
+                    'last_date': order.created_at,
+                }
+            
+            customer_due[customer_key]['total_amount'] += total_amount
+            customer_due[customer_key]['paid_amount'] += order.cash_paid
+            customer_due[customer_key]['due_amount'] += due_amount
+            customer_due[customer_key]['order_count'] += 1
+            
+            # Update last date if this order is newer
+            if order.created_at > customer_due[customer_key]['last_date']:
+                customer_due[customer_key]['last_date'] = order.created_at
     
-    # Add invoices
+    # Process invoices
     for invoice in invoices_with_due:
         # Calculate actual paid amount from payments if they exist
         total_paid = sum(p.amount for p in invoice.payments.all()) if invoice.payments.exists() else invoice.paid_amount
         actual_due = invoice.total_amount - total_paid
         
         if actual_due > 0:  # Only show if there's actually due
-            due_items.append({
-                'type': 'invoice',
-                'id': invoice.pk,
-                'customer_name': invoice.customer_name,
-                'mobile_number': invoice.mobile_number,
-                'total_amount': invoice.total_amount,
-                'paid_amount': total_paid,
-                'due_amount': actual_due,
-                'date': invoice.created_at,
-            })
+            customer_key = f"name_{invoice.customer_name}_{invoice.mobile_number}"
+            
+            if customer_key not in customer_due:
+                customer_due[customer_key] = {
+                    'customer': None,
+                    'customer_name': invoice.customer_name,
+                    'mobile_number': invoice.mobile_number,
+                    'total_amount': Decimal('0'),
+                    'paid_amount': Decimal('0'),
+                    'due_amount': Decimal('0'),
+                    'order_count': 0,
+                    'last_date': invoice.created_at,
+                }
+            
+            customer_due[customer_key]['total_amount'] += invoice.total_amount
+            customer_due[customer_key]['paid_amount'] += total_paid
+            customer_due[customer_key]['due_amount'] += actual_due
+            customer_due[customer_key]['order_count'] += 1
+            
+            # Update last date if this invoice is newer
+            if invoice.created_at > customer_due[customer_key]['last_date']:
+                customer_due[customer_key]['last_date'] = invoice.created_at
     
-    # Sort by date
-    due_items.sort(key=lambda x: x['date'], reverse=True)
+    # Convert to list and apply search filter
+    due_items = list(customer_due.values())
+    
+    if search_query:
+        due_items = [
+            item for item in due_items
+            if search_query.lower() in item['customer_name'].lower() 
+            or search_query.lower() in item['mobile_number'].lower()
+        ]
+    
+    # Sort by last date (most recent activity first)
+    due_items.sort(key=lambda x: x['last_date'], reverse=True)
     
     # Calculate totals
     total_amount = sum(item['total_amount'] for item in due_items)

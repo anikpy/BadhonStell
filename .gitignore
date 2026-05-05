@@ -1,39 +1,3 @@
-venv/
 .idea/
 __pycache__/
-
-# Security - NEVER commit these
-.env
-.env.local
-.env.production
-*.pem
-*.key
-secrets.json
-credentials.json
-
-# Database
-*.sqlite3
-*.db
-db.sqlite3-journal
-
-# Media & Static (generated files)
-media/
-staticfiles/
-
-# Logs
-*.log
-logs/
-
-# Backup files
-backups/
-*.bak
-*.backup
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE
 .vscode/
-*.swp
-*.swo

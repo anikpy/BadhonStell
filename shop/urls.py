@@ -29,6 +29,7 @@ urlpatterns = [
     path('admin-panel/customers/new/<int:pk>/', views.customer_detail, name='customer_detail'),
     path('admin-panel/customers/new/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('admin-panel/customers/new/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
+    path('admin-panel/customers/new/<int:pk>/statement/', views.customer_statement, name='customer_statement'),
     path('admin-panel/customers/new/<int:customer_pk>/order/create/', views.order_create_for_customer, name='order_create_for_customer'),
 
     # ইনভেন্টরি পণ্য ম্যানেজমেন্ট URLs
