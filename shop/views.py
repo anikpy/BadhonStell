@@ -956,6 +956,7 @@ def inventory_product_list(request):
     search_query = request.GET.get('search', '')
     stock_filter = request.GET.get('stock_filter', '')
     page_number = request.GET.get('page', 1)
+    show_all = request.GET.get('all', '') == '1'
 
     products = InventoryProduct.objects.all()
 
@@ -975,8 +976,13 @@ def inventory_product_list(request):
     elif stock_filter == 'high':
         products = products.filter(stock_quantity__gt=10)
 
-    paginator = Paginator(products, 15)
-    page_obj = paginator.get_page(page_number)
+    # Show all products if "all=1" parameter is present
+    if show_all:
+        paginator = Paginator(products, products.count())
+        page_obj = paginator.get_page(1)
+    else:
+        paginator = Paginator(products, 15)
+        page_obj = paginator.get_page(page_number)
 
     context = {
         'products': page_obj,
@@ -2538,6 +2544,101 @@ def print_inventory_pdf(request):
     
     # Get all products
     products = InventoryProduct.objects.all().order_by('name')
+    
+    # Table data - using English headers for better compatibility
+    table_data = [['No.', 'Product Name', 'Unit', 'Price/Unit', 'Stock Qty', 'Total Value']]
+    
+    total_value = 0
+    for idx, product in enumerate(products, 1):
+        total_price = product.stock_quantity * product.price_per_unit
+        total_value += total_price
+        unit_display = unit_map.get(product.unit, product.unit)
+        table_data.append([
+            str(idx),
+            product.name,
+            unit_display,
+            f"Tk.{product.price_per_unit}",
+            f"{product.stock_quantity}",
+            f"Tk.{total_price}"
+        ])
+    
+    table_data.append(['', '', '', '', 'Total:', f"Tk.{total_value}"])
+    
+    # Create table
+    table = Table(table_data, colWidths=[0.5*inch, 2.5*inch, 1*inch, 1*inch, 1*inch, 1*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), '#667eea'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), '#ffffff'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), '#f8f9fa'),
+        ('GRID', (0, 0), (-1, -1), 1, '#dddddd'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+    
+    # Footer with date
+    elements.append(Paragraph(f"Print Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    
+    doc.build(elements)
+    return response
+
+
+@login_required
+def print_selected_inventory_pdf(request):
+    """নির্বাচিত ইনভেন্টরি পণ্যের স্টক পিডিএফ প্রিন্ট"""
+    if request.method != 'POST':
+        messages.error(request, '❌ পণ্য নির্বাচন করুন!')
+        return redirect('inventory_product_list')
+    
+    selected_product_ids = request.POST.getlist('selected_products')
+    
+    if not selected_product_ids:
+        messages.error(request, '❌ কমপক্ষে একটি পণ্য নির্বাচন করুন!')
+        return redirect('inventory_product_list')
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="selected_inventory_stocks.pdf"'
+    
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Unit mapping to English
+    unit_map = {
+        'piece': 'Piece',
+        'feet': 'Feet',
+        'meter': 'Meter',
+        'ton': 'Ton',
+        'kg': 'Kg'
+    }
+    
+    # Get shop info
+    shop_info = ShopInfo.objects.first()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=20,
+        alignment=TA_CENTER
+    )
+    
+    if shop_info:
+        elements.append(Paragraph(f"{shop_info.name}", title_style))
+        elements.append(Paragraph("Selected Inventory Stock Report", styles['Heading2']))
+    else:
+        elements.append(Paragraph("Selected Inventory Stock Report", title_style))
+    
+    elements.append(Spacer(1, 12))
+    
+    # Get selected products
+    products = InventoryProduct.objects.filter(pk__in=selected_product_ids).order_by('name')
     
     # Table data - using English headers for better compatibility
     table_data = [['No.', 'Product Name', 'Unit', 'Price/Unit', 'Stock Qty', 'Total Value']]

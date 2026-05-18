@@ -39,6 +39,7 @@ urlpatterns = [
     path('admin-panel/inventory/<int:pk>/delete/', views.inventory_product_delete, name='inventory_product_delete'),
     path('admin-panel/inventory/<int:pk>/stock/', views.stock_management, name='stock_management'),
     path('admin-panel/inventory/print-pdf/', views.print_inventory_pdf, name='print_inventory_pdf'),
+    path('admin-panel/inventory/print-selected-pdf/', views.print_selected_inventory_pdf, name='print_selected_inventory_pdf'),
     path('admin-panel/inventory/bulk-price-update/', views.bulk_price_update, name='bulk_price_update'),
     path('admin-panel/inventory/price-history/', views.price_history_list, name='price_history_list'),
     path('admin-panel/inventory/price-history/<int:pk>/revert/', views.price_history_revert, name='price_history_revert'),

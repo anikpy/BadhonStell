@@ -186,6 +186,48 @@
     .grand-total-bar .value { font-size: 1.55rem; font-weight: 700; color: #1b5e20; }
     .due-bar { margin-top: 8px; font-size: 1rem; }
     .stock-warn { color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none; }
+    
+    /* Product search autocomplete */
+    .product-search-container {
+        position: relative;
+    }
+    .product-search-input {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid #dbe7ef;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+        background: #fff;
+    }
+    .product-search-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    .product-dropdown {
+        position: fixed;
+        max-height: 180px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 999999;
+        display: none;
+        min-width: 240px;
+    }
+    .product-dropdown.show {
+        display: block;
+    }
+    .product-option {
+        padding: 8px 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+    .product-option:hover {
+        background: #e3f2fd;
+    }
 
     @media (max-width: 880px) {
         .form-row,
@@ -263,25 +305,14 @@
 
 	                <button type="button" class="btn-add-row" id="add-row-btn">➕ আরো পণ্য যোগ করুন</button>
 
-	                <div class="form-row" style="margin-top:16px; max-width:420px;">
+	                <div class="form-row" style="margin-top:16px;">
 	                    <div class="form-group">
-	                        <label>{{ form.paid_amount.label }}</label>
+	                        <label>পরিশোধিত</label>
 	                        {{ form.paid_amount }}
-	                        {% if form.paid_amount.errors %}
-	                        <span class="error">{{ form.paid_amount.errors.0 }}</span>
-	                        {% endif %}
-	                        <small style="color:#65748b; display:block; margin-top:6px;">পুরো টাকা না দিলে বাকি থাকবে</small>
 	                    </div>
-	                </div>
-
-	                <div class="form-row" style="margin-top:8px; max-width:420px;">
 	                    <div class="form-group">
-	                        <label>{{ form.global_discount.label }}</label>
+	                        <label>ডিসকাউন্ট (%)</label>
 	                        {{ form.global_discount }}
-	                        {% if form.global_discount.errors %}
-	                        <span class="error">{{ form.global_discount.errors.0 }}</span>
-	                        {% endif %}
-	                        <small style="color:#65748b; display:block; margin-top:6px;">সব পণ্যের নেট টোটাল-এর উপর অতিরিক্ত ডিসকাউন্ট (%)</small>
 	                    </div>
 	                </div>
 
@@ -387,9 +418,14 @@ function addRow(prefill) {
 
     tr.innerHTML = `
         <td>
-            <select class="form-control row-product" data-idx="${idx}">
-                ${buildProductOptions(p.product_id || '')}
-            </select>
+            <div class="product-search-container">
+                <input type="text" class="form-control product-search-input" data-idx="${idx}"
+                       placeholder="পণ্য খুঁজুন..." autocomplete="off" style="margin-bottom:3px;">
+                <div class="product-dropdown" id="dropdown-${idx}"></div>
+                <select class="form-control row-product" data-idx="${idx}">
+                    ${buildProductOptions(p.product_id || '')}
+                </select>
+            </div>
             <span class="stock-warn" id="stock-warn-${idx}">⚠️ স্টক অপর্যাপ্ত!</span>
         </td>
         <td>
@@ -424,11 +460,17 @@ function addRow(prefill) {
         document.getElementById(`unit-label-${idx}`).textContent = prod.unit;
     }
 
+    // Initialize product search dropdown for this row
+    initProductSearch(idx);
+
     // Event listeners
     tr.querySelector('.row-product').addEventListener('change', function() {
         onProductChange(idx, this.value);
     });
     tr.querySelector('.row-qty').addEventListener('input', () => {
+        recalcRow(idx); updateGrandTotal();
+    });
+    tr.querySelector('.row-price').addEventListener('input', () => {
         recalcRow(idx); updateGrandTotal();
     });
     tr.querySelector('.row-discount-input').addEventListener('input', () => {
@@ -437,6 +479,109 @@ function addRow(prefill) {
 
     recalcRow(idx);
     updateGrandTotal();
+}
+
+function initProductSearch(idx) {
+    const searchInput = document.querySelector(`.product-search-input[data-idx="${idx}"]`);
+    const select = document.querySelector(`.row-product[data-idx="${idx}"]`);
+    const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
+    const dropdown = document.getElementById(`dropdown-${idx}`);
+
+    function checkCustomName() {
+        const text = searchInput.value.trim();
+        const isFromList = select.value && productMap[select.value] && 
+                           productMap[select.value].name === text;
+        if (text && !isFromList) {
+            // Custom product - make price editable
+            priceInput.readOnly = false;
+            priceInput.style.background = '#fff';
+            priceInput.style.color = '#333';
+            select.value = '';
+        } else if (!text) {
+            priceInput.readOnly = true;
+            priceInput.style.background = '#f5f5f5';
+            priceInput.style.color = '#555';
+        }
+    }
+
+    function positionDropdown() {
+        const rect = searchInput.getBoundingClientRect();
+        dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+        dropdown.style.left = (rect.left + window.scrollX) + 'px';
+        dropdown.style.width = Math.max(rect.width, 250) + 'px';
+    }
+
+    function showSuggestions() {
+        const text = searchInput.value.toLowerCase().trim();
+        dropdown.innerHTML = '';
+
+        const filtered = text ? PRODUCTS.filter(p => p.name.toLowerCase().includes(text)) : [];
+
+        if (filtered.length === 0) {
+            dropdown.classList.remove('show');
+            // Add "custom" option if text exists and not in list
+            if (text) {
+                dropdown.innerHTML = '<div class="product-option" style="cursor:default;color:#888;">কাস্টম নাম: "' + searchInput.value + '"</div>';
+                positionDropdown();
+                dropdown.classList.add('show');
+            }
+            return;
+        }
+
+        filtered.forEach(p => {
+            const opt = document.createElement('div');
+            opt.className = 'product-option';
+            opt.innerHTML = `<strong>${p.name}</strong> <span style="color:#888;font-size:0.85rem;">(স্টক: ${p.stock})</span>`;
+            opt.addEventListener('click', function(e) {
+                e.stopPropagation();
+                select.value = p.id;
+                searchInput.value = p.name;
+                dropdown.classList.remove('show');
+                priceInput.readOnly = true;
+                priceInput.style.background = '#f5f5f5';
+                priceInput.style.color = '#555';
+                // Trigger change on select
+                const evt = new Event('change', { bubbles: true });
+                select.dispatchEvent(evt);
+            });
+            dropdown.appendChild(opt);
+        });
+
+        positionDropdown();
+        dropdown.classList.add('show');
+    }
+
+    searchInput.addEventListener('input', function() {
+        checkCustomName();
+        showSuggestions();
+    });
+
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim()) {
+            showSuggestions();
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
+    // When select changes (from programmatic selection), update search input
+    select.addEventListener('change', function() {
+        if (this.value && productMap[this.value]) {
+            searchInput.value = productMap[this.value].name;
+        } else if (!searchInput.value) {
+            // Don't clear if user is typing
+        }
+    });
+
+    // If pre-filled, show name in search input
+    if (select.value && productMap[select.value]) {
+        searchInput.value = productMap[select.value].name;
+    }
 }
 
 function removeRow(idx) {
@@ -497,14 +642,16 @@ function updateRowSubtotal(idx) {
 function recalcRow(idx) {
     const prodSel = document.querySelector(`.row-product[data-idx="${idx}"]`);
     const qtyInput = document.querySelector(`.row-qty[data-idx="${idx}"]`);
+    const priceInput = document.querySelector(`.row-price[data-idx="${idx}"]`);
     const discInput = document.querySelector(`.row-discount-input[data-idx="${idx}"]`);
 
     const productId = prodSel.value;
     const product = productMap[productId];
     const qty = parseFloat(b2e(qtyInput.value) || 0);
+    const price = parseFloat(b2e(priceInput.value) || 0);
     const disc = parseFloat(discInput.value) || 0;
 
-    const gross = qty * (product?.price || 0);
+    const gross = qty * price;
     const saving = (gross * disc) / 100;
     const net = gross - saving;
 

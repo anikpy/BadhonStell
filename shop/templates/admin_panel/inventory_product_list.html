@@ -202,12 +202,15 @@
 {% block content %}
 <div class="inventory-header">
     <h2>📦 ইনভেন্টরি পণ্য তালিকা</h2>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
         <a href="{% url 'inventory_product_create' %}" class="btn btn-success">➕ নতুন পণ্য যোগ করুন</a>
         <a href="{% url 'bulk_price_update' %}" class="btn btn-primary" style="background: #ff6b6b;">📈 বাল্ক মূল্য বৃদ্ধি</a>
         <a href="{% url 'price_history_list' %}" class="btn btn-info" style="background: #6f42c1;">📊 মূল্য ইতিহাস</a>
         <a href="{% url 'print_inventory_pdf' %}" class="btn btn-info" target="_blank">📄 প্রিন্ট স্টক</a>
         <a href="{% url 'print_stock_history_pdf' %}" class="btn btn-warning" target="_blank">📜 প্রিন্ট স্টক হিস্ট্রি</a>
+        <button type="button" id="select-all-btn" class="btn btn-secondary">☑️ সব নির্বাচন করুন</button>
+        <button type="button" id="deselect-all-btn" class="btn btn-secondary" style="display: none;">⬜ সব বাতিল করুন</button>
+        <button type="button" id="print-selected-btn" class="btn btn-primary" style="background: #28a745;">🖨️ নির্বাচিত প্রিন্ট করুন</button>
     </div>
 </div>
 
@@ -237,7 +240,10 @@
     {% for product in products %}
     <div class="product-card {% if product.stock_quantity <= 0 %}out-of-stock{% elif product.stock_quantity <= 10 %}low-stock{% endif %}">
         <div class="product-header">
-            <h3 class="product-name">{{ product.name }}</h3>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" name="selected_products" value="{{ product.pk }}" class="product-checkbox" id="product-{{ product.pk }}">
+                <label for="product-{{ product.pk }}" class="product-name" style="margin: 0; cursor: pointer;">{{ product.name }}</label>
+            </div>
             <span class="product-status {% if product.is_active %}status-active{% else %}status-inactive{% endif %}">
                 {% if product.is_active %}✅ সক্রিয়{% else %}⏸️ নিষ্ক্রিয়{% endif %}
             </span>
@@ -284,7 +290,7 @@
 {% endif %}
 
 {% if page_obj.has_other_pages %}
-<nav class="pagination-nav" style="margin-top: 24px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+<nav class="pagination-nav" style="margin-top: 24px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; align-items: center;">
     {% if page_obj.has_previous %}
     <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stock_filter %}&stock_filter={{ stock_filter }}{% endif %}" class="btn btn-sm">⏮ প্রথম</a>
     <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stock_filter %}&stock_filter={{ stock_filter }}{% endif %}" class="btn btn-sm">◀ আগে</a>
@@ -296,6 +302,82 @@
     <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stock_filter %}&stock_filter={{ stock_filter }}{% endif %}" class="btn btn-sm">পরের ▶</a>
     <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stock_filter %}&stock_filter={{ stock_filter }}{% endif %}" class="btn btn-sm">শেষ ⏭</a>
     {% endif %}
+    <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stock_filter %}&stock_filter={{ stock_filter }}{% endif %}&all=1" class="btn btn-sm" style="background: #17a2b8; color: white;">📋 সব দেখুন</a>
 </nav>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const printSelectedBtn = document.getElementById('print-selected-btn');
+    
+    function updateButtons() {
+        const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+        if (checkedCount === checkboxes.length && checkboxes.length > 0) {
+            selectAllBtn.style.display = 'none';
+            deselectAllBtn.style.display = 'inline-block';
+        } else {
+            selectAllBtn.style.display = 'inline-block';
+            deselectAllBtn.style.display = 'none';
+        }
+    }
+    
+    selectAllBtn.addEventListener('click', function() {
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+        updateButtons();
+    });
+    
+    deselectAllBtn.addEventListener('click', function() {
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+        });
+        updateButtons();
+    });
+    
+    checkboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateButtons);
+    });
+    
+    printSelectedBtn.addEventListener('click', function() {
+        const checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            alert('অনুগ্রহ করে কমপক্ষে একটি পণ্য নির্বাচন করুন!');
+            return false;
+        }
+        
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "print_selected_inventory_pdf" %}';
+        form.target = '_blank';
+        
+        // Add CSRF token
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrfmiddlewaretoken';
+        csrfToken.value = '{{ csrf_token }}';
+        form.appendChild(csrfToken);
+        
+        // Add selected product IDs
+        checkedBoxes.forEach(function(checkbox) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_products';
+            input.value = checkbox.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    });
+    
+    updateButtons();
+});
+</script>
+
 {% endblock %}
