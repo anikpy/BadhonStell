@@ -95,6 +95,8 @@ class OrderForm(forms.ModelForm):
         # Make status and delivery_status not required since they have defaults
         self.fields['status'].required = False
         self.fields['delivery_status'].required = False
+        # Make discount_percentage not required since it has a default of 0
+        self.fields['discount_percentage'].required = False
 
     def clean_discount_percentage(self):
         """ডিসকাউন্ট শতাংশ ক্লিন করা - বাংলা সংখ্যা সাপোর্ট"""
@@ -504,6 +506,7 @@ class CustomerForm(forms.ModelForm):
 
     def clean_mobile_number(self):
         """মোবাইল নাম্বার ক্লিন করা এবং ভ্যালিডেশন"""
+        from django.core.exceptions import ValidationError
         mobile = self.cleaned_data.get('mobile_number')
         if mobile:
             # Remove all non-digit characters
@@ -514,6 +517,15 @@ class CustomerForm(forms.ModelForm):
             
             if len(clean_mobile) < 11:
                 raise forms.ValidationError('মোবাইল নাম্বার কমপক্ষে ১১ ডিজিট হতে হবে')
+            
+            # Check if customer with this mobile number already exists (excluding current instance if editing)
+            from .models import Customer
+            existing = Customer.objects.filter(mobile_number=clean_mobile)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                raise forms.ValidationError(f'এই মোবাইল নাম্বার দিয়ে ইতিমধ্যেই একজন ক্রেতা আছে: {existing.first().name}')
             
             return clean_mobile
         return mobile

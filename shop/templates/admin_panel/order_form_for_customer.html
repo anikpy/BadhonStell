@@ -173,6 +173,107 @@
         margin-bottom: 20px;
         border-left: 4px solid #1976d2;
     }
+
+    /* Product search autocomplete styles */
+    .product-name-wrapper {
+        position: relative;
+    }
+    
+    .product-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #c5cae9;
+        border-radius: 8px;
+        max-height: 280px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        margin-top: 4px;
+    }
+    
+    .product-suggestions div {
+        padding: 12px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.15s ease;
+    }
+    
+    .product-suggestions div:hover {
+        background: #e8eaf6;
+        padding-left: 18px;
+    }
+    
+    .product-suggestions div:last-child {
+        border-bottom: none;
+    }
+    
+    .product-suggestions .suggestion-name {
+        font-weight: 600;
+        color: #1a237e;
+        font-size: 1rem;
+        margin-bottom: 4px;
+    }
+    
+    .product-suggestions .suggestion-detail {
+        font-size: 0.9rem;
+        color: #555;
+        margin-top: 3px;
+    }
+    
+    .product-suggestions .suggestion-stock {
+        font-size: 0.85rem;
+        color: #2e7d32;
+        margin-top: 3px;
+        font-weight: 500;
+    }
+    
+    .product-suggestions .no-result {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+        font-style: italic;
+        font-size: 0.95rem;
+    }
+    
+    .product-suggestions .create-new {
+        padding: 14px;
+        text-align: center;
+        background: #fff8e1;
+        color: #e65100;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: none;
+        font-size: 0.95rem;
+        border-top: 1px solid #ffe0b2;
+    }
+    
+    .product-suggestions .create-new:hover {
+        background: #ffecb3;
+        padding-left: 14px;
+    }
+    
+    /* Custom scrollbar for suggestions */
+    .product-suggestions::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-track {
+        background: #f5f5f5;
+        border-radius: 0 8px 8px 0;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-thumb {
+        background: #c5cae9;
+        border-radius: 3px;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-thumb:hover {
+        background: #9fa8da;
+    }
 </style>
 {% endblock %}
 
@@ -298,6 +399,69 @@
 const products = {{ products_json|safe }};
 let itemCount = 0;
 
+// Show product suggestions while typing
+function showProductSuggestions(itemId, query) {
+    const suggestionsDiv = document.getElementById('product-suggestions-' + itemId);
+    
+    if (!query || query.length < 1) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(lowerQuery)
+    );
+    
+    if (filteredProducts.length > 0) {
+        let html = filteredProducts.map(p => `
+            <div onclick="selectProductSuggestion(${itemId}, ${p.id})">
+                <div class="suggestion-name">${p.name}</div>
+                <div class="suggestion-detail">মূল্য: ৳${p.price} / ${p.unit}</div>
+                <div class="suggestion-stock">স্টক: ${p.stock} ${p.unit}</div>
+            </div>
+        `).join('');
+        html += `<div class="create-new" onclick="keepManualProductName(${itemId})">✏️ নিজে লিখুন (ইনভেন্টরিতে নেই)</div>`;
+        suggestionsDiv.innerHTML = html;
+        suggestionsDiv.style.display = 'block';
+    } else {
+        suggestionsDiv.innerHTML = `
+            <div class="no-result">কোন পণ্য পাওয়া যায়নি</div>
+            <div class="create-new" onclick="keepManualProductName(${itemId})">✏️ নিজে লিখুন (ইনভেন্টরিতে নেই)</div>
+        `;
+        suggestionsDiv.style.display = 'block';
+    }
+}
+
+// Select product from suggestions
+function selectProductSuggestion(itemId, productId) {
+    const product = products.find(p => p.id == productId);
+    if (!product) return;
+    
+    document.getElementById(`product_name_${itemId}`).value = product.name;
+    document.getElementById(`unit_price_${itemId}`).value = product.price;
+    document.getElementById(`unit_${itemId}`).value = product.unit;
+    
+    // Hide suggestions
+    document.getElementById('product-suggestions-' + itemId).style.display = 'none';
+    
+    // Check stock warning
+    const quantity = parseFloat(document.getElementById(`quantity_${itemId}`).value) || 0;
+    const stockWarn = document.getElementById(`stock-warn-${itemId}`);
+    if (quantity > product.stock) {
+        stockWarn.style.display = 'block';
+    } else {
+        stockWarn.style.display = 'none';
+    }
+    
+    calculateRowTotal(itemId);
+}
+
+// Keep manually typed product name (not from inventory)
+function keepManualProductName(itemId) {
+    document.getElementById('product-suggestions-' + itemId).style.display = 'none';
+}
+
 function addItem() {
     itemCount++;
     const tbody = document.getElementById('itemsBody');
@@ -309,12 +473,15 @@ function addItem() {
     
     row.innerHTML = `
         <td>
-            <input type="text" name="product_name_${itemCount}" id="product_name_${itemCount}" placeholder="পণ্যের নাম" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            <select name="product_select_${itemCount}" onchange="selectProduct(${itemCount}, this.value)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;">
-                <option value="">পণ্য নির্বাচন করুন</option>
-                ${productOptions}
-            </select>
-            <span id="stock-warn-${itemCount}" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>
+            <div class="product-name-wrapper">
+                <input type="text" name="product_name_${itemCount}" id="product_name_${itemCount}" placeholder="পণ্যের নাম লিখুন..." required autocomplete="off" oninput="showProductSuggestions(${itemCount}, this.value)" onblur="setTimeout(function(){ document.getElementById('product-suggestions-${itemCount}').style.display = 'none'; }, 200)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <div class="product-suggestions" id="product-suggestions-${itemCount}"></div>
+                <select name="product_select_${itemCount}" onchange="selectProduct(${itemCount}, this.value)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px; display: none;">
+                    <option value="">পণ্য নির্বাচন করুন</option>
+                    ${productOptions}
+                </select>
+                <span id="stock-warn-${itemCount}" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>
+            </div>
         </td>
         <td>
             <input type="text" name="product_description_${itemCount}" placeholder="পণ্যের বিবরণ" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">

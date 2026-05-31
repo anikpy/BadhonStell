@@ -159,6 +159,107 @@
         font-weight: 700;
         color: #2c3e50;
     }
+
+    /* Product search autocomplete styles */
+    .product-name-wrapper {
+        position: relative;
+    }
+    
+    .product-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #c5cae9;
+        border-radius: 8px;
+        max-height: 280px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        margin-top: 4px;
+    }
+    
+    .product-suggestions div {
+        padding: 12px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.15s ease;
+    }
+    
+    .product-suggestions div:hover {
+        background: #e8eaf6;
+        padding-left: 18px;
+    }
+    
+    .product-suggestions div:last-child {
+        border-bottom: none;
+    }
+    
+    .product-suggestions .suggestion-name {
+        font-weight: 600;
+        color: #1a237e;
+        font-size: 1rem;
+        margin-bottom: 4px;
+    }
+    
+    .product-suggestions .suggestion-detail {
+        font-size: 0.9rem;
+        color: #555;
+        margin-top: 3px;
+    }
+    
+    .product-suggestions .suggestion-stock {
+        font-size: 0.85rem;
+        color: #2e7d32;
+        margin-top: 3px;
+        font-weight: 500;
+    }
+    
+    .product-suggestions .no-result {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+        font-style: italic;
+        font-size: 0.95rem;
+    }
+    
+    .product-suggestions .create-new {
+        padding: 14px;
+        text-align: center;
+        background: #fff8e1;
+        color: #e65100;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: none;
+        font-size: 0.95rem;
+        border-top: 1px solid #ffe0b2;
+    }
+    
+    .product-suggestions .create-new:hover {
+        background: #ffecb3;
+        padding-left: 14px;
+    }
+    
+    /* Custom scrollbar for suggestions */
+    .product-suggestions::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-track {
+        background: #f5f5f5;
+        border-radius: 0 8px 8px 0;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-thumb {
+        background: #c5cae9;
+        border-radius: 3px;
+    }
+    
+    .product-suggestions::-webkit-scrollbar-thumb:hover {
+        background: #9fa8da;
+    }
     
     @media (max-width: 768px) {
         .form-row {
@@ -356,6 +457,67 @@
         return result;
     }
     
+    // Show product suggestions while typing
+    function showProductSuggestions(itemId, query) {
+        const suggestionsDiv = document.getElementById('product-suggestions-' + itemId);
+        const productNameInput = document.getElementById('product-name-input-' + itemId);
+        
+        if (!query || query.length < 1) {
+            suggestionsDiv.style.display = 'none';
+            return;
+        }
+        
+        const lowerQuery = query.toLowerCase();
+        const filteredProducts = products.filter(p => 
+            p.name.toLowerCase().includes(lowerQuery)
+        );
+        
+        if (filteredProducts.length > 0) {
+            let html = filteredProducts.map(p => `
+                <div onclick="selectProductSuggestion(${itemId}, ${p.id})">
+                    <div class="suggestion-name">${p.name}</div>
+                    <div class="suggestion-detail">মূল্য: ৳${p.price} / ${p.unit}</div>
+                    <div class="suggestion-stock">স্টক: ${p.stock} ${p.unit}</div>
+                </div>
+            `).join('');
+            // Add "create new" option at the bottom
+            html += `<div class="create-new" onclick="keepManualProductName(${itemId})">✏️ নিজে লিখুন (ইনভেন্টরিতে নেই)</div>`;
+            suggestionsDiv.innerHTML = html;
+            suggestionsDiv.style.display = 'block';
+        } else {
+            suggestionsDiv.innerHTML = `
+                <div class="no-result">কোন পণ্য পাওয়া যায়নি</div>
+                <div class="create-new" onclick="keepManualProductName(${itemId})">✏️ নিজে লিখুন (ইনভেন্টরিতে নেই)</div>
+            `;
+            suggestionsDiv.style.display = 'block';
+        }
+    }
+    
+    // Select product from suggestions
+    function selectProductSuggestion(itemId, productId) {
+        const product = products.find(p => p.id == productId);
+        if (!product) return;
+        
+        const row = document.getElementById('item-' + itemId);
+        row.querySelector('.product-name').value = product.name;
+        row.querySelector('.unit-price').value = englishToBanglaNumber(product.price);
+        row.querySelector('.product-description').value = product.name + ' (' + product.unit + ')';
+        row.querySelector('.product-select').value = product.id;
+        
+        // Hide suggestions
+        document.getElementById('product-suggestions-' + itemId).style.display = 'none';
+        
+        calculateItemTotal(itemId);
+    }
+    
+    // Keep manually typed product name (not from inventory)
+    function keepManualProductName(itemId) {
+        document.getElementById('product-suggestions-' + itemId).style.display = 'none';
+        // Clear the hidden select so it doesn't try to match an inventory product
+        const row = document.getElementById('item-' + itemId);
+        row.querySelector('.product-select').value = '';
+    }
+    
     // Add new item row
     function addItem() {
         const tbody = document.getElementById('itemsTableBody');
@@ -369,12 +531,15 @@
         
         row.innerHTML = 
             '<td>' +
-                '<input type="text" class="product-name" placeholder="পণ্যের নাম" required>' +
-                '<select class="product-select" onchange="selectProduct(' + itemCount + ', this.value)">' +
-                    '<option value="">পণ্য নির্বাচন করুন</option>' +
-                    productOptions +
-                '</select>' +
-                '<span class="stock-warn" id="stock-warn-' + itemCount + '" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>' +
+                '<div class="product-name-wrapper">' +
+                    '<input type="text" class="product-name" id="product-name-input-' + itemCount + '" placeholder="পণ্যের নাম লিখুন..." required autocomplete="off" oninput="showProductSuggestions(' + itemCount + ', this.value)" onblur="setTimeout(function(){ document.getElementById(\'product-suggestions-' + itemCount + '\').style.display = \'none\'; }, 200)">' +
+                    '<div class="product-suggestions" id="product-suggestions-' + itemCount + '"></div>' +
+                    '<select class="product-select" onchange="selectProduct(' + itemCount + ', this.value)" style="display:none;">' +
+                        '<option value="">পণ্য নির্বাচন করুন</option>' +
+                        productOptions +
+                    '</select>' +
+                    '<span class="stock-warn" id="stock-warn-' + itemCount + '" style="color: #e53935; font-size: 0.8rem; margin-top: 3px; display: none;">⚠️ স্টক অপর্যাপ্ত!</span>' +
+                '</div>' +
             '</td>' +
             '<td>' +
                 '<input type="text" class="product-description" placeholder="পণ্যের বিবরণ">' +
@@ -587,15 +752,20 @@
             });
         }
         
-        // Set default dates
+        // Set default dates only if not in edit mode (order_date is empty)
+        // CRITICAL: Preserve the original order_date when editing an existing order
         const today = new Date().toISOString().split('T')[0];
         const orderDateField = document.querySelector('input[name="order_date"]');
         const deliveryDateField = document.querySelector('input[name="delivery_date"]');
         
+        // Only set order_date to today if it's empty (new order)
+        // The field should already have the original date from server-rendered form
+        // If the field has a value from the server, keep it (don't override)
         if (!orderDateField.value) {
             orderDateField.value = today;
         }
         
+        // Only set delivery_date if empty (new order)
         if (!deliveryDateField.value) {
             const deliveryDate = new Date();
             deliveryDate.setDate(deliveryDate.getDate() + 7);
@@ -662,4 +832,3 @@
     });
 </script>
 {% endblock %}
-

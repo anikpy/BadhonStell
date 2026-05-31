@@ -243,27 +243,31 @@ def order_list(request):
 @login_required
 def order_create(request):
     """নতুন অর্ডার তৈরি - একাধিক পণ্য সাপোর্ট"""
-    products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
-    customers = Customer.objects.all().order_by('name')
-    products_json = json.dumps([
-        {
-            'id': p.pk,
-            'name': p.name,
-            'price': float(p.price_per_unit),
-            'unit': p.get_unit_display(),
-            'stock': float(p.stock_quantity),
-        }
-        for p in products
-    ])
-    customers_json = json.dumps([
-        {
-            'id': c.pk,
-            'name': c.name,
-            'mobile': c.mobile_number,
-            'address': c.address or '',
-        }
-        for c in customers
-    ])
+    try:
+        products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+        customers = Customer.objects.all().order_by('name')
+        products_json = json.dumps([
+            {
+                'id': p.pk,
+                'name': p.name,
+                'price': float(p.price_per_unit),
+                'unit': p.get_unit_display(),
+                'stock': float(p.stock_quantity),
+            }
+            for p in products
+        ])
+        customers_json = json.dumps([
+            {
+                'id': c.pk,
+                'name': c.name,
+                'mobile': c.mobile_number,
+                'address': c.address or '',
+            }
+            for c in customers
+        ])
+    except Exception as e:
+        messages.error(request, f'❌ ডেটা লোড করতে ত্রুটি: {str(e)}')
+        return redirect('order_list')
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
@@ -318,12 +322,28 @@ def order_create(request):
                 
                 # Link to customer if customer_id is provided
                 customer_id = request.POST.get('customer_id')
+                customer_name = request.POST.get('customer_name', '').strip()
+                mobile_number = request.POST.get('mobile_number', '').strip()
+                
                 if customer_id:
                     try:
                         customer = Customer.objects.get(pk=customer_id)
                         order.customer = customer
                     except Customer.DoesNotExist:
                         pass
+                elif customer_name and mobile_number:
+                    # Automatically create customer if name and mobile are provided
+                    # Clean mobile number
+                    clean_mobile = ''.join(c for c in mobile_number if c.isdigit())
+                    if clean_mobile and len(clean_mobile) >= 11:
+                        customer, created = Customer.objects.get_or_create(
+                            mobile_number=clean_mobile,
+                            defaults={
+                                'name': customer_name.strip().title(),
+                                'address': ''
+                            }
+                        )
+                        order.customer = customer
                 
                 order.save()
 
@@ -365,17 +385,21 @@ def order_edit(request, pk):
     """অর্ডার সম্পাদনা - একাধিক পণ্য"""
     order = get_object_or_404(Order, pk=pk)
 
-    products = InventoryProduct.objects.filter(is_active=True)
-    products_json = json.dumps([
-        {
-            'id': p.pk,
-            'name': p.name,
-            'price': float(p.price_per_unit),
-            'unit': p.get_unit_display(),
-            'stock': float(p.stock_quantity),
-        }
-        for p in products
-    ])
+    try:
+        products = InventoryProduct.objects.filter(is_active=True)
+        products_json = json.dumps([
+            {
+                'id': p.pk,
+                'name': p.name,
+                'price': float(p.price_per_unit),
+                'unit': p.get_unit_display(),
+                'stock': float(p.stock_quantity),
+            }
+            for p in products
+        ])
+    except Exception as e:
+        messages.error(request, f'❌ পণ্য ডেটা লোড করতে ত্রুটি: {str(e)}')
+        return redirect('order_list')
 
     # Build existing items for template pre-population
     existing_items = [
@@ -460,10 +484,22 @@ def order_edit(request, pk):
     else:
         form = OrderForm(instance=order)
 
+    customers = Customer.objects.all().order_by('name')
+    customers_json = json.dumps([
+        {
+            'id': c.pk,
+            'name': c.name,
+            'mobile': c.mobile_number,
+            'address': c.address or '',
+        }
+        for c in customers
+    ])
+    
     context = {
         'form': form,
         'order': order,
         'products_json': products_json,
+        'customers_json': customers_json,
         'edit_items_json': json.dumps(existing_items),
     }
     return render(request, 'admin_panel/order_form.html', context)
@@ -823,17 +859,21 @@ def order_create_for_customer(request, customer_pk):
     """নির্দিষ্ট ক্রেতার জন্য নতুন অর্ডার তৈরি"""
     customer = get_object_or_404(Customer, pk=customer_pk)
     
-    products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
-    products_json = json.dumps([
-        {
-            'id': p.pk,
-            'name': p.name,
-            'price': float(p.price_per_unit),
-            'unit': p.get_unit_display(),
-            'stock': float(p.stock_quantity),
-        }
-        for p in products
-    ])
+    try:
+        products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+        products_json = json.dumps([
+            {
+                'id': p.pk,
+                'name': p.name,
+                'price': float(p.price_per_unit),
+                'unit': p.get_unit_display(),
+                'stock': float(p.stock_quantity),
+            }
+            for p in products
+        ])
+    except Exception as e:
+        messages.error(request, f'❌ পণ্য ডেটা লোড করতে ত্রুটি: {str(e)}')
+        return redirect('customer_detail', pk=customer_pk)
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
