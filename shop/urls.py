@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin-panel/orders/payments/<int:pk>/edit/', views.order_payment_edit, name='order_payment_edit'),
     path('admin-panel/orders/payments/<int:pk>/delete/', views.order_payment_delete, name='order_payment_delete'),
     path('admin-panel/orders/<int:pk>/voucher/', views.order_voucher, name='order_voucher'),
+    path('admin-panel/customers/<int:customer_pk>/combined-voucher/', views.customer_combined_voucher, name='customer_combined_voucher'),
 
     # ক্রেতা ব্যবস্থাপনা URLs (Customer Management - Custom Orders)
     path('admin-panel/customers/new/', views.customer_list_new, name='customer_list_new'),

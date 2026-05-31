@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>সম্মিলিত ভাউচার - {{ customer.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .voucher-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .voucher-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .voucher-header h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .voucher-header p {
+            font-size: 1rem;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .voucher-title {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .price-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 1.05rem;
+        }
+
+        .price-row.total {
+            border-top: 2px solid #333;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .price-row.due {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .signature-section {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 2px solid #333;
+            margin-top: 50px;
+            padding-top: 10px;
+            font-weight: 600;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px dashed #ccc;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .products-section {
+            margin: 20px 0;
+        }
+        
+        .products-section table {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        .products-section th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .products-section td {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .products-section tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .products-section tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 1rem;
+            margin: 0 5px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .order-group-header {
+            background: #e3f2fd;
+            padding: 8px 10px;
+            font-weight: 600;
+            color: #1976d2;
+            margin-top: 10px;
+            border-left: 4px solid #1976d2;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 8mm;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            .voucher-container {
+                border: 1.5px solid #000;
+                box-shadow: none;
+                padding: 12px;
+                margin: 0;
+                max-width: 100%;
+                page-break-inside: avoid;
+            }
+
+            .voucher-header {
+                padding-bottom: 10px;
+                margin-bottom: 15px;
+            }
+
+            .voucher-header h1 {
+                font-size: 1.5rem;
+                margin-bottom: 5px;
+            }
+
+            .voucher-header p {
+                font-size: 0.85rem;
+                margin: 2px 0;
+            }
+
+            .voucher-title {
+                padding: 8px;
+                margin-bottom: 15px;
+                font-size: 1.1rem;
+            }
+
+            .info-section {
+                margin-bottom: 15px;
+            }
+
+            .info-row {
+                padding: 5px 0;
+                font-size: 0.9rem;
+            }
+
+            .price-section {
+                padding: 12px;
+                margin: 15px 0;
+            }
+
+            .price-row {
+                padding: 5px 0;
+                font-size: 0.95rem;
+            }
+
+            .price-row.total {
+                padding-top: 8px;
+                font-size: 1.1rem;
+            }
+
+            .signature-section {
+                margin-top: 25px;
+                gap: 30px;
+            }
+
+            .signature-line {
+                margin-top: 30px;
+                padding-top: 6px;
+                font-size: 0.9rem;
+            }
+
+            .footer-note {
+                margin-top: 20px;
+                padding-top: 10px;
+                font-size: 0.75rem;
+            }
+            
+            .products-section {
+                margin: 15px 0;
+            }
+            
+            .products-section table {
+                border: 1px solid #000;
+                font-size: 0.8rem;
+            }
+            
+            .products-section th {
+                background: #f8f9fa !important;
+                color: #000 !important;
+                padding: 6px 8px !important;
+                font-size: 0.8rem !important;
+            }
+            
+            .products-section td {
+                padding: 6px 8px !important;
+                font-size: 0.75rem !important;
+            }
+            
+            .products-section tr:nth-child(even) {
+                background-color: #f8f9fa !important;
+            }
+            
+            .order-group-header {
+                background: #f0f0f0 !important;
+                padding: 6px 8px !important;
+                font-size: 0.8rem !important;
+                margin-top: 8px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .voucher-container {
+                padding: 20px;
+            }
+            
+            .voucher-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .info-row {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+            
+            .signature-section {
+                grid-template-columns: 1fr;
+                gap: 60px;
+            }
+            
+            .products-section table {
+                font-size: 0.8rem;
+            }
+            
+            .products-section th,
+            .products-section td {
+                padding: 6px 4px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'customer_detail' customer.pk %}" class="btn">← ফিরে যান</a>
+    </div>
+    
+    <div class="voucher-container">
+        <div class="voucher-header">
+            <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
+            <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
+            <p>📞 {{ shop_info.phone|default:"+8801727555673" }}</p>
+        </div>
+        
+        <div class="voucher-title">
+            সম্মিলিত অর্ডার ভাউচার / ইনভয়েস (সকল অর্ডার)
+        </div>
+        
+        <div class="info-section">
+            <div class="info-row">
+                <div class="info-label">ক্রেতার নাম:</div>
+                <div class="info-value">{{ customer.name }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">মোবাইল নাম্বার:</div>
+                <div class="info-value">{{ customer.mobile_number }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">ঠিকানা:</div>
+                <div class="info-value">{{ customer.address|default:"-" }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">মোট অর্ডার সংখ্যা:</div>
+                <div class="info-value">{{ order_count }}টি</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">ভাউচার তৈরির তারিখ:</div>
+                <div class="info-value">{{ "now"|date:"d/m/Y" }}</div>
+            </div>
+        </div>
+        
+        <!-- Products Table -->
+        <div class="products-section">
+            <h3 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 5px;">📦 সকল পণ্যের তালিকা</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>অর্ডার #</th>
+                        <th>তারিখ</th>
+                        <th>পণ্যের নাম</th>
+                        <th>বিবরণ</th>
+                        <th style="text-align: right;">পরিমাণ</th>
+                        <th style="text-align: right;">একক মূল্য</th>
+                        <th style="text-align: right;">মোট মূল্য</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in grouped_items %}
+                        {% if item.is_header %}
+                        <tr class="order-group-header">
+                            <td colspan="7">অর্ডার #{{ item.order_id }} - {{ item.order_date|date:"d/m/Y" }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td></td>
+                            <td>{{ item.order_date|date:"d/m/Y" }}</td>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.product_description|default:"-" }}</td>
+                            <td style="text-align: right;">{{ item.quantity }}</td>
+                            <td style="text-align: right;">৳ {{ item.unit_price }}</td>
+                            <td style="text-align: right; font-weight: 600;">৳ {{ item.item_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="padding: 20px; text-align: center; color: #666;">কোন পণ্য পাওয়া যায়নি</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="price-section">
+            <div class="price-row">
+                <span>মোট মূল্য (সব অর্ডার):</span>
+                <span>৳ {{ total_price|floatformat:2 }}</span>
+            </div>
+            
+            {% if total_discount > 0 %}
+            <div class="price-row" style="color: #e74c3c;">
+                <span>মোট ডিসকাউন্ট:</span>
+                <span>-৳ {{ total_discount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="price-row">
+                <span>চূড়ান্ত মূল্য:</span>
+                <span>৳ {{ total_price|floatformat:2 }}</span>
+            </div>
+            
+            <div class="price-row">
+                <span>মোট নগদ পরিশোধ:</span>
+                <span>৳ {{ total_paid|floatformat:2 }}</span>
+            </div>
+            
+            <div class="price-row due">
+                <span>মোট বাকি টাকা:</span>
+                <span>৳ {{ total_due|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">ক্রেতার স্বাক্ষর</div>
+            </div>
+            
+            <div class="signature-box">
+                <div class="signature-line">বিক্রেতার স্বাক্ষর</div>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: +8801727555673</p>
+            <p style="margin-top: 10px; font-size: 0.75rem; color: #999;">এটি একটি সম্মিলিত ভাউচার যা সকল অর্ডারের তথ্য ধারণ করে।</p>
+        </div>
+    </div>
+</body>
+</html>

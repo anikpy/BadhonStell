@@ -598,6 +598,77 @@ def order_voucher(request, pk):
     return render(request, 'admin_panel/voucher.html', context)
 
 
+@login_required
+def customer_combined_voucher(request, customer_pk):
+    """সকল অর্ডারের জন্য একটি সম্মিলিত ভাউচার"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
+    shop_info = ShopInfo.objects.first()
+    
+    # Get all orders for this customer
+    all_orders = Order.objects.filter(customer=customer).order_by('order_date')
+    
+    if not all_orders.exists():
+        messages.error(request, '❌ এই ক্রেতার কোনো অর্ডার নেই!')
+        return redirect('customer_detail', pk=customer_pk)
+    
+    # Collect all items from all orders, grouped by order
+    all_items = []
+    total_price = Decimal('0')
+    total_paid = Decimal('0')
+    total_due = Decimal('0')
+    
+    for order in all_orders:
+        for item in order.items.all():
+            all_items.append({
+                'order_id': order.pk,
+                'order_date': order.order_date,
+                'product_name': item.product_name,
+                'product_description': item.product_description,
+                'quantity': item.quantity,
+                'unit_price': item.unit_price,
+                'item_total': item.quantity * item.unit_price,
+            })
+        
+        total_price += order.total_price
+        total_paid += order.cash_paid
+        total_due += order.due_amount
+    
+    # Calculate discount if any
+    total_discount = Decimal('0')
+    for order in all_orders:
+        total_discount += order.discount_amount
+    
+    # Group items by order for template
+    grouped_items = []
+    current_order_id = None
+    for item in all_items:
+        if item['order_id'] != current_order_id:
+            current_order_id = item['order_id']
+            grouped_items.append({
+                'is_header': True,
+                'order_id': item['order_id'],
+                'order_date': item['order_date'],
+            })
+        grouped_items.append({
+            'is_header': False,
+            **item
+        })
+    
+    context = {
+        'customer': customer,
+        'shop_info': shop_info,
+        'all_orders': all_orders,
+        'all_items': all_items,
+        'grouped_items': grouped_items,
+        'total_price': total_price,
+        'total_paid': total_paid,
+        'total_due': total_due,
+        'total_discount': total_discount,
+        'order_count': all_orders.count(),
+    }
+    return render(request, 'admin_panel/combined_voucher.html', context)
+
+
 # ==================== ক্রেতা ব্যবস্থাপনা (Customer Management) ====================
 
 @login_required
