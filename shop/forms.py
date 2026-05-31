@@ -1,6 +1,6 @@
 from django import forms
 from decimal import InvalidOperation
-from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem, Customer
+from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem, Customer, CustomerDeposit
 
 
 def bangla_to_english_number(text):
@@ -536,3 +536,48 @@ class CustomerForm(forms.ModelForm):
         if name:
             return name.strip().title()
         return name
+
+
+class CustomerDepositForm(forms.ModelForm):
+    """গ্রাহক জমা ফর্ম - অগ্রিম পেমেন্ট"""
+
+    amount = forms.CharField(
+        label='জমার পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫০০০ বা 5000',
+            'autocomplete': 'off',
+        })
+    )
+
+    class Meta:
+        model = CustomerDeposit
+        fields = ['amount', 'notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'নোট (ঐচ্ছিক)'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set transaction_type to 'deposit' by default
+        self.instance.transaction_type = 'deposit'
+
+    def clean_amount(self):
+        from decimal import Decimal, InvalidOperation
+        amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('জমার পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        return Decimal('0')

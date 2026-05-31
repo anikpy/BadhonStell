@@ -30,8 +30,9 @@ from .models import (
     StockHistory,
     Customer,
     PriceHistory,
+    CustomerDeposit,
 )
-from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm, CustomerForm
+from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm, CustomerForm, CustomerDepositForm
 from decimal import Decimal
 import json
 
@@ -808,6 +809,111 @@ def customer_delete(request, pk):
     customer.delete()
     messages.success(request, '✅ ক্রেতা সফলভাবে মুছে ফেলা হয়েছে!')
     return redirect('customer_list_new')
+
+
+@login_required
+def customer_deposit_create(request, customer_pk):
+    """গ্রাহক জমা যোগ করা"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
+    
+    if request.method == 'POST':
+        form = CustomerDepositForm(request.POST)
+        if form.is_valid():
+            deposit = form.save(commit=False)
+            deposit.customer = customer
+            deposit.transaction_type = 'deposit'
+            deposit.save()
+            messages.success(request, f'✅ ৳{deposit.amount} জমা সফলভাবে যোগ করা হয়েছে!')
+            return redirect('customer_detail', pk=customer_pk)
+    else:
+        form = CustomerDepositForm()
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'page_title': f'{customer.name} - জমা যোগ করুন',
+    }
+    return render(request, 'admin_panel/customer_deposit_form.html', context)
+
+
+@login_required
+def customer_deposit_list(request, customer_pk):
+    """গ্রাহক জমার ইতিহাস"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
+    deposits = customer.deposits.all().order_by('-created_at')
+    
+    context = {
+        'customer': customer,
+        'deposits': deposits,
+        'page_title': f'{customer.name} - জমার ইতিহাস',
+    }
+    return render(request, 'admin_panel/customer_deposit_list.html', context)
+
+
+@login_required
+def customer_deposit_edit(request, pk):
+    """গ্রাহক জমা সম্পাদনা"""
+    deposit = get_object_or_404(CustomerDeposit, pk=pk)
+    customer = deposit.customer
+    
+    if request.method == 'POST':
+        form = CustomerDepositForm(request.POST, instance=deposit)
+        if form.is_valid():
+            # Calculate the difference to update customer balance
+            old_amount = deposit.amount
+            new_amount = form.cleaned_data['amount']
+            difference = new_amount - old_amount
+            
+            # Update the deposit
+            updated_deposit = form.save(commit=False)
+            updated_deposit.amount = new_amount
+            updated_deposit.save()
+            
+            # Update customer balance with the difference
+            customer.deposit_balance += difference
+            customer.save()
+            
+            messages.success(request, f'✅ জমা সফলভাবে আপডেট করা হয়েছে!')
+            return redirect('customer_deposit_list', customer_pk=customer.pk)
+    else:
+        form = CustomerDepositForm(instance=deposit)
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'deposit': deposit,
+        'page_title': f'{customer.name} - জমা সম্পাদনা',
+    }
+    return render(request, 'admin_panel/customer_deposit_form.html', context)
+
+
+@login_required
+def customer_deposit_delete(request, pk):
+    """গ্রাহক জমা মুছে ফেলা"""
+    deposit = get_object_or_404(CustomerDeposit, pk=pk)
+    customer = deposit.customer
+    amount = deposit.amount
+    transaction_type = deposit.transaction_type
+    
+    if request.method == 'POST':
+        # Revert the balance change
+        if transaction_type == 'deposit':
+            customer.deposit_balance -= amount
+        else:  # deduct
+            customer.deposit_balance += amount
+        
+        customer.save()
+        deposit.delete()
+        
+        messages.success(request, f'✅ জমা সফলভাবে মুছে ফেলা হয়েছে!')
+        return redirect('customer_deposit_list', customer_pk=customer.pk)
+    
+    context = {
+        'deposit': deposit,
+        'customer': customer,
+        'page_title': f'{customer.name} - জমা মুছে ফেলা',
+    }
+    return render(request, 'admin_panel/customer_deposit_delete.html', context)
 
 
 @login_required

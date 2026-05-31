@@ -1,0 +1,78 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}জমা মুছে ফেলা - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        ⚠️ জমা মুছে ফেলা - {{ customer.name }}
+        <div style="float: right;">
+            <a href="{% url 'customer_deposit_list' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="color: #856404; font-weight: 600; margin-bottom: 10px;">⚠️ সতর্কতা</div>
+        <p style="color: #856404; margin: 0;">এই জমা মুছে ফেলা হবে এবং গ্রাহকের জমা ব্যালেন্স আপডেট হবে। এই পদক্ষেপ বাতিল করা যাবে না।</p>
+    </div>
+
+    <!-- Deposit Details -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>ক্রেতার নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+            <div>
+                <strong>জমার ধরন:</strong><br>
+                {% if deposit.transaction_type == 'deposit' %}
+                <span style="padding: 4px 8px; border-radius: 4px; background-color: #d4edda; color: #155724; font-weight: 600;">জমা</span>
+                {% else %}
+                <span style="padding: 4px 8px; border-radius: 4px; background-color: #f8d7da; color: #721c24; font-weight: 600;">কাটা</span>
+                {% endif %}
+            </div>
+            <div>
+                <strong>পরিমাণ:</strong><br>
+                <span style="font-size: 1.2rem; font-weight: 700;">৳{{ deposit.amount|floatformat:2 }}</span>
+            </div>
+            <div>
+                <strong>তারিখ:</strong><br>
+                {{ deposit.created_at|date:"d/m/Y H:i" }}
+            </div>
+            <div>
+                <strong>নোট:</strong><br>
+                {{ deposit.notes|default:"-" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Balance Info -->
+    <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <strong>বর্তমান জমা ব্যালেন্স:</strong> <span style="font-size: 1.1rem; font-weight: 700; color: #0056b3;">৳{{ customer.deposit_balance|floatformat:2 }}</span>
+        <br>
+        <small style="color: #0056b3;">এই জমা মুছে ফেলার পর ব্যালেন্স হবে: 
+            {% if deposit.transaction_type == 'deposit' %}
+            ৳{{ customer.deposit_balance|add:deposit.amount|floatformat:2 }}
+            {% else %}
+            ৳{{ customer.deposit_balance|add:deposit.amount|floatformat:2 }}
+            {% endif %}
+        </small>
+    </div>
+
+    <!-- Confirmation Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-danger">🗑️ নিশ্চিত করে মুছুন</button>
+            <a href="{% url 'customer_deposit_list' customer.pk %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

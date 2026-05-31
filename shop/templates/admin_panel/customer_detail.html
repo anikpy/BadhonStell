@@ -11,6 +11,7 @@
             <a href="{% url 'customer_list_new' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
             <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
             <a href="{% url 'customer_statement' customer.pk %}?from_date={{ from_date|default:'' }}&to_date={{ to_date|default:'' }}" class="btn btn-info">📄 স্টেটমেন্ট</a>
+            <a href="{% url 'customer_deposit_create' customer.pk %}" class="btn btn-primary">💰 জমা</a>
             {% if total_orders > 1 %}
             <a href="{% url 'customer_combined_voucher' customer.pk %}" class="btn btn-primary">📋 সম্মিলিত ভাউচার</a>
             {% endif %}
@@ -36,6 +37,11 @@
             <div>
                 <strong>তৈরির তারিখ:</strong><br>
                 {{ customer.created_at|date:"d M Y, H:i" }}
+            </div>
+            <div>
+                <strong>জমা ব্যালেন্স:</strong><br>
+                <span style="font-size: 1.1rem; font-weight: 700; color: #28a745;">৳{{ customer.deposit_balance|floatformat:2 }}</span>
+                <a href="{% url 'customer_deposit_list' customer.pk %}" style="display: block; margin-top: 5px; font-size: 0.85rem;">দেখুন →</a>
             </div>
         </div>
     </div>

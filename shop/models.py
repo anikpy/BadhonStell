@@ -101,6 +101,7 @@ class Customer(models.Model):
     name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
     mobile_number = models.CharField(max_length=20, unique=True, verbose_name='মোবাইল নাম্বার')
     address = models.TextField(verbose_name='ঠিকানা', blank=True)
+    deposit_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='জমা ব্যালেন্স', default=0)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
 
@@ -111,6 +112,41 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.mobile_number}"
+
+
+class CustomerDeposit(models.Model):
+    """গ্রাহক জমা - অগ্রিম পেমেন্ট ট্র্যাকিং"""
+    TRANSACTION_TYPE_CHOICES = [
+        ('deposit', 'জমা'),
+        ('deduct', 'কাটা'),
+    ]
+    
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='deposits', verbose_name='ক্রেতা')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES, default='deposit', verbose_name='লেনদেনের ধরন')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'গ্রাহক জমা'
+        verbose_name_plural = 'গ্রাহক জমাসমূহ'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.transaction_type}: {self.amount}"
+
+    def save(self, *args, **kwargs):
+        # Only update customer deposit balance on creation (not on edit)
+        if not self.pk:  # New record
+            if self.transaction_type == 'deposit':
+                self.customer.deposit_balance += self.amount
+            elif self.transaction_type == 'deduct':
+                self.customer.deposit_balance -= self.amount
+            
+            self.customer.save()
+        
+        super().save(*args, **kwargs)
 
 
 class Order(models.Model):
@@ -162,6 +198,14 @@ class Order(models.Model):
         
         # Calculate final price
         self.final_price = self.total_price - self.discount_amount
+        
+        # Auto-apply deposit balance if customer exists and has deposit
+        if self.customer and self.customer.deposit_balance > 0 and not self.pk:
+            # Only apply deposit for new orders (not editing)
+            deposit_to_apply = min(self.customer.deposit_balance, self.final_price)
+            self.cash_paid = deposit_to_apply
+            # Create a deduction record for the deposit
+            # This will be done in a post_save signal
         
         # Calculate due_amount based on final_price
         self.due_amount = self.final_price - self.cash_paid
@@ -427,7 +471,7 @@ class StockHistory(models.Model):
 
 
 # Signals to update Order totals when OrderPayment changes
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 
 @receiver([post_save, post_delete], sender=OrderPayment)
@@ -480,3 +524,69 @@ def update_order_payment_totals(sender, instance, **kwargs):
         due_amount=order.due_amount,
         initial_payment_migrated=True
     )
+
+
+
+@receiver(post_save, sender=Order)
+def apply_customer_deposit_on_order_creation(sender, instance, created, **kwargs):
+    """
+    Automatically apply customer deposit balance when creating a new order
+    """
+    if created and instance.customer and instance.customer.deposit_balance > 0 and instance.cash_paid > 0:
+        # Create a deposit deduction record
+        try:
+            CustomerDeposit.objects.create(
+                customer=instance.customer,
+                amount=instance.cash_paid,
+                transaction_type='deduct',
+                notes=f'অর্ডার #{instance.pk} থেকে কাটা'
+            )
+        except Exception as e:
+            # Silently fail if deduction record creation fails
+            pass
+
+
+@receiver(post_delete, sender=CustomerDeposit)
+def revert_customer_deposit_on_deletion(sender, instance, **kwargs):
+    """
+    Revert customer deposit balance when a deposit record is deleted
+    """
+    customer = instance.customer
+    if instance.transaction_type == 'deposit':
+        customer.deposit_balance -= instance.amount
+    elif instance.transaction_type == 'deduct':
+        customer.deposit_balance += instance.amount
+    
+    customer.save()
+
+
+# Store the old amount before saving (for tracking changes)
+_deposit_old_amount = {}
+
+@receiver(pre_save, sender=CustomerDeposit)
+def track_deposit_amount_change(sender, instance, **kwargs):
+    """
+    Track the old amount before a deposit is edited
+    """
+    if instance.pk:  # Only for existing records (edits)
+        try:
+            old_instance = CustomerDeposit.objects.get(pk=instance.pk)
+            _deposit_old_amount[instance.pk] = old_instance.amount
+        except CustomerDeposit.DoesNotExist:
+            pass
+
+
+@receiver(post_save, sender=CustomerDeposit)
+def update_customer_balance_on_deposit_edit(sender, instance, created, **kwargs):
+    """
+    Update customer balance when a deposit is edited (not created)
+    """
+    if not created and instance.pk in _deposit_old_amount:
+        # This is an edit
+        old_amount = _deposit_old_amount.pop(instance.pk)
+        if old_amount != instance.amount:
+            # Amount changed, update customer balance
+            difference = instance.amount - old_amount
+            customer = instance.customer
+            customer.deposit_balance += difference
+            customer.save()
