@@ -614,6 +614,10 @@ class TestCustomerTransaction(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', verbose_name='অবস্থা')
     notes = models.TextField(verbose_name='নোট', blank=True)
     
+    # Date tracking
+    order_date = models.DateField(default=timezone.now, verbose_name='অর্ডারের তারিখ')
+    delivery_date = models.DateField(null=True, blank=True, verbose_name='ডেলিভারির তারিখ')
+    
     # Reversal tracking
     reverses_transaction = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
                                              related_name='reversed_by_transactions', verbose_name='বাতিলকৃত লেনদেন')

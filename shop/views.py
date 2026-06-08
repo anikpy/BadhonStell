@@ -3357,9 +3357,16 @@ def test_transaction_purchase_create(request, customer_pk):
         for p in inventory_products
     ])
     
+    # Default dates
+    from datetime import timedelta
+    today = timezone.now().date()
+    default_delivery_date = today + timedelta(days=7)
+    
     if request.method == 'POST':
         items_json_str = request.POST.get('items_json', '[]')
         total_discount = request.POST.get('total_discount', '0')
+        order_date = request.POST.get('order_date', '')
+        delivery_date = request.POST.get('delivery_date', '')
         
         try:
             items_data = json.loads(items_json_str)
@@ -3375,6 +3382,23 @@ def test_transaction_purchase_create(request, customer_pk):
                 total_discount = Decimal('100')
         except:
             total_discount = Decimal('0')
+        
+        # Parse dates
+        from datetime import datetime
+        order_date_obj = None
+        delivery_date_obj = None
+        
+        if order_date:
+            try:
+                order_date_obj = datetime.strptime(order_date, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        
+        if delivery_date:
+            try:
+                delivery_date_obj = datetime.strptime(delivery_date, '%Y-%m-%d').date()
+            except ValueError:
+                pass
         
         if not items_data:
             messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
@@ -3442,7 +3466,9 @@ def test_transaction_purchase_create(request, customer_pk):
                     total_discount_amount=total_discount_amount,
                     notes=request.POST.get('notes', ''),
                     status='completed',
-                    created_by=request.user
+                    created_by=request.user,
+                    order_date=order_date_obj,
+                    delivery_date=delivery_date_obj
                 )
                 
                 # Create transaction items for each product
@@ -3489,6 +3515,8 @@ def test_transaction_purchase_create(request, customer_pk):
         'customer': customer,
         'page_title': f'{customer.name} - নতুন ক্রয়',
         'products_json': products_json,
+        'today': today,
+        'delivery_date': default_delivery_date,
     }
     return render(request, 'admin_panel/test_transaction_purchase_form.html', context)
 

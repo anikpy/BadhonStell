@@ -30,7 +30,7 @@
                     {% if customer.current_balance >= 0 %}
                     ৳{{ customer.current_balance|floatformat:2 }}
                     {% else %}
-                    <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }}</span>
+                    <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
                     {% endif %}
                 </div>
             </div>
@@ -41,6 +41,45 @@
     <form method="post" id="purchase-form" style="max-width: 100%;">
         {% csrf_token %}
         
+        <!-- Date Selection Section -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2c3e50;">📅 তারিখ নির্বাচন করুন</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের তারিখ <span style="color: #dc3545;">*</span></label>
+                    <input 
+                        type="date" 
+                        name="order_date" 
+                        id="order-date"
+                        class="form-control" 
+                        value="{{ today|date:'Y-m-d' }}"
+                        required
+                        style="font-size: 1rem; padding: 12px; cursor: pointer;"
+                    >
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারির তারিখ <span style="color: #dc3545;">*</span></label>
+                    <input 
+                        type="date" 
+                        name="delivery_date" 
+                        id="delivery-date"
+                        class="form-control" 
+                        value="{{ delivery_date|date:'Y-m-d' }}"
+                        required
+                        style="font-size: 1rem; padding: 12px; cursor: pointer;"
+                    >
+                </div>
+            </div>
+
+            <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff;">
+                <small style="color: #004085;">
+                    ℹ️ <strong>অর্ডারের তারিখ:</strong> অর্ডার গ্রহণের তারিখ | 
+                    <strong>ডেলিভারির তারিখ:</strong> পণ্য ডেলিভারির 예chtimated তারিখ
+                </small>
+            </div>
+        </div>
+
         <!-- Product Search Section -->
         <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2c3e50;">📦 পণ্য যোগ করুন</h3>
@@ -357,14 +396,15 @@ document.addEventListener('DOMContentLoaded', function() {
         ).slice(0, 10); // Limit to 10 results
 
         if (matches.length > 0) {
-            resultsDiv.innerHTML = matches.map(p => `
-                <div class="search-result-item" data-product-id="${p.id}">
-                    <div class="product-name">${p.name}</div>
-                    <div class="product-info">
-                        ৳${p.price} / ${p.unit} | স্টক: ${p.stock} ${p.unit}
-                    </div>
-                </div>
-            `).join('');
+            let html = '';
+            matches.forEach(p => {
+                html += '<div class="search-result-item" data-product-id="' + p.id + '">';
+                html += '<div class="product-name">' + p.name + '</div>';
+                html += '<div class="product-info">';
+                html += '৳' + p.price + ' / ' + p.unit + ' | স্টক: ' + p.stock + ' ' + p.unit;
+                html += '</div></div>';
+            });
+            resultsDiv.innerHTML = html;
             resultsDiv.style.display = 'block';
 
             // Add click handlers
@@ -376,12 +416,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } else {
             // Allow custom product name
-            resultsDiv.innerHTML = `
-                <div class="search-result-item" style="background: #fff3cd;">
-                    <div class="product-name">📝 কাস্টম পণ্য: "${query}"</div>
-                    <div class="product-info">ইনভেন্টরিতে পাওয়া যায়নি। কাস্টম নাম হিসেবে ব্যবহার করুন।</div>
-                </div>
-            `;
+            resultsDiv.innerHTML = '<div class="search-result-item" style="background: #fff3cd;">';
+            resultsDiv.innerHTML += '<div class="product-name">📝 কাস্টম পণ্য: "' + query + '"</div>';
+            resultsDiv.innerHTML += '<div class="product-info">ইনভেন্টরিতে পাওয়া যায়নি। কাস্টম নাম হিসেবে ব্যবহার করুন।</div>';
+            resultsDiv.innerHTML += '</div>';
             resultsDiv.style.display = 'block';
 
             resultsDiv.querySelector('.search-result-item').addEventListener('click', function() {

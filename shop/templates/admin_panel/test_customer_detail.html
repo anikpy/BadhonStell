@@ -26,15 +26,18 @@
                 <div style="font-size: 1.3rem; font-weight: 700;">{{ customer.mobile_number }}</div>
             </div>
             <div>
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">বর্তমান ব্যালেন্স</div>
-                {% if customer.current_balance >= 0 %}
-                <div style="font-size: 1.8rem; font-weight: 700;">৳{{ customer.current_balance|floatformat:2 }}</div>
-                {% else %}
-                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }}</div>
-                {% endif %}
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Statistics Cards -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
