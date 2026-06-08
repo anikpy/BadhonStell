@@ -9,8 +9,8 @@
     <div class="card-title">
         📋 {{ customer.name }} - সম্পূর্ণ লেনদেন ইতিহাস
         <div style="float: right;">
-            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
-            <a href="{% url 'test_customer_statement' customer.pk %}{% if date_from or date_to %}?from_date={{ date_from }}&to_date={{ date_to }}{% endif %}" class="btn btn-info">📄 স্টেটমেন্ট</a>
+            <a href="{% url 'order_customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_statement' customer.pk %}{% if date_from or date_to %}?from_date={{ date_from }}&to_date={{ date_to }}{% endif %}" class="btn btn-info">📄 স্টেটমেন্ট</a>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
             <div>
                 <button type="submit" class="btn btn-primary">🔍 ফিল্টার করুন</button>
                 {% if transaction_type or date_from or date_to %}
-                <a href="{% url 'test_transaction_list' customer.pk %}" class="btn btn-secondary">সাফ করুন</a>
+                <a href="{% url 'transaction_list' customer.pk %}" class="btn btn-secondary">সাফ করুন</a>
                 {% endif %}
             </div>
         </form>
@@ -140,9 +140,9 @@
                         {% endif %}
                     </td>
                     <td style="padding: 10px 8px; text-align: center;">
-                        <a href="{% url 'test_transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার">🧾</a>
+                        <a href="{% url 'transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার">🧾</a>
                         {% if not txn.is_reversed %}
-                        <a href="{% url 'test_transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        <a href="{% url 'transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
                         {% endif %}
                     </td>
                 </tr>

@@ -102,6 +102,10 @@ class Command(BaseCommand):
             try:
                 self.import_order_as_purchase(order, test_customer)
                 imported_orders += 1
+                
+                # If order has cash_paid, create a submission transaction
+                if order.cash_paid and order.cash_paid > 0:
+                    self.import_order_payment_as_submission(order, test_customer)
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(f'    ✗ Error importing order #{order.pk}: {str(e)}')
@@ -189,3 +193,38 @@ class Command(BaseCommand):
         )
         
         return True
+    
+    def import_order_payment_as_submission(self, order, test_customer):
+        """Import order payment as a submission transaction"""
+        payment_amount = order.cash_paid
+        
+        if not payment_amount or payment_amount <= 0:
+            return
+        
+        # Create submission transaction for the payment
+        transaction = TestCustomerTransaction.objects.create(
+            customer=test_customer,
+            transaction_type='submission',
+            amount=payment_amount,
+            item_name=f'অর্ডার #{order.pk} এর পেমেন্ট',
+            item_description=f'Payment for order #{order.pk}',
+            item_quantity=1,
+            item_unit_price=payment_amount,
+            notes=f'Imported payment from custom order #{order.pk}',
+            status='completed',
+            created_by=None  # System import
+        )
+        
+        # Create history record
+        TestTransactionHistory.objects.create(
+            transaction=transaction,
+            action='created',
+            old_balance=transaction.balance_before,
+            new_balance=transaction.balance_after,
+            notes=f'Imported payment from custom order #{order.pk}',
+            performed_by=None
+        )
+        
+        self.stdout.write(
+            self.style.SUCCESS(f'    ✓ Imported payment: ৳{payment_amount} as submission')
+        )

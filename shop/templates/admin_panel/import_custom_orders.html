@@ -1,12 +1,12 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
 
-{% block title %}Import Custom Orders to Test System{% endblock %}
+{% block title %}কাস্টম অর্ডার ইমপোর্ট করুন{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-title">
-        📥 Import Custom Orders to Test System
+        📥 কাস্টম অর্ডার ইমপোর্ট করুন
         <div style="float: right;">
             <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
         </div>
@@ -24,7 +24,7 @@
                 <div style="font-size: 1.8rem; font-weight: 700; color: #28a745;">{{ total_orders }}</div>
             </div>
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <div style="font-size: 0.9rem; color: #666;">টেস্ট ক্রেতা (Test)</div>
+                <div style="font-size: 0.9rem; color: #666;">ক্রেতা</div>
                 <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;">{{ test_customers }}</div>
             </div>
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
@@ -37,9 +37,9 @@
         <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <h4 style="margin-top: 0; color: #856404;">⚠️ সতর্কতা</h4>
             <ul style="margin-bottom: 0; color: #856404;">
-                <li>এই প্রক্রিয়াটি কাস্টম অর্ডার সিস্টেম থেকে টেস্ট অর্ডার সিস্টেমে ডেটা স্থানান্তর করবে</li>
-                <li>শুধুমাত্র সেই ক্রেতারা ইমপোর্ট হবে যারা ইতিমধ্যে টেস্ট সিস্টেমে নেই</li>
-                <li>প্রতিটি কাস্টম অর্ডার একটি টেস্ট ক্রয় লেনদেন হিসেবে ইমপোর্ট হবে</li>
+                <li>এই প্রক্রিয়াটি কাস্টম অর্ডার সিস্টেম থেকে অর্ডার ব্যবস্থাপনা সিস্টেমে ডেটা স্থানান্তর করবে</li>
+                <li>শুধুমাত্র সেই ক্রেতারা ইমপোর্ট হবে যারা ইতিমধ্যে অর্ডার ব্যবস্থাপনা সিস্টেমে নেই</li>
+                <li>প্রতিটি কাস্টম অর্ডার একটি ক্রয় লেনদেন হিসেবে ইমপোর্ট হবে</li>
                 <li>ইমপোর্টের আগে <strong>Dry Run</strong> চালিয়ে দেখুন কী কী ইমপোর্ট হবে</li>
                 <li>ইমপোর্ট করা ডেটা পুনরায় মুছে ফেলা যাবে না</li>
             </ul>
@@ -76,8 +76,8 @@
         <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin-top: 20px;">
             <h4 style="margin-top: 0;">ℹ️ তথ্য</h4>
             <p style="margin-bottom: 0; color: #004085;">
-                এই টুল কাস্টম অর্ডার সিস্টেমের সব ক্রেতা এবং তাদের অর্ডারগুলো টেস্ট অর্ডার সিস্টেমে স্থানান্তর করবে। 
-                প্রতিটি ক্রেতার জন্য একটি টেস্ট ক্রেতা তৈরি হবে এবং তাদের সব অর্ডার ক্রয় লেনদেন হিসেবে সংরক্ষিত হবে।
+                এই টুল কাস্টম অর্ডার সিস্টেমের সব ক্রেতা এবং তাদের অর্ডারগুলো অর্ডার ব্যবস্থাপনা সিস্টেমে স্থানান্তর করবে। 
+                প্রতিটি ক্রেতার জন্য একটি ক্রেতা তৈরি হবে এবং তাদের সব অর্ডার ক্রয় লেনদেন হিসেবে সংরক্ষিত হবে।
             </p>
         </div>
     </div>

@@ -7,10 +7,10 @@
 {% block content %}
 <div class="card">
     <div class="card-title">
-        👤 {{ customer.name }} - টেস্ট কাস্টমার বিস্তারিত
+        👤 {{ customer.name }} - ক্রেতার বিবরণ
         <div style="float: right;">
-            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
-            <a href="{% url 'test_customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
+            <a href="{% url 'order_customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
         </div>
     </div>
 
@@ -62,12 +62,12 @@
 
     <!-- Action Buttons -->
     <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
-        <a href="{% url 'test_transaction_submission_create' customer.pk %}" class="btn btn-success">💰 জমা দিন</a>
-        <a href="{% url 'test_transaction_purchase_create' customer.pk %}" class="btn btn-primary">🛒 ক্রয় করুন</a>
-        <a href="{% url 'test_transaction_withdrawal_create' customer.pk %}" class="btn btn-warning">💸 টাকা উত্তোলন</a>
-        <a href="{% url 'test_transaction_list' customer.pk %}" class="btn btn-info">📋 সব লেনদেন</a>
-        <a href="{% url 'test_customer_statement' customer.pk %}" class="btn btn-secondary">📄 স্টেটমেন্ট</a>
-        <a href="{% url 'test_customer_history' customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
+        <a href="{% url 'transaction_submission_create' customer.pk %}" class="btn btn-success">💰 জমা দিন</a>
+        <a href="{% url 'transaction_purchase_create' customer.pk %}" class="btn btn-primary">🛒 ক্রয় করুন</a>
+        <a href="{% url 'transaction_withdrawal_create' customer.pk %}" class="btn btn-warning">💸 টাকা উত্তোলন</a>
+        <a href="{% url 'transaction_list' customer.pk %}" class="btn btn-info">📋 সব লেনদেন</a>
+        <a href="{% url 'order_customer_statement' customer.pk %}" class="btn btn-secondary">📄 স্টেটমেন্ট</a>
+        <a href="{% url 'order_customer_history' customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
     </div>
 
     <!-- Recent Transactions -->
@@ -143,12 +143,12 @@
                         {% endif %}
                     </td>
                     <td style="padding: 10px 8px; text-align: center;">
-                        <a href="{% url 'test_transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার দেখুন">🧾</a>
+                        <a href="{% url 'transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার দেখুন">🧾</a>
                         {% if txn.transaction_type == 'purchase' and not txn.is_reversed %}
-                        <a href="{% url 'test_transaction_edit' txn.pk %}" class="btn btn-sm btn-warning" title="সম্পাদনা করুন">✏️</a>
+                        <a href="{% url 'transaction_edit' txn.pk %}" class="btn btn-sm btn-warning" title="সম্পাদনা করুন">✏️</a>
                         {% endif %}
                         {% if not txn.is_reversed %}
-                        <a href="{% url 'test_transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        <a href="{% url 'transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
                         {% endif %}
                     </td>
                 </tr>
@@ -159,7 +159,7 @@
 
     {% if total_transactions > 10 %}
     <div style="margin-top: 15px; text-align: center;">
-        <a href="{% url 'test_transaction_list' customer.pk %}" class="btn btn-primary">📋 সব {{ total_transactions }} টি লেনদেন দেখুন</a>
+        <a href="{% url 'transaction_list' customer.pk %}" class="btn btn-primary">📋 সব {{ total_transactions }} টি লেনদেন দেখুন</a>
     </div>
     {% endif %}
 
@@ -169,7 +169,7 @@
         <h3>কোনো লেনদেন নেই</h3>
         <p>এই ক্রেতার এখনো কোনো লেনদেন নেই!</p>
         <div style="margin-top: 20px;">
-            <a href="{% url 'test_transaction_submission_create' customer.pk %}" class="btn btn-success">💰 প্রথম জমা দিন</a>
+            <a href="{% url 'transaction_submission_create' customer.pk %}" class="btn btn-success">💰 প্রথম জমা দিন</a>
         </div>
     </div>
     {% endif %}

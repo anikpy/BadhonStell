@@ -3,10 +3,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count, Avg, F, ExpressionWrapper, DecimalField
 from django.utils import timezone
 from datetime import timedelta, datetime
-from django.db.models import Sum, Count, Q, Avg, F
 from decimal import Decimal
 from django.http import HttpResponse, JsonResponse
 from reportlab.lib.pagesizes import letter, A4
@@ -2391,66 +2390,75 @@ def admin_statistics(request):
         messages.error(request, '❌ আপনার এই পেজে অ্যাক্সেস করার অনুমতি নেই!')
         return redirect('admin_dashboard')
     
-    # তারিখ গণনা
-    today = timezone.now().date()
-    one_month_ago = today - timedelta(days=30)
-    
-    # পণ্য স্ট্যাটিস্টিক্স
-    total_products = InventoryProduct.objects.count()
-    active_products = InventoryProduct.objects.filter(is_active=True).count()
-    inactive_products = total_products - active_products
-    
-    # মোট পণ্যের মূল্য (স্টক × ইউনিট প্রাইস)
-    total_inventory_value = InventoryProduct.objects.filter(
-        is_active=True
-    ).aggregate(
-        total_value=Sum(F('stock_quantity') * F('price_per_unit'))
-    )['total_value'] or Decimal('0')
-    
-    # স্টক স্ট্যাটিস্টিক্স
-    products_with_stock = InventoryProduct.objects.filter(
-        is_active=True, 
-        stock_quantity__gt=0
-    ).count()
-    out_of_stock_products = active_products - products_with_stock
-    
-    # শেষ ১ মাসের অর্ডার স্ট্যাটিস্টিক্স
-    last_month_orders = Order.objects.filter(created_at__date__gte=one_month_ago)
-    total_orders_last_month = last_month_orders.count()
-    
-    # শেষ ১ মাসের অর্ডারের মোট মূল্য
-    total_order_value_last_month = last_month_orders.aggregate(
-        total=Sum('total_price')
-    )['total'] or Decimal('0')
-    
-    # শেষ ১ মাসের ইনভয়েস স্ট্যাটিস্টিক্স
-    last_month_invoices = Invoice.objects.filter(created_at__date__gte=one_month_ago)
-    total_invoices_last_month = last_month_invoices.count()
-    
-    # শেষ ১ মাসের ইনভয়েসের মোট মূল্য (ডিসকাউন্টের পরে প্রকৃত বিক্রয় মূল্য)
-    total_invoice_value_last_month = last_month_invoices.aggregate(
-        total=Sum('total_amount')
-    )['total'] or Decimal('0')
-    
-    # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস)
-    total_sales_last_month = total_order_value_last_month + total_invoice_value_last_month
-    
-    # গড় অর্ডার মূল্য
-    avg_order_value = last_month_orders.aggregate(
-        avg=Avg('total_price')
-    )['avg'] or Decimal('0')
-    
-    # গড় ইনভয়েস মূল্য
-    avg_invoice_value = last_month_invoices.aggregate(
-        avg=Avg('subtotal')
-    )['avg'] or Decimal('0')
+    try:
+        # তারিখ গণনা
+        today = timezone.now().date()
+        one_month_ago = today - timedelta(days=30)
+        
+        # পণ্য স্ট্যাটিস্টিক্স
+        total_products = InventoryProduct.objects.count()
+        active_products = InventoryProduct.objects.filter(is_active=True).count()
+        inactive_products = total_products - active_products
+        
+        # মোট পণ্যের মূল্য (স্টক × ইউনিট প্রাইস)
+        products_for_value = InventoryProduct.objects.filter(is_active=True)
+        total_inventory_value = Decimal('0')
+        for product in products_for_value:
+            total_inventory_value += product.stock_quantity * product.price_per_unit
+        
+        # স্টক স্ট্যাটিস্টিক্স
+        products_with_stock = InventoryProduct.objects.filter(
+            is_active=True, 
+            stock_quantity__gt=0
+        ).count()
+        out_of_stock_products = active_products - products_with_stock
+        
+        # শেষ ১ মাসের অর্ডার স্ট্যাটিস্টিক্স
+        last_month_orders = Order.objects.filter(created_at__date__gte=one_month_ago)
+        total_orders_last_month = last_month_orders.count()
+        
+        # শেষ ১ মাসের অর্ডারের মোট মূল্য
+        total_order_value_last_month = last_month_orders.aggregate(
+            total=Sum('total_price')
+        )['total'] or Decimal('0')
+        
+        # শেষ ১ মাসের ইনভয়েস স্ট্যাটিস্টিক্স
+        last_month_invoices = Invoice.objects.filter(created_at__date__gte=one_month_ago)
+        total_invoices_last_month = last_month_invoices.count()
+        
+        # শেষ ১ মাসের ইনভয়েসের মোট মূল্য (ডিসকাউন্টের পরে প্রকৃত বিক্রয় মূল্য)
+        total_invoice_value_last_month = last_month_invoices.aggregate(
+            total=Sum('total_amount')
+        )['total'] or Decimal('0')
+        
+        # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস)
+        total_sales_last_month = total_order_value_last_month + total_invoice_value_last_month
+        
+        # গড় অর্ডার মূল্য
+        avg_order_value = last_month_orders.aggregate(
+            avg=Avg('total_price')
+        )['avg'] or Decimal('0')
+        
+        # গড় ইনভয়েস মূল্য
+        avg_invoice_value = last_month_invoices.aggregate(
+            avg=Avg('subtotal')
+        )['avg'] or Decimal('0')
+        
+    except Exception as e:
+        # If anything fails, show error message and redirect to dashboard
+        print(f"ERROR in admin_statistics: {e}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, f'❌ স্ট্যাটিস্টিক্স লোড করতে ত্রুটি: {str(e)}')
+        return redirect('admin_dashboard')
     
     # টপ ১০ সবচেয়ে বেশি মূল্যের পণ্য
-    top_valuable_products = InventoryProduct.objects.filter(
-        is_active=True
-    ).order_by(
-        -(F('stock_quantity') * F('price_per_unit'))
-    )[:10]
+    all_products = list(InventoryProduct.objects.filter(is_active=True))
+    # Calculate value in Python to avoid database expression issues
+    for product in all_products:
+        product.calculated_value = float(product.stock_quantity) * float(product.price_per_unit)
+    all_products.sort(key=lambda p: p.calculated_value, reverse=True)
+    top_valuable_products = all_products[:10]
     
     # টপ ১০ সবচেয়ে বেশি স্টকের পণ্য
     top_stock_products = InventoryProduct.objects.filter(
@@ -2996,7 +3004,7 @@ def print_stock_history_pdf(request):
 
 @login_required
 def test_order_create(request):
-    """টেস্ট অর্ডার তৈরি - ক্রেতা সিলেক্ট করে পurchase transaction"""
+    """অর্ডার তৈরি - ক্রেতা সিলেক্ট করে পurchase transaction"""
     # Get all test customers for selection
     test_customers = TestCustomer.objects.all().order_by('name')
     
@@ -3015,7 +3023,7 @@ def test_order_create(request):
     
     context = {
         'test_customers': test_customers,
-        'page_title': 'নতুন টেস্ট অর্ডার তৈরি করুন',
+        'page_title': 'নতুন অর্ডার তৈরি করুন',
     }
     return render(request, 'admin_panel/test_order_create.html', context)
 
@@ -3112,7 +3120,7 @@ def test_customer_list(request):
 
 @login_required
 def test_customer_create(request):
-    """টেস্ট কাস্টমার তৈরি করা"""
+    """ক্রেতা তৈরি করা"""
     if request.method == 'POST':
         form = TestCustomerForm(request.POST)
         if form.is_valid():
@@ -3124,14 +3132,14 @@ def test_customer_create(request):
     
     context = {
         'form': form,
-        'page_title': 'নতুন টেস্ট কাস্টমার তৈরি করুন',
+        'page_title': 'নতুন ক্রেতা তৈরি করুন',
     }
     return render(request, 'admin_panel/test_customer_form.html', context)
 
 
 @login_required
 def test_customer_detail(request, pk):
-    """টেস্ট কাস্টমার বিস্তারিত - লেনদেন ভিত্তিক"""
+    """ক্রেতার বিস্তারিত - লেনদেন ভিত্তিক"""
     customer = get_object_or_404(TestCustomer, pk=pk)
     
     # Get all transactions
@@ -3155,7 +3163,7 @@ def test_customer_detail(request, pk):
 
 @login_required
 def test_customer_edit(request, pk):
-    """টেস্ট কাস্টমার সম্পাদনা"""
+    """ক্রেতা সম্পাদনা"""
     customer = get_object_or_404(TestCustomer, pk=pk)
     
     if request.method == 'POST':
@@ -3192,7 +3200,7 @@ def test_customer_edit(request, pk):
 
 @login_required
 def test_customer_delete(request, pk):
-    """টেস্ট কাস্টমার মুছে ফেলা"""
+    """ক্রেতা মুছে ফেলা"""
     customer = get_object_or_404(TestCustomer, pk=pk)
     
     # Check if customer has transactions
@@ -3252,7 +3260,7 @@ def test_customer_delete(request, pk):
 
 @login_required
 def test_customer_bulk_delete(request):
-    """বাল্কভাবে টেস্ট কাস্টমার মুছে ফেলা"""
+    """বাল্কভাবে ক্রেতা মুছে ফেলা"""
     if request.method != 'POST':
         messages.error(request, '❌ অবৈধ অনুরোধ')
         return redirect('test_customer_list')
@@ -3295,7 +3303,7 @@ def test_customer_bulk_delete(request):
 
 @login_required
 def test_transaction_submission_create(request, customer_pk):
-    """টেস্ট লেনদেন - জমা তৈরি করা"""
+    """লেনদেন - জমা তৈরি করা"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
     if request.method == 'POST':
@@ -3341,7 +3349,7 @@ def test_transaction_submission_create(request, customer_pk):
 
 @login_required
 def test_transaction_purchase_create(request, customer_pk):
-    """টেস্ট লেনদেন - ক্রয় তৈরি করা (একাধিক পণ্য + ডিসকাউন্ট সাপোর্ট)"""
+    """লেনদেন - ক্রয় তৈরি করা (একাধিক পণ্য + ডিসকাউন্ট সাপোর্ট)"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
     # Get all inventory products for search
@@ -3525,7 +3533,7 @@ def test_transaction_purchase_create(request, customer_pk):
 
 @login_required
 def test_transaction_withdrawal_create(request, customer_pk):
-    """টেস্ট লেনদেন - উত্তোলন তৈরি করা"""
+    """লেনদেন - উত্তোলন তৈরি করা"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
     if request.method == 'POST':
@@ -3571,7 +3579,7 @@ def test_transaction_withdrawal_create(request, customer_pk):
 
 @login_required
 def test_transaction_voucher(request, pk):
-    """টেস্ট লেনদেন ভাউচার"""
+    """লেনদেন ভাউচার"""
     transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
     shop_info = ShopInfo.objects.first()
     
@@ -3585,7 +3593,7 @@ def test_transaction_voucher(request, pk):
 
 @login_required
 def test_transaction_list(request, customer_pk):
-    """টেস্ট লেনদেন তালিকা - নির্দিষ্ট ক্রেতার জন্য"""
+    """লেনদেন তালিকা - নির্দিষ্ট ক্রেতার জন্য"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
     transaction_type = request.GET.get('type', '')
@@ -3621,7 +3629,7 @@ def test_transaction_list(request, customer_pk):
 
 @login_required
 def test_transaction_reverse(request, pk):
-    """টেস্ট লেনদেন বাতিল/রিভার্স করা"""
+    """লেনদেন বাতিল/রিভার্স করা"""
     transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
     
     if transaction.is_reversed:
@@ -3696,7 +3704,7 @@ def test_transaction_reverse(request, pk):
 
 @login_required
 def test_customer_statement(request, customer_pk):
-    """টেস্ট কাস্টমার স্টেটমেন্ট - সম্পূর্ণ লেনদেন ইতিহাস"""
+    """ক্রেতার স্টেটমেন্ট - সম্পূর্ণ লেনদেন ইতিহাস"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     shop_info = ShopInfo.objects.first()
     
@@ -3766,7 +3774,7 @@ def customer_search_api(request):
 
 @login_required
 def test_customer_history(request, customer_pk):
-    """টেস্ট কাস্টমারের সম্পূর্ণ ইতিহাস - সব অ্যাকশন"""
+    """ক্রেতারের সম্পূর্ণ ইতিহাস - সব অ্যাকশন"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
     # Get all history records for this customer's transactions
@@ -3790,7 +3798,7 @@ def test_customer_history(request, customer_pk):
 
 @login_required
 def test_transaction_edit(request, pk):
-    """টেস্ট লেনদেন সম্পাদনা - ক্রয় এডিট"""
+    """লেনদেন সম্পাদনা - ক্রয় এডিট"""
     transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
     
     # Only allow editing purchase transactions

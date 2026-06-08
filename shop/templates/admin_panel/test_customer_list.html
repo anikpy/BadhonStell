@@ -1,20 +1,20 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
 
-{% block title %}টেস্ট কাস্টম অর্ডার - কাস্টমার তালিকা{% endblock %}
+{% block title %}অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-title">
-        🧪 টেস্ট কাস্টম অর্ডার - কাস্টমার তালিকা
+        📋 অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা
     </div>
 
     <div class="card-actions">
-        <a href="{% url 'test_order_create' %}" class="btn btn-success">
+        <a href="{% url 'order_create_new' %}" class="btn btn-success">
             🛒 নতুন অর্ডার
         </a>
-        <a href="{% url 'test_customer_create' %}" class="btn btn-primary">
-            ➕ নতুন টেস্ট ক্রেতা
+        <a href="{% url 'order_customer_create' %}" class="btn btn-primary">
+            ➕ নতুন ক্রেতা
         </a>
     </div>
 
@@ -74,11 +74,11 @@
                         <span style="color: #dc3545;">৳{{ customer.total_purchased|floatformat:2 }}</span>
                     </td>
                     <td style="padding: 10px 8px; text-align: right;">
-                        <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
-                        <a href="{% url 'test_customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
-                        <a href="{% url 'test_transaction_purchase_create' customer.pk %}" class="btn btn-sm btn-success">🛒 ক্রয়</a>
-                        <a href="{% url 'test_customer_delete' customer.pk %}?confirm=yes" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
-                        <a href="{% url 'test_customer_delete' customer.pk %}?force=yes" class="btn btn-sm btn-warning" onclick="return confirmForceDelete('{{ customer.name }}')">⚠️ বাধ্যতামূলক মুছুন</a>
+                        <a href="{% url 'order_customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
+                        <a href="{% url 'order_customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                        <a href="{% url 'transaction_purchase_create' customer.pk %}" class="btn btn-sm btn-success">🛒 ক্রয়</a>
+                        <a href="{% url 'order_customer_delete' customer.pk %}?confirm=yes" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
+                        <a href="{% url 'order_customer_delete' customer.pk %}?force=yes" class="btn btn-sm btn-warning" onclick="return confirmForceDelete('{{ customer.name }}')">⚠️ বাধ্যতামূলক মুছুন</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -106,8 +106,8 @@
     <div style="text-align: center; padding: 40px; color: #666;">
         <div style="font-size: 3rem; margin-bottom: 10px;">🧪</div>
         <h3>কোনো কাস্টমার নেই</h3>
-        <p>এখনো কোনো টেস্ট কাস্টমার তৈরি হয়নি!</p>
-        <a href="{% url 'test_customer_create' %}" class="btn btn-success">➕ প্রথম টেস্ট কাস্টমার তৈরি করুন</a>
+        <p>এখনো কোনো ক্রেতা তৈরি হয়নি!</p>
+        <a href="{% url 'order_customer_create' %}" class="btn btn-success">➕ প্রথম ক্রেতা তৈরি করুন</a>
     </div>
     {% endif %}
 </div>
@@ -152,7 +152,7 @@ searchInput.addEventListener('input', function() {
                             <div style="font-weight: 600;">${customer.name}</div>
                             <div style="font-size: 0.9rem; color: #666;">
                                 ${customer.mobile} 
-                                <span style="color: #999;">(${customer.type === 'customer' ? 'ক্রেতা' : 'টেস্ট ক্রেতা'})</span>
+                                <span style="color: #999;">(${customer.type === 'customer' ? 'ক্রেতা' : 'অর্ডার ক্রেতা'})</span>
                             </div>
                         </div>
                     `).join('');

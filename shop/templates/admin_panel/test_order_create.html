@@ -1,19 +1,19 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
 
-{% block title %}নতুন টেস্ট অর্ডার তৈরি করুন{% endblock %}
+{% block title %}নতুন অর্ডার তৈরি করুন{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-title">
-        🛒 নতুন টেস্ট অর্ডার তৈরি করুন
+        🛒 নতুন অর্ডার তৈরি করুন
         <div style="float: right;">
-            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
         </div>
     </div>
 
     <div style="padding: 20px;">
-        <p style="margin-bottom: 20px; color: #666;">অর্ডার তৈরি করতে প্রথমে একটি টেস্ট ক্রেতা নির্বাচন করুন:</p>
+        <p style="margin-bottom: 20px; color: #666;">অর্ডার তৈরি করতে প্রথমে একটি ক্রেতা নির্বাচন করুন:</p>
         
         {% if test_customers %}
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
@@ -36,7 +36,7 @@
                         <div style="font-weight: 700; color: #dc3545; font-size: 1.1rem;">-৳{{ customer.current_balance|floatformat:2|slice:"1:" }}</div>
                         {% endif %}
                     </div>
-                    <a href="{% url 'test_transaction_purchase_create' customer.pk %}" 
+                    <a href="{% url 'transaction_purchase_create' customer.pk %}" 
                        class="btn btn-success"
                        style="white-space: nowrap;">
                         🛒 ক্রয় তৈরি করুন
@@ -48,9 +48,9 @@
         {% else %}
         <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px;">
             <div style="font-size: 3rem; margin-bottom: 15px;">👥</div>
-            <h3>কোনো টেস্ট ক্রেতা নেই</h3>
-            <p style="color: #666; margin-bottom: 20px;">অর্ডার তৈরি করতে প্রথমে একটি টেস্ট ক্রেতা তৈরি করুন</p>
-            <a href="{% url 'test_customer_create' %}" class="btn btn-primary">➕ নতুন টেস্ট ক্রেতা তৈরি করুন</a>
+            <h3>কোনো ক্রেতা নেই</h3>
+            <p style="color: #666; margin-bottom: 20px;">অর্ডার তৈরি করতে প্রথমে একটি ক্রেতা তৈরি করুন</p>
+            <a href="{% url 'order_customer_create' %}" class="btn btn-primary">➕ নতুন ক্রেতা তৈরি করুন</a>
         </div>
         {% endif %}
     </div>

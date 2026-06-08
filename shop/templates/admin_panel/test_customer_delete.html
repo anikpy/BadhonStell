@@ -8,7 +8,9 @@
     <div class="card-title">
         ⚠️ কাস্টমার মুছে ফেলা - {{ customer.name }}
         <div style="float: right;">
-            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
         </div>
     </div>
 
@@ -59,12 +61,12 @@
         <!-- Normal Delete Option -->
         <div style="margin-top: 20px;">
             <button type="submit" class="btn btn-danger">🗑️ নিশ্চিত করে মুছুন</button>
-            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">বাতিল</a>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">বাতিল</a>
         </div>
         {% endif %}
         
         <div style="margin-top: 10px;">
-            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
         </div>
     </form>
 </div>

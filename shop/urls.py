@@ -81,25 +81,25 @@ urlpatterns = [
     # API endpoint for customer search (autocomplete)
     path('api/customers/search/', views.customer_search_api, name='customer_search_api'),
     
-    # টেস্ট কাস্টম অর্ডার URLs (PRODUCTION GRADE)
-    path('admin-panel/test-customers/', views.test_customer_list, name='test_customer_list'),
-    path('admin-panel/test-customers/create/', views.test_customer_create, name='test_customer_create'),
-    path('admin-panel/test-orders/create/', views.test_order_create, name='test_order_create'),
-    path('admin-panel/test-customers/<int:pk>/', views.test_customer_detail, name='test_customer_detail'),
-    path('admin-panel/test-customers/<int:pk>/edit/', views.test_customer_edit, name='test_customer_edit'),
-    path('admin-panel/test-customers/<int:pk>/delete/', views.test_customer_delete, name='test_customer_delete'),
-    path('admin-panel/test-customers/bulk-delete/', views.test_customer_bulk_delete, name='test_customer_bulk_delete'),
+    # অর্ডার কাস্টমার URLs (Order Management System)
+    path('admin-panel/order-customers/', views.test_customer_list, name='order_customer_list'),
+    path('admin-panel/order-customers/create/', views.test_customer_create, name='order_customer_create'),
+    path('admin-panel/orders/new/', views.test_order_create, name='order_create_new'),
+    path('admin-panel/order-customers/<int:pk>/', views.test_customer_detail, name='order_customer_detail'),
+    path('admin-panel/order-customers/<int:pk>/edit/', views.test_customer_edit, name='order_customer_edit'),
+    path('admin-panel/order-customers/<int:pk>/delete/', views.test_customer_delete, name='order_customer_delete'),
+    path('admin-panel/order-customers/bulk-delete/', views.test_customer_bulk_delete, name='order_customer_bulk_delete'),
     
-    # টেস্ট লেনদেন URLs
-    path('admin-panel/test-customers/<int:customer_pk>/submission/', views.test_transaction_submission_create, name='test_transaction_submission_create'),
-    path('admin-panel/test-customers/<int:customer_pk>/purchase/', views.test_transaction_purchase_create, name='test_transaction_purchase_create'),
-    path('admin-panel/test-customers/<int:customer_pk>/withdrawal/', views.test_transaction_withdrawal_create, name='test_transaction_withdrawal_create'),
-    path('admin-panel/test-customers/<int:customer_pk>/transactions/', views.test_transaction_list, name='test_transaction_list'),
-    path('admin-panel/test-customers/<int:customer_pk>/statement/', views.test_customer_statement, name='test_customer_statement'),
-    path('admin-panel/test-customers/<int:customer_pk>/history/', views.test_customer_history, name='test_customer_history'),
-    path('admin-panel/test-transactions/<int:pk>/voucher/', views.test_transaction_voucher, name='test_transaction_voucher'),
-    path('admin-panel/test-transactions/<int:pk>/reverse/', views.test_transaction_reverse, name='test_transaction_reverse'),
-    path('admin-panel/test-transactions/<int:pk>/edit/', views.test_transaction_edit, name='test_transaction_edit'),
+    # লেনদেন URLs (Transaction URLs)
+    path('admin-panel/order-customers/<int:customer_pk>/submission/', views.test_transaction_submission_create, name='transaction_submission_create'),
+    path('admin-panel/order-customers/<int:customer_pk>/purchase/', views.test_transaction_purchase_create, name='transaction_purchase_create'),
+    path('admin-panel/order-customers/<int:customer_pk>/withdrawal/', views.test_transaction_withdrawal_create, name='transaction_withdrawal_create'),
+    path('admin-panel/order-customers/<int:customer_pk>/transactions/', views.test_transaction_list, name='transaction_list'),
+    path('admin-panel/order-customers/<int:customer_pk>/statement/', views.test_customer_statement, name='order_customer_statement'),
+    path('admin-panel/order-customers/<int:customer_pk>/history/', views.test_customer_history, name='order_customer_history'),
+    path('admin-panel/transactions/<int:pk>/voucher/', views.test_transaction_voucher, name='transaction_voucher'),
+    path('admin-panel/transactions/<int:pk>/reverse/', views.test_transaction_reverse, name='transaction_reverse'),
+    path('admin-panel/transactions/<int:pk>/edit/', views.test_transaction_edit, name='transaction_edit'),
     
     # পুরাতন URLs - Backward compatibility
     path('admin-panel/test-customers/<int:customer_pk>/submission-old/', views.test_submission_create, name='test_submission_create'),

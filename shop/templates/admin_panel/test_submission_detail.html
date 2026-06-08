@@ -8,7 +8,7 @@
     <div class="card-title">
         💰 জমা বিস্তারিত - {{ submission.customer.name }}
         <div style="float: right;">
-            <a href="{% url 'test_customer_detail' submission.customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_detail' submission.customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
             <a href="{% url 'test_submission_add_item' submission.pk %}" class="btn btn-success">➕ পণ্য যোগ করুন</a>
         </div>
     </div>

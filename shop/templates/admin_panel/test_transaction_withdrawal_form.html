@@ -9,7 +9,7 @@
     <div class="card-title">
         💸 {{ page_title }}
         <div style="float: right;">
-            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'order_customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
         </div>
     </div>
 
@@ -88,7 +88,7 @@
             <button type="submit" class="btn btn-warning" style="padding: 12px 30px; font-size: 1.1rem; color: white;">
                 💸 উত্তোলন নিশ্চিত করুন
             </button>
-            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px; font-size: 1.1rem;">বাতিল</a>
+            <a href="{% url 'order_customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px; font-size: 1.1rem;">বাতিল</a>
         </div>
     </form>
 </div>

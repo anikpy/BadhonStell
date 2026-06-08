@@ -336,7 +336,7 @@
                             <td>{{ product.name }}</td>
                             <td>{{ product.stock_quantity }} {{ product.get_unit_display }}</td>
                             <td>৳{{ product.price_per_unit|floatformat:2 }}</td>
-                            <td class="font-weight-bold text-success">৳{{ product.stock_quantity|mul:product.price_per_unit|floatformat:2 }}</td>
+                            <td class="font-weight-bold text-success">৳{{ product.calculated_value|floatformat:2 }}</td>
                         </tr>
                         {% empty %}
                         <tr>
