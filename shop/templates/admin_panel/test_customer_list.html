@@ -1,0 +1,95 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}টেস্ট কাস্টম অর্ডার - কাস্টমার তালিকা{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        🧪 টেস্ট কাস্টম অর্ডার - কাস্টমার তালিকা
+        <div style="float: right;">
+            <a href="{% url 'test_customer_create' %}" class="btn btn-success">➕ নতুন কাস্টমার</a>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div style="margin-bottom: 20px;">
+        <form method="get" style="display: flex; gap: 10px;">
+            <input type="text" name="search" value="{{ search_query }}" placeholder="নাম বা মোবাইল দিয়ে খুঁজুন" class="form-control" style="max-width: 300px;">
+            <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+            {% if search_query %}
+            <a href="?clear=1" class="btn btn-secondary">সাফ করুন</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Customers Table -->
+    {% if customers %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">নাম</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">মোবাইল</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">বর্তমান ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">মোট জমা</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">মোট ক্রয়</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px;">
+                        <strong>{{ customer.name }}</strong>
+                    </td>
+                    <td style="padding: 10px 8px;">{{ customer.mobile_number }}</td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        {% if customer.current_balance >= 0 %}
+                        <span style="font-weight: 700; font-size: 1.1rem; color: #28a745;">৳{{ customer.current_balance|floatformat:2 }}</span>
+                        {% else %}
+                        <span style="font-weight: 700; font-size: 1.1rem; color: #dc3545;">-৳{{ customer.current_balance|floatformat:2|slice:"1:" }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="color: #28a745;">৳{{ customer.total_submitted|floatformat:2 }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="color: #dc3545;">৳{{ customer.total_purchased|floatformat:2 }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
+                        <a href="{% url 'test_customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1" class="btn btn-sm">প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm">← আগের</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }}</span>
+        
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm">পরের →</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-sm">শেষ</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🧪</div>
+        <h3>কোনো কাস্টমার নেই</h3>
+        <p>এখনো কোনো টেস্ট কাস্টমার তৈরি হয়নি!</p>
+        <a href="{% url 'test_customer_create' %}" class="btn btn-success">➕ প্রথম কাস্টমার তৈরি করুন</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

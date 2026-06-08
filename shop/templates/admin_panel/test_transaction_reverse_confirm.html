@@ -1,0 +1,165 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}লেনদেন বাতিল নিশ্চিতকরণ{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div class="card-title" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">
+        ⚠️ লেনদেন বাতিল নিশ্চিতকরণ
+    </div>
+
+    <!-- Warning Banner -->
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin-bottom: 25px; border-radius: 4px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 3rem;">⚠️</div>
+            <div>
+                <h3 style="color: #856404; margin-bottom: 8px;">সতর্কতা!</h3>
+                <p style="color: #856404; line-height: 1.6; margin: 0;">
+                    আপনি এই লেনদেন বাতিল করতে চলেছেন। এটি একটি গুরুত্বপূর্ণ পদক্ষেপ যা আপনার গ্রাহকের ব্যালেন্স এবং ইনভেন্টরি স্টক প্রভাবিত করবে।
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details -->
+    <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">
+            📋 লেনদেনের বিবরণ
+        </h3>
+        
+        <div style="display: grid; gap: 12px;">
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>লেনদেন নাম্বার:</strong>
+                <span style="font-family: monospace; font-weight: 700; color: #667eea;">{{ transaction.transaction_number }}</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>লেনদেনের ধরন:</strong>
+                <span>
+                    {% if transaction.transaction_type == 'submission' %}
+                    <span style="padding: 4px 12px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600;">💰 জমা</span>
+                    {% elif transaction.transaction_type == 'purchase' %}
+                    <span style="padding: 4px 12px; border-radius: 4px; background: #cce5ff; color: #004085; font-weight: 600;">🛒 ক্রয়</span>
+                    {% elif transaction.transaction_type == 'withdrawal' %}
+                    <span style="padding: 4px 12px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600;">💸 উত্তোলন</span>
+                    {% endif %}
+                </span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>ক্রেতা:</strong>
+                <span>{{ customer.name }} ({{ customer.mobile_number }})</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>তারিখ:</strong>
+                <span>{{ transaction.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>পরিমাণ:</strong>
+                <span style="font-size: 1.3rem; font-weight: 700; {% if transaction.transaction_type == 'submission' %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                    {% if transaction.transaction_type == 'submission' %}
+                    +৳{{ transaction.amount|floatformat:2 }}
+                    {% else %}
+                    -৳{{ transaction.amount|floatformat:2 }}
+                    {% endif %}
+                </span>
+            </div>
+
+            {% if transaction.transaction_type == 'purchase' %}
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 10px;">
+                <h4 style="color: #856404; margin-bottom: 10px;">📦 ক্রয়কৃত পণ্য:</h4>
+                <div style="color: #856404;">
+                    <strong>পণ্য:</strong> {{ transaction.item_name }}<br>
+                    <strong>পরিমাণ:</strong> {{ transaction.item_quantity }}<br>
+                    <strong>একক মূল্য:</strong> ৳{{ transaction.item_unit_price|floatformat:2 }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if transaction.notes %}
+            <div style="display: grid; grid-template-columns: 180px 1fr; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
+                <strong>নোট:</strong>
+                <span>{{ transaction.notes }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Impact Analysis -->
+    <div style="background: #e7f3ff; padding: 25px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #007bff;">
+        <h3 style="color: #004085; margin-bottom: 15px;">📊 বাতিল করার প্রভাব</h3>
+        
+        <div style="display: grid; gap: 15px;">
+            <div style="background: white; padding: 15px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #495057;">বর্তমান ব্যালেন্স:</span>
+                    <span style="font-size: 1.3rem; font-weight: 700; {% if customer.current_balance >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                        {% if customer.current_balance >= 0 %}
+                        ৳{{ customer.current_balance|floatformat:2 }}
+                        {% else %}
+                        -৳{{ customer.current_balance|abs_value|floatformat:2 }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div style="text-align: center; font-size: 1.5rem; color: #667eea;">⬇️</div>
+
+            <div style="background: white; padding: 15px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #495057;">বাতিল পরে নতুন ব্যালেন্স:</span>
+                    <span style="font-size: 1.3rem; font-weight: 700; color: #667eea;">
+                        {% if transaction.transaction_type == 'submission' %}
+                            {% with new_balance=customer.current_balance|add:transaction.amount|add:"-"|floatformat:2 %}
+                                {% if new_balance >= 0 %}৳{% else %}-৳{% endif %}{{ new_balance|abs_value }}
+                            {% endwith %}
+                        {% else %}
+                            {% with new_balance=customer.current_balance|add:transaction.amount|floatformat:2 %}
+                                {% if new_balance >= 0 %}৳{% else %}-৳{% endif %}{{ new_balance|abs_value }}
+                            {% endwith %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            {% if transaction.transaction_type == 'purchase' and transaction.inventory_product %}
+            <div style="background: #d4edda; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                <div style="color: #155724;">
+                    <strong>✅ স্টক পুনরুদ্ধার:</strong><br>
+                    {{ transaction.item_name }} এর স্টক {{ transaction.item_quantity }} যোগ হবে
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <form method="post" style="text-align: center; padding: 25px; background: #f8f9fa; border-radius: 8px;">
+        {% csrf_token %}
+        
+        <p style="font-size: 1.1rem; margin-bottom: 20px; color: #495057;">
+            আপনি কি নিশ্চিত যে আপনি এই লেনদেন বাতিল করতে চান?
+        </p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            <button type="submit" class="btn btn-danger" style="padding: 15px 40px; font-size: 1.1rem; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none; border-radius: 6px; color: white; cursor: pointer;">
+                ✓ হ্যাঁ, বাতিল করুন
+            </button>
+            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 15px 40px; font-size: 1.1rem; background: #6c757d; border: none; border-radius: 6px; color: white; text-decoration: none; display: inline-block;">
+                ✗ না, ফিরে যান
+            </a>
+        </div>
+    </form>
+
+    <!-- Additional Info -->
+    <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-top: 20px;">
+        <p style="font-size: 0.9rem; color: #495057; text-align: center; margin: 0;">
+            <strong>দ্রষ্টব্য:</strong> বাতিলকরণ একটি নতুন "রিভার্সাল" লেনদেন তৈরি করবে। মূল লেনদেন ডেটাবেসে থাকবে কিন্তু "বাতিলকৃত" চিহ্নিত হবে।
+        </p>
+    </div>
+</div>
+{% endblock %}

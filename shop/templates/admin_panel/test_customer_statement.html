@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ customer.name }} - হিসাব বিবরণী</title>
+    {% load custom_filters %}
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .statement-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .statement-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .statement-header h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .statement-header p {
+            font-size: 1rem;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .statement-title {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .customer-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .customer-info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .customer-info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .customer-info-value {
+            color: #212529;
+        }
+
+        .summary-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .summary-box {
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-box.submitted {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .summary-box.purchased {
+            background: #cce5ff;
+            border-left: 4px solid #007bff;
+        }
+
+        .summary-box.withdrawn {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .summary-box.balance {
+            background: #e7e8ea;
+            border-left: 4px solid #6c757d;
+        }
+
+        .summary-label {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        .summary-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .transactions-table thead tr {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .transactions-table th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .transactions-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 0.85rem;
+        }
+
+        .transactions-table tr.reversed {
+            opacity: 0.5;
+            background: #f8f9fa;
+        }
+
+        .txn-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .txn-badge.submission {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .txn-badge.purchase {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .txn-badge.withdrawal {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .txn-badge.reversal {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .amount-positive {
+            color: #28a745;
+            font-weight: 700;
+        }
+
+        .amount-negative {
+            color: #dc3545;
+            font-weight: 700;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px dashed #ccc;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 1rem;
+            margin: 0 5px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            .statement-container {
+                box-shadow: none;
+                padding: 15px;
+                max-width: 100%;
+            }
+
+            .statement-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .statement-title {
+                padding: 10px;
+                font-size: 1.2rem;
+            }
+
+            .transactions-table {
+                font-size: 0.7rem;
+            }
+
+            .transactions-table th,
+            .transactions-table td {
+                padding: 6px 4px;
+            }
+
+            .txn-badge {
+                font-size: 0.65rem;
+                padding: 2px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'test_customer_detail' customer.pk %}" class="btn">← ফিরে যান</a>
+    </div>
+    
+    <div class="statement-container">
+        <div class="statement-header">
+            <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
+            <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
+            <p>📞 {{ shop_info.phone|default:"+8801727555673" }}</p>
+        </div>
+        
+        <div class="statement-title">
+            📄 হিসাব বিবরণী / Account Statement
+        </div>
+
+        <!-- Customer Info -->
+        <div class="customer-info">
+            <div class="customer-info-row">
+                <div class="customer-info-label">ক্রেতার নাম:</div>
+                <div class="customer-info-value">{{ customer.name }}</div>
+            </div>
+            
+            <div class="customer-info-row">
+                <div class="customer-info-label">মোবাইল নাম্বার:</div>
+                <div class="customer-info-value">{{ customer.mobile_number }}</div>
+            </div>
+            
+            {% if customer.address %}
+            <div class="customer-info-row">
+                <div class="customer-info-label">ঠিকানা:</div>
+                <div class="customer-info-value">{{ customer.address }}</div>
+            </div>
+            {% endif %}
+            
+            <div class="customer-info-row">
+                <div class="customer-info-label">বিবরণী তৈরির তারিখ:</div>
+                <div class="customer-info-value">{{ today|date:"d/m/Y H:i" }}</div>
+            </div>
+
+            {% if date_from or date_to %}
+            <div class="customer-info-row">
+                <div class="customer-info-label">তারিখ সীমা:</div>
+                <div class="customer-info-value">
+                    {% if date_from %}{{ date_from }}{% else %}শুরু{% endif %} 
+                    থেকে 
+                    {% if date_to %}{{ date_to }}{% else %}বর্তমান{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-section">
+            <div class="summary-box submitted">
+                <div class="summary-label">মোট জমা</div>
+                <div class="summary-value" style="color: #155724;">৳{{ customer.total_submitted|floatformat:2 }}</div>
+            </div>
+            
+            <div class="summary-box purchased">
+                <div class="summary-label">মোট ক্রয়</div>
+                <div class="summary-value" style="color: #004085;">৳{{ customer.total_purchased|floatformat:2 }}</div>
+            </div>
+            
+            <div class="summary-box withdrawn">
+                <div class="summary-label">মোট উত্তোলন</div>
+                <div class="summary-value" style="color: #856404;">৳{{ customer.total_withdrawn|floatformat:2 }}</div>
+            </div>
+            
+            <div class="summary-box balance">
+                <div class="summary-label">বর্তমান ব্যালেন্স</div>
+                <div class="summary-value" style="{% if customer.current_balance >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    -৳{{ customer.current_balance|abs_value|floatformat:2 }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <h3 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 8px;">
+            📊 লেনদেনের বিস্তারিত
+        </h3>
+
+        {% if transactions %}
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th style="width: 12%;">তারিখ</th>
+                    <th style="width: 15%;">লেনদেন নং</th>
+                    <th style="width: 10%;">ধরন</th>
+                    <th style="width: 28%;">বিবরণ</th>
+                    <th style="width: 12%; text-align: right;">পরিমাণ</th>
+                    <th style="width: 12%; text-align: right;">ব্যালেন্স</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr {% if txn.is_reversed %}class="reversed"{% endif %}>
+                    <td>{{ txn.created_at|date:"d/m/y" }}</td>
+                    <td style="font-family: monospace; font-size: 0.75rem;">{{ txn.transaction_number }}</td>
+                    <td>
+                        <span class="txn-badge {{ txn.transaction_type }}">
+                            {% if txn.transaction_type == 'submission' %}জমা
+                            {% elif txn.transaction_type == 'purchase' %}ক্রয়
+                            {% elif txn.transaction_type == 'withdrawal' %}উত্তোলন
+                            {% elif txn.transaction_type == 'reversal' %}বাতিল
+                            {% endif %}
+                        </span>
+                        {% if txn.is_reversed %}<br><small style="color: #dc3545;">✗</small>{% endif %}
+                    </td>
+                    <td>
+                        {% if txn.transaction_type == 'purchase' %}
+                            {{ txn.item_name|truncatewords:5 }}
+                            {% if txn.item_quantity %}<br><small>{{ txn.item_quantity }} × ৳{{ txn.item_unit_price }}</small>{% endif %}
+                        {% elif txn.notes %}
+                            {{ txn.notes|truncatewords:8 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span class="amount-positive">+৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'purchase' or txn.transaction_type == 'withdrawal' %}
+                        <span class="amount-negative">-৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                            {% if txn.reverses_transaction.transaction_type == 'submission' %}
+                            <span class="amount-negative">-৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="amount-positive">+৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700;">
+                        {% if txn.balance_after >= 0 %}
+                        <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
+                        {% else %}
+                        <span style="color: #dc3545;">-৳{{ txn.balance_after|abs_value|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px;">
+            <p style="color: #666;">কোনো লেনদেন পাওয়া যায়নি</p>
+        </div>
+        {% endif %}
+        
+        <div class="footer-note">
+            <p><strong>দ্রষ্টব্য:</strong> এই বিবরণীতে সম্পূর্ণ লেনদেন ইতিহাস দেখানো হয়েছে।</p>
+            <p style="margin-top: 10px;">ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: +8801727555673</p>
+        </div>
+    </div>
+</body>
+</html>

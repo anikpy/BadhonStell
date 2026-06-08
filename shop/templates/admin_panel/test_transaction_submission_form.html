@@ -1,0 +1,89 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ customer.name }} - নতুন জমা{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        💰 {{ page_title }}
+        <div style="float: right;">
+            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Customer Info Banner -->
+    <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; color: white;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">ক্রেতা</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.name }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোবাইল</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.mobile_number }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    -৳{{ customer.current_balance|abs_value|floatformat:2 }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.amount.label }}</label>
+            {{ form.amount }}
+            {% if form.amount.errors %}
+            <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.amount.errors.0 }}</div>
+            {% endif %}
+            <div style="color: #6c757d; margin-top: 5px; font-size: 0.875rem;">
+                💡 বাংলা বা ইংরেজি সংখ্যা উভয়ই ব্যবহার করতে পারবেন
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+            <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.notes.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #e9ecef;">
+            <button type="submit" class="btn btn-success" style="padding: 12px 30px; font-size: 1.1rem;">
+                💰 জমা নিশ্চিত করুন
+            </button>
+            <a href="{% url 'test_customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px; font-size: 1.1rem;">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-control {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border: 2px solid #ced4da;
+    border-radius: 6px;
+    transition: border-color 0.15s ease-in-out;
+    font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+</style>
+{% endblock %}

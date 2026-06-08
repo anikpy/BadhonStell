@@ -553,6 +553,7 @@
                 <a href="{% url 'admin_dashboard' %}" {% if request.resolver_match.url_name == 'admin_dashboard' %}class="active"{% endif %}>🏠 ড্যাশবোর্ড</a>
                 <a href="{% url 'order_list' %}" {% if 'order' in request.resolver_match.url_name %}class="active"{% endif %}>📋 কাস্টম অর্ডার</a>
                 <a href="{% url 'completed_order_list' %}" {% if request.resolver_match.url_name == 'completed_order_list' %}class="active"{% endif %}>✅ সম্পন্ন</a>
+                <a href="{% url 'test_customer_list' %}" {% if 'test_customer' in request.resolver_match.url_name or 'test_submission' in request.resolver_match.url_name %}class="active"{% endif %}>🧪 টেস্ট অর্ডার</a>
                 <a href="{% url 'inventory_product_list' %}" {% if 'inventory' in request.resolver_match.url_name %}class="active"{% endif %}>📦 ইনভেন্টরি</a>
                 <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>
                 <a href="{% url 'due_accounts_list' %}" {% if request.resolver_match.url_name == 'due_accounts_list' %}class="active"{% endif %}>📝 বাকি খাতা</a>

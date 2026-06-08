@@ -590,3 +590,202 @@ def update_customer_balance_on_deposit_edit(sender, instance, created, **kwargs)
             customer = instance.customer
             customer.deposit_balance += difference
             customer.save()
+
+
+
+# ==================== টেস্ট কাস্টম অর্ডার সিস্টেম (PRODUCTION GRADE) ====================
+
+class TestCustomer(models.Model):
+    """টেস্ট কাস্টম অর্ডারের জন্য গ্রাহক"""
+    name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
+    mobile_number = models.CharField(max_length=20, unique=True, verbose_name='মোবাইল নাম্বার')
+    address = models.TextField(verbose_name='ঠিকানা', blank=True)
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বর্তমান ব্যালেন্স', default=0)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+
+    class Meta:
+        verbose_name = 'টেস্ট কাস্টমার'
+        verbose_name_plural = 'টেস্ট কাস্টমারসমূহ'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.mobile_number}"
+
+    @property
+    def total_submitted(self):
+        """মোট জমা"""
+        from django.db.models import Sum
+        result = self.test_transactions.filter(
+            transaction_type='submission',
+            status='completed'
+        ).aggregate(total=Sum('amount'))
+        return result['total'] or 0
+
+    @property
+    def total_purchased(self):
+        """মোট ক্রয়"""
+        from django.db.models import Sum
+        result = self.test_transactions.filter(
+            transaction_type='purchase',
+            status='completed'
+        ).aggregate(total=Sum('amount'))
+        return abs(result['total'] or 0)
+
+    @property
+    def total_withdrawn(self):
+        """মোট উত্তোলন"""
+        from django.db.models import Sum
+        result = self.test_transactions.filter(
+            transaction_type='withdrawal',
+            status='completed'
+        ).aggregate(total=Sum('amount'))
+        return abs(result['total'] or 0)
+
+
+class TestCustomerTransaction(models.Model):
+    """টেস্ট কাস্টমার লেনদেন - সকল লেনদেনের জন্য একক মডেল"""
+    
+    TRANSACTION_TYPE_CHOICES = [
+        ('submission', 'জমা'),
+        ('purchase', 'ক্রয়'),
+        ('withdrawal', 'উত্তোলন'),
+        ('adjustment', 'সমন্বয়'),
+        ('reversal', 'বাতিল'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'অপেক্ষমাণ'),
+        ('completed', 'সম্পন্ন'),
+        ('cancelled', 'বাতিলকৃত'),
+    ]
+    
+    # Core fields
+    transaction_number = models.CharField(max_length=50, unique=True, verbose_name='লেনদেন নাম্বার', editable=False)
+    customer = models.ForeignKey(TestCustomer, on_delete=models.PROTECT, related_name='test_transactions', verbose_name='ক্রেতা')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES, verbose_name='লেনদেনের ধরন')
+    
+    # Financial tracking
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    balance_before = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পূর্ববর্তী ব্যালেন্স', default=0)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নতুন ব্যালেন্স', default=0)
+    
+    # Item details (for purchase type)
+    item_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম', blank=True)
+    item_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
+    item_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', null=True, blank=True)
+    item_unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য', null=True, blank=True)
+    inventory_product = models.ForeignKey(InventoryProduct, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='ইনভেন্টরি পণ্য')
+    
+    # Status and audit
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', verbose_name='অবস্থা')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    
+    # Reversal tracking
+    reverses_transaction = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
+                                             related_name='reversed_by_transactions', verbose_name='বাতিলকৃত লেনদেন')
+    is_reversed = models.BooleanField(default=False, verbose_name='বাতিল হয়েছে')
+    
+    # Staff tracking
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='তৈরিকারী')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির সময়')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের সময়')
+    
+    class Meta:
+        verbose_name = 'টেস্ট লেনদেন'
+        verbose_name_plural = 'টেস্ট লেনদেনসমূহ'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['customer', '-created_at']),
+            models.Index(fields=['transaction_type', 'status']),
+            models.Index(fields=['transaction_number']),
+        ]
+    
+    def __str__(self):
+        return f"{self.transaction_number} - {self.get_transaction_type_display()} - ৳{self.amount}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate transaction number
+        if not self.transaction_number:
+            from django.utils import timezone
+            year = timezone.now().year
+            last_txn = TestCustomerTransaction.objects.filter(
+                transaction_number__startswith=f'TCO-{year}'
+            ).order_by('-transaction_number').first()
+            
+            if last_txn and last_txn.transaction_number:
+                try:
+                    last_num = int(last_txn.transaction_number.split('-')[-1])
+                    new_num = last_num + 1
+                except:
+                    new_num = 1
+            else:
+                new_num = 1
+            
+            self.transaction_number = f"TCO-{year}-{new_num:05d}"
+        
+        # Calculate balance_before and balance_after
+        if not self.pk:  # New transaction
+            self.balance_before = self.customer.current_balance
+            
+            if self.transaction_type == 'submission':
+                self.balance_after = self.balance_before + self.amount
+            elif self.transaction_type in ['purchase', 'withdrawal']:
+                self.balance_after = self.balance_before - abs(self.amount)
+            elif self.transaction_type == 'adjustment':
+                self.balance_after = self.balance_before + self.amount
+            elif self.transaction_type == 'reversal':
+                # Reversal inverts the original transaction
+                self.balance_after = self.balance_before + self.amount
+        
+        super().save(*args, **kwargs)
+        
+        # Update customer balance
+        if self.status == 'completed' and not self.is_reversed:
+            self.customer.current_balance = self.balance_after
+            self.customer.save()
+
+
+# Keep old models for backward compatibility (marked as deprecated)
+class TestCustomerSubmission(models.Model):
+    """DEPRECATED - Use TestCustomerTransaction instead"""
+    customer = models.ForeignKey(TestCustomer, on_delete=models.CASCADE, related_name='submissions', verbose_name='ক্রেতা')
+    submitted_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='জমার পরিমাণ')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    submission_date = models.DateTimeField(auto_now_add=True, verbose_name='জমার তারিখ')
+
+    class Meta:
+        verbose_name = 'টেস্ট কাস্টমার জমা (পুরাতন)'
+        verbose_name_plural = 'টেস্ট কাস্টমার জমাসমূহ (পুরাতন)'
+        ordering = ['-submission_date']
+
+    def __str__(self):
+        return f"{self.customer.name} - ৳{self.submitted_amount}"
+
+    @property
+    def remaining_amount(self):
+        """বাকি পরিমাণ = জমা - ব্যয়"""
+        total_spent = sum(item.total_price for item in self.items.all())
+        return self.submitted_amount - total_spent
+
+
+class TestCustomerItem(models.Model):
+    """DEPRECATED - Use TestCustomerTransaction instead"""
+    submission = models.ForeignKey(TestCustomerSubmission, on_delete=models.CASCADE, related_name='items', verbose_name='জমা')
+    product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    product_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট মূল্য', editable=False)
+    added_date = models.DateTimeField(auto_now_add=True, verbose_name='যুক্ত তারিখ')
+
+    class Meta:
+        verbose_name = 'টেস্ট কাস্টম আইটেম (পুরাতন)'
+        verbose_name_plural = 'টেস্ট কাস্টম আইটেমসমূহ (পুরাতন)'
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.product_name} × {self.quantity} - {self.submission.customer.name}"

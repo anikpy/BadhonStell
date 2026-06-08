@@ -3,9 +3,9 @@ from django import template
 register = template.Library()
 
 @register.filter
-def mul(value, arg):
-    """Multiply two numbers"""
+def abs_value(value):
+    """Return absolute value of a number"""
     try:
-        return float(value) * float(arg)
+        return abs(float(value))
     except (ValueError, TypeError):
-        return 0
+        return value

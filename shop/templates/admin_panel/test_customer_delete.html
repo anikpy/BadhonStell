@@ -1,0 +1,49 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}কাস্টমার মুছে ফেলা - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        ⚠️ কাস্টমার মুছে ফেলা - {{ customer.name }}
+        <div style="float: right;">
+            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="color: #856404; font-weight: 600; margin-bottom: 10px;">⚠️ সতর্কতা</div>
+        <p style="color: #856404; margin: 0;">এই কাস্টমার এবং তার সকল জমা ও পণ্য মুছে ফেলা হবে। এই পদক্ষেপ বাতিল করা যাবে না।</p>
+    </div>
+
+    <!-- Customer Details -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+            <div>
+                <strong>মোট জমা:</strong><br>
+                ৳{{ customer.submissions.all|dictsort:"submitted_amount"|sum:"submitted_amount"|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-danger">🗑️ নিশ্চিত করে মুছুন</button>
+            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

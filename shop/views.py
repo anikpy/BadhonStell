@@ -31,8 +31,17 @@ from .models import (
     Customer,
     PriceHistory,
     CustomerDeposit,
+    TestCustomer,
+    TestCustomerSubmission,
+    TestCustomerItem,
+    TestCustomerTransaction,
 )
-from .forms import OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, StockManagementForm, CustomerForm, CustomerDepositForm
+from .forms import (
+    OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, 
+    StockManagementForm, CustomerForm, CustomerDepositForm, TestCustomerForm, 
+    TestCustomerSubmissionForm, TestTransactionSubmissionForm, 
+    TestTransactionPurchaseForm, TestTransactionWithdrawalForm
+)
 from decimal import Decimal
 import json
 
@@ -2978,3 +2987,467 @@ def print_stock_history_pdf(request):
     
     doc.build(elements)
     return response
+
+
+
+# ==================== টেস্ট কাস্টম অর্ডার ভিউ (PRODUCTION GRADE) ====================
+
+@login_required
+def test_customer_list(request):
+    """টেস্ট কাস্টমার তালিকা"""
+    search_query = request.GET.get('search', '')
+    
+    customers = TestCustomer.objects.all().order_by('-created_at')
+    
+    if search_query:
+        customers = customers.filter(
+            Q(name__icontains=search_query) | Q(mobile_number__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(customers, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'customers': page_obj.object_list,
+        'search_query': search_query,
+        'total_customers': customers.count(),
+    }
+    return render(request, 'admin_panel/test_customer_list.html', context)
+
+
+@login_required
+def test_customer_create(request):
+    """টেস্ট কাস্টমার তৈরি করা"""
+    if request.method == 'POST':
+        form = TestCustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'✅ {customer.name} সফলভাবে যুক্ত হয়েছে!')
+            return redirect('test_customer_detail', pk=customer.pk)
+    else:
+        form = TestCustomerForm()
+    
+    context = {
+        'form': form,
+        'page_title': 'নতুন টেস্ট কাস্টমার তৈরি করুন',
+    }
+    return render(request, 'admin_panel/test_customer_form.html', context)
+
+
+@login_required
+def test_customer_detail(request, pk):
+    """টেস্ট কাস্টমার বিস্তারিত - লেনদেন ভিত্তিক"""
+    customer = get_object_or_404(TestCustomer, pk=pk)
+    
+    # Get all transactions
+    transactions = customer.test_transactions.filter(status='completed').order_by('-created_at')
+    
+    # Get transaction counts
+    submission_count = transactions.filter(transaction_type='submission').count()
+    purchase_count = transactions.filter(transaction_type='purchase').count()
+    withdrawal_count = transactions.filter(transaction_type='withdrawal').count()
+    
+    context = {
+        'customer': customer,
+        'transactions': transactions[:10],  # Show last 10
+        'total_transactions': transactions.count(),
+        'submission_count': submission_count,
+        'purchase_count': purchase_count,
+        'withdrawal_count': withdrawal_count,
+    }
+    return render(request, 'admin_panel/test_customer_detail.html', context)
+
+
+@login_required
+def test_customer_edit(request, pk):
+    """টেস্ট কাস্টমার সম্পাদনা"""
+    customer = get_object_or_404(TestCustomer, pk=pk)
+    
+    if request.method == 'POST':
+        form = TestCustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'✅ {customer.name} সফলভাবে আপডেট হয়েছে!')
+            return redirect('test_customer_detail', pk=customer.pk)
+    else:
+        form = TestCustomerForm(instance=customer)
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'page_title': f'{customer.name} - সম্পাদনা করুন',
+    }
+    return render(request, 'admin_panel/test_customer_form.html', context)
+
+
+@login_required
+def test_customer_delete(request, pk):
+    """টেস্ট কাস্টমার মুছে ফেলা"""
+    customer = get_object_or_404(TestCustomer, pk=pk)
+    
+    # Check if customer has transactions
+    if customer.test_transactions.exists():
+        messages.error(request, f'❌ এই ক্রেতার লেনদেন আছে। মুছে ফেলা যাবে না!')
+        return redirect('test_customer_detail', pk=customer.pk)
+    
+    if request.method == 'POST':
+        name = customer.name
+        customer.delete()
+        messages.success(request, f'✅ {name} সফলভাবে মুছে ফেলা হয়েছে!')
+        return redirect('test_customer_list')
+    
+    context = {
+        'customer': customer,
+    }
+    return render(request, 'admin_panel/test_customer_delete.html', context)
+
+
+# ==================== টেস্ট লেনদেন - জমা (SUBMISSION) ====================
+
+@login_required
+def test_transaction_submission_create(request, customer_pk):
+    """টেস্ট লেনদেন - জমা তৈরি করা"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    
+    if request.method == 'POST':
+        form = TestTransactionSubmissionForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            notes = form.cleaned_data.get('notes', '')
+            
+            # Create transaction
+            transaction = TestCustomerTransaction.objects.create(
+                customer=customer,
+                transaction_type='submission',
+                amount=amount,
+                notes=notes,
+                status='completed',
+                created_by=request.user
+            )
+            
+            messages.success(request, f'✅ ৳{amount} জমা সফলভাবে যুক্ত হয়েছে! লেনদেন নং: {transaction.transaction_number}')
+            return redirect('test_transaction_voucher', pk=transaction.pk)
+    else:
+        form = TestTransactionSubmissionForm()
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'page_title': f'{customer.name} - নতুন জমা',
+    }
+    return render(request, 'admin_panel/test_transaction_submission_form.html', context)
+
+
+# ==================== টেস্ট লেনদেন - ক্রয় (PURCHASE) ====================
+
+@login_required
+def test_transaction_purchase_create(request, customer_pk):
+    """টেস্ট লেনদেন - ক্রয় তৈরি করা"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    
+    if request.method == 'POST':
+        form = TestTransactionPurchaseForm(request.POST)
+        if form.is_valid():
+            inventory_product = form.cleaned_data['inventory_product']
+            quantity = form.cleaned_data['quantity']
+            unit_price = form.cleaned_data['unit_price']
+            item_description = form.cleaned_data.get('item_description', '')
+            notes = form.cleaned_data.get('notes', '')
+            
+            # Calculate total amount
+            total_amount = quantity * unit_price
+            
+            # Check stock availability
+            if inventory_product.stock_quantity < quantity:
+                messages.error(request, f'❌ স্টক অপর্যাপ্ত! বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}')
+                return redirect('test_transaction_purchase_create', customer_pk=customer_pk)
+            
+            # Create transaction (amount is negative for purchase)
+            transaction = TestCustomerTransaction.objects.create(
+                customer=customer,
+                transaction_type='purchase',
+                amount=total_amount,  # Store as positive, balance calculation handles sign
+                item_name=inventory_product.name,
+                item_description=item_description,
+                item_quantity=quantity,
+                item_unit_price=unit_price,
+                inventory_product=inventory_product,
+                notes=notes,
+                status='completed',
+                created_by=request.user
+            )
+            
+            # Deduct from inventory
+            inventory_product.remove_stock(quantity)
+            
+            # Create stock history
+            StockHistory.objects.create(
+                product=inventory_product,
+                operation='sale',
+                quantity=quantity,
+                previous_quantity=inventory_product.stock_quantity + quantity,
+                new_quantity=inventory_product.stock_quantity,
+                notes=f'টেস্ট অর্ডার - {customer.name} ({transaction.transaction_number})'
+            )
+            
+            messages.success(request, f'✅ ক্রয় সফল! ৳{total_amount} | লেনদেন নং: {transaction.transaction_number}')
+            return redirect('test_transaction_voucher', pk=transaction.pk)
+    else:
+        form = TestTransactionPurchaseForm()
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'page_title': f'{customer.name} - নতুন ক্রয়',
+    }
+    return render(request, 'admin_panel/test_transaction_purchase_form.html', context)
+
+
+# ==================== টেস্ট লেনদেন - উত্তোলন (WITHDRAWAL) ====================
+
+@login_required
+def test_transaction_withdrawal_create(request, customer_pk):
+    """টেস্ট লেনদেন - উত্তোলন তৈরি করা"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    
+    if request.method == 'POST':
+        form = TestTransactionWithdrawalForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            notes = form.cleaned_data.get('notes', '')
+            
+            # Check if customer has sufficient balance (allow negative)
+            # if customer.current_balance < amount:
+            #     messages.warning(request, f'⚠️ বর্তমান ব্যালেন্স: ৳{customer.current_balance}। উত্তোলন পরে নেগেটিভ হবে।')
+            
+            # Create transaction (amount is negative for withdrawal)
+            transaction = TestCustomerTransaction.objects.create(
+                customer=customer,
+                transaction_type='withdrawal',
+                amount=amount,  # Store as positive, balance calculation handles sign
+                notes=notes,
+                status='completed',
+                created_by=request.user
+            )
+            
+            messages.success(request, f'✅ ৳{amount} উত্তোলন সফল! লেনদেন নং: {transaction.transaction_number}')
+            return redirect('test_transaction_voucher', pk=transaction.pk)
+    else:
+        form = TestTransactionWithdrawalForm()
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'page_title': f'{customer.name} - টাকা উত্তোলন',
+    }
+    return render(request, 'admin_panel/test_transaction_withdrawal_form.html', context)
+
+
+# ==================== টেস্ট লেনদেন - ভাউচার & তালিকা ====================
+
+@login_required
+def test_transaction_voucher(request, pk):
+    """টেস্ট লেনদেন ভাউচার"""
+    transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
+    shop_info = ShopInfo.objects.first()
+    
+    context = {
+        'transaction': transaction,
+        'customer': transaction.customer,
+        'shop_info': shop_info,
+    }
+    return render(request, 'admin_panel/test_transaction_voucher.html', context)
+
+
+@login_required
+def test_transaction_list(request, customer_pk):
+    """টেস্ট লেনদেন তালিকা - নির্দিষ্ট ক্রেতার জন্য"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    
+    transaction_type = request.GET.get('type', '')
+    date_from = request.GET.get('from_date', '')
+    date_to = request.GET.get('to_date', '')
+    
+    transactions = customer.test_transactions.filter(status='completed').order_by('-created_at')
+    
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+    
+    if date_from:
+        transactions = transactions.filter(created_at__gte=date_from)
+    
+    if date_to:
+        transactions = transactions.filter(created_at__lte=date_to)
+    
+    # Pagination
+    paginator = Paginator(transactions, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'customer': customer,
+        'page_obj': page_obj,
+        'transactions': page_obj.object_list,
+        'transaction_type': transaction_type,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    return render(request, 'admin_panel/test_transaction_list.html', context)
+
+
+@login_required
+def test_transaction_reverse(request, pk):
+    """টেস্ট লেনদেন বাতিল/রিভার্স করা"""
+    transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
+    
+    if transaction.is_reversed:
+        messages.error(request, '❌ এই লেনদেন ইতিমধ্যেই বাতিল করা হয়েছে!')
+        return redirect('test_customer_detail', pk=transaction.customer.pk)
+    
+    if request.method == 'POST':
+        # Create reversal transaction
+        reversal_amount = -transaction.amount if transaction.transaction_type == 'submission' else transaction.amount
+        
+        reversal = TestCustomerTransaction.objects.create(
+            customer=transaction.customer,
+            transaction_type='reversal',
+            amount=reversal_amount,
+            notes=f'বাতিল: {transaction.transaction_number} - {transaction.get_transaction_type_display()}',
+            reverses_transaction=transaction,
+            status='completed',
+            created_by=request.user
+        )
+        
+        # Mark original as reversed
+        transaction.is_reversed = True
+        transaction.save()
+        
+        # If it was a purchase, restore inventory stock
+        if transaction.transaction_type == 'purchase' and transaction.inventory_product:
+            transaction.inventory_product.add_stock(transaction.item_quantity)
+            
+            # Create stock history
+            StockHistory.objects.create(
+                product=transaction.inventory_product,
+                operation='adjustment',
+                quantity=transaction.item_quantity,
+                previous_quantity=transaction.inventory_product.stock_quantity - transaction.item_quantity,
+                new_quantity=transaction.inventory_product.stock_quantity,
+                notes=f'লেনদেন বাতিল: {transaction.transaction_number}'
+            )
+        
+        messages.success(request, f'✅ লেনদেন বাতিল সফল! রিভার্সাল নং: {reversal.transaction_number}')
+        return redirect('test_customer_detail', pk=transaction.customer.pk)
+    
+    context = {
+        'transaction': transaction,
+        'customer': transaction.customer,
+    }
+    return render(request, 'admin_panel/test_transaction_reverse_confirm.html', context)
+
+
+@login_required
+def test_customer_statement(request, customer_pk):
+    """টেস্ট কাস্টমার স্টেটমেন্ট - সম্পূর্ণ লেনদেন ইতিহাস"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    shop_info = ShopInfo.objects.first()
+    
+    date_from = request.GET.get('from_date', '')
+    date_to = request.GET.get('to_date', '')
+    
+    transactions = customer.test_transactions.filter(status='completed').order_by('created_at')
+    
+    if date_from:
+        transactions = transactions.filter(created_at__gte=date_from)
+    
+    if date_to:
+        transactions = transactions.filter(created_at__lte=date_to)
+    
+    context = {
+        'customer': customer,
+        'shop_info': shop_info,
+        'transactions': transactions,
+        'date_from': date_from,
+        'date_to': date_to,
+        'today': timezone.now(),
+    }
+    return render(request, 'admin_panel/test_customer_statement.html', context)
+
+
+# ==================== OLD VIEWS - Keep for backward compatibility ====================
+
+@login_required
+def test_submission_create(request, customer_pk):
+    """DEPRECATED - Use test_transaction_submission_create instead"""
+    return redirect('test_transaction_submission_create', customer_pk=customer_pk)
+
+
+@login_required
+def test_submission_detail(request, pk):
+    """DEPRECATED - টেস্ট জমা বিস্তারিত"""
+    submission = get_object_or_404(TestCustomerSubmission, pk=pk)
+    items = submission.items.all()
+    
+    total_spent = sum(item.total_price for item in items)
+    remaining = submission.submitted_amount - total_spent
+    
+    context = {
+        'submission': submission,
+        'items': items,
+        'total_spent': total_spent,
+        'remaining': remaining,
+    }
+    return render(request, 'admin_panel/test_submission_detail.html', context)
+
+
+@login_required
+def test_submission_add_item(request, submission_pk):
+    """DEPRECATED - টেস্ট জমায় পণ্য যোগ করা"""
+    submission = get_object_or_404(TestCustomerSubmission, pk=submission_pk)
+    
+    if request.method == 'POST':
+        product_name = request.POST.get('product_name')
+        product_description = request.POST.get('product_description', '')
+        quantity = request.POST.get('quantity')
+        unit_price = request.POST.get('unit_price')
+        
+        if product_name and quantity and unit_price:
+            try:
+                from decimal import Decimal
+                quantity = Decimal(quantity)
+                unit_price = Decimal(unit_price)
+                
+                item = TestCustomerItem.objects.create(
+                    submission=submission,
+                    product_name=product_name,
+                    product_description=product_description,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                )
+                
+                messages.success(request, f'✅ {product_name} সফলভাবে যুক্ত হয়েছে!')
+                return redirect('test_submission_detail', pk=submission_pk)
+            except Exception as e:
+                messages.error(request, f'❌ ত্রুটি: {str(e)}')
+    
+    context = {
+        'submission': submission,
+    }
+    return render(request, 'admin_panel/test_submission_add_item.html', context)
+
+
+@login_required
+def test_submission_remove_item(request, item_pk):
+    """DEPRECATED - টেস্ট জমা থেকে পণ্য সরানো"""
+    item = get_object_or_404(TestCustomerItem, pk=item_pk)
+    submission = item.submission
+    
+    if request.method == 'POST':
+        product_name = item.product_name
+        item.delete()
+        messages.success(request, f'✅ {product_name} সফলভাবে সরানো হয়েছে!')
+    
+    return redirect('test_submission_detail', pk=submission.pk)

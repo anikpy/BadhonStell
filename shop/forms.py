@@ -1,6 +1,10 @@
 from django import forms
 from decimal import InvalidOperation
-from .models import Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem, Customer, CustomerDeposit
+from .models import (
+    Order, InventoryProduct, Invoice, Payment, OrderPayment, OrderItem, 
+    Customer, CustomerDeposit, TestCustomer, TestCustomerSubmission, 
+    TestCustomerItem, TestCustomerTransaction
+)
 
 
 def bangla_to_english_number(text):
@@ -570,6 +574,265 @@ class CustomerDepositForm(forms.ModelForm):
     def clean_amount(self):
         from decimal import Decimal, InvalidOperation
         amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('জমার পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        return Decimal('0')
+
+
+
+# ==================== টেস্ট কাস্টম অর্ডার ফর্ম (PRODUCTION GRADE) ====================
+
+class TestCustomerForm(forms.ModelForm):
+    """টেস্ট কাস্টমার ফর্ম"""
+
+    class Meta:
+        model = TestCustomer
+        fields = ['name', 'mobile_number', 'address']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ক্রেতার নাম লিখুন'
+            }),
+            'mobile_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'মোবাইল নাম্বার (উদাহরণ: 01712345678)',
+                'autocomplete': 'off',
+            }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'ঠিকানা লিখুন (ঐচ্ছিক)'
+            }),
+        }
+
+    def clean_mobile_number(self):
+        """মোবাইল নাম্বার ক্লিন করা এবং ভ্যালিডেশন"""
+        mobile = self.cleaned_data.get('mobile_number')
+        if mobile:
+            clean_mobile = ''.join(c for c in str(mobile) if c.isdigit())
+            
+            if not clean_mobile:
+                raise forms.ValidationError('সঠিক মোবাইল নাম্বার লিখুন')
+            
+            if len(clean_mobile) < 11:
+                raise forms.ValidationError('মোবাইল নাম্বার কমপক্ষে ১১ ডিজিট হতে হবে')
+            
+            existing = TestCustomer.objects.filter(mobile_number=clean_mobile)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                raise forms.ValidationError(f'এই মোবাইল নাম্বার দিয়ে ইতিমধ্যেই একজন ক্রেতা আছে: {existing.first().name}')
+            
+            return clean_mobile
+        return mobile
+
+    def clean_name(self):
+        """নাম ক্লিন করা"""
+        name = self.cleaned_data.get('name')
+        if name:
+            return name.strip().title()
+        return name
+
+
+class TestTransactionSubmissionForm(forms.Form):
+    """টেস্ট লেনদেন - জমা ফর্ম"""
+
+    amount = forms.CharField(
+        label='জমার পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ১০০০০ বা 10000',
+            'autocomplete': 'off',
+        })
+    )
+
+    notes = forms.CharField(
+        label='নোট',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': 'নোট লিখুন (ঐচ্ছিক)'
+        })
+    )
+
+    def clean_amount(self):
+        from decimal import Decimal, InvalidOperation
+        amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('জমার পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        raise forms.ValidationError('জমার পরিমাণ আবশ্যক')
+
+
+class TestTransactionPurchaseForm(forms.Form):
+    """টেস্ট লেনদেন - ক্রয় ফর্ম"""
+
+    inventory_product = forms.ModelChoiceField(
+        label='পণ্য নির্বাচন করুন',
+        queryset=InventoryProduct.objects.filter(is_active=True).order_by('name'),
+        required=True,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'onchange': 'updateProductInfo(this)'
+        })
+    )
+
+    quantity = forms.CharField(
+        label='পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ১০ বা 10',
+            'autocomplete': 'off',
+        })
+    )
+
+    unit_price = forms.CharField(
+        label='একক মূল্য',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫০০ বা 500',
+            'autocomplete': 'off',
+        })
+    )
+
+    item_description = forms.CharField(
+        label='পণ্যের বিবরণ',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': 'পণ্যের বিস্তারিত বিবরণ (ঐচ্ছিক)'
+        })
+    )
+
+    notes = forms.CharField(
+        label='নোট',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': 'নোট লিখুন (ঐচ্ছিক)'
+        })
+    )
+
+    def clean_quantity(self):
+        from decimal import Decimal, InvalidOperation
+        quantity = self.cleaned_data.get('quantity')
+        if quantity:
+            converted = bangla_to_english_number(str(quantity).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        raise forms.ValidationError('পরিমাণ আবশ্যক')
+
+    def clean_unit_price(self):
+        from decimal import Decimal, InvalidOperation
+        price = self.cleaned_data.get('unit_price')
+        if price:
+            converted = bangla_to_english_number(str(price).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('একক মূল্য ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        raise forms.ValidationError('একক মূল্য আবশ্যক')
+
+
+class TestTransactionWithdrawalForm(forms.Form):
+    """টেস্ট লেনদেন - উত্তোলন ফর্ম"""
+
+    amount = forms.CharField(
+        label='উত্তোলনের পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ৫০০০ বা 5000',
+            'autocomplete': 'off',
+        })
+    )
+
+    notes = forms.CharField(
+        label='নোট',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': 'উত্তোলনের কারণ লিখুন (ঐচ্ছিক)'
+        })
+    )
+
+    def clean_amount(self):
+        from decimal import Decimal, InvalidOperation
+        amount = self.cleaned_data.get('amount')
+        if amount:
+            converted = bangla_to_english_number(str(amount).strip())
+            converted = converted.replace(',', '').replace(' ', '')
+            try:
+                value = Decimal(converted)
+                if value <= 0:
+                    raise forms.ValidationError('উত্তোলনের পরিমাণ ০ এর চেয়ে বেশি হতে হবে')
+                return value
+            except (ValueError, InvalidOperation):
+                raise forms.ValidationError('সঠিক সংখ্যা লিখুন')
+        raise forms.ValidationError('উত্তোলনের পরিমাণ আবশ্যক')
+
+
+# OLD FORMS - Keep for backward compatibility
+class TestCustomerSubmissionForm(forms.ModelForm):
+    """DEPRECATED - টেস্ট কাস্টমার জমা ফর্ম (পুরাতন)"""
+
+    submitted_amount = forms.CharField(
+        label='জমার পরিমাণ',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control bangla-number-input',
+            'placeholder': 'উদাহরণ: ১০০০ বা 1000',
+            'autocomplete': 'off',
+        })
+    )
+
+    class Meta:
+        model = TestCustomerSubmission
+        fields = ['submitted_amount', 'notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'নোট (ঐচ্ছিক)'
+            }),
+        }
+
+    def clean_submitted_amount(self):
+        from decimal import Decimal, InvalidOperation
+        amount = self.cleaned_data.get('submitted_amount')
         if amount:
             converted = bangla_to_english_number(str(amount).strip())
             converted = converted.replace(',', '').replace(' ', '')
