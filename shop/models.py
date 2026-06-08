@@ -66,28 +66,24 @@ class InventoryProduct(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='সক্রিয়')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='তৈরির তারিখ')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='আপডেটের তারিখ')
-    # Optional image for inventory product
     image = models.ImageField(upload_to='inventory/', blank=True, null=True, verbose_name='ছবি')
 
     class Meta:
         verbose_name = 'ইনভেন্টরি পণ্য'
         verbose_name_plural = 'ইনভেন্টরি পণ্যসমূহ'
         ordering = ['name']
-        # Prevent duplicate products with same name and unit
         unique_together = [['name', 'unit']]
 
     def __str__(self):
         return f"{self.name} ({self.stock_quantity} {self.get_unit_display()})"
     
     def add_stock(self, quantity):
-        """Add stock to existing product"""
         if quantity <= 0:
             raise ValueError("স্টক পরিমাণ ০-এর বেশি হতে হবে")
         self.stock_quantity += quantity
         self.save()
     
     def remove_stock(self, quantity):
-        """Remove stock from existing product"""
         if quantity <= 0:
             raise ValueError("স্টক পরিমাণ ০-এর বেশি হতে হবে")
         if self.stock_quantity < quantity:
@@ -137,15 +133,12 @@ class CustomerDeposit(models.Model):
         return f"{self.customer.name} - {self.transaction_type}: {self.amount}"
 
     def save(self, *args, **kwargs):
-        # Only update customer deposit balance on creation (not on edit)
-        if not self.pk:  # New record
+        if not self.pk:
             if self.transaction_type == 'deposit':
                 self.customer.deposit_balance += self.amount
             elif self.transaction_type == 'deduct':
                 self.customer.deposit_balance -= self.amount
-            
             self.customer.save()
-        
         super().save(*args, **kwargs)
 
 
@@ -185,31 +178,22 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        # Calculate total_price from items if not set
         if not self.total_price:
             total = sum(item.total_price for item in self.items.all())
             self.total_price = total
         
-        # Calculate discount amount
         if self.discount_percentage > 0:
             self.discount_amount = (self.total_price * self.discount_percentage) / 100
         else:
             self.discount_amount = 0
         
-        # Calculate final price
         self.final_price = self.total_price - self.discount_amount
         
-        # Auto-apply deposit balance if customer exists and has deposit
         if self.customer and self.customer.deposit_balance > 0 and not self.pk:
-            # Only apply deposit for new orders (not editing)
             deposit_to_apply = min(self.customer.deposit_balance, self.final_price)
             self.cash_paid = deposit_to_apply
-            # Create a deduction record for the deposit
-            # This will be done in a post_save signal
         
-        # Calculate due_amount based on final_price
         self.due_amount = self.final_price - self.cash_paid
-        
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -231,24 +215,21 @@ class OrderItem(models.Model):
         verbose_name_plural = 'অর্ডার আইটেমসমূহ'
     
     def save(self, *args, **kwargs):
-        # Calculate base total_price
         base_total = self.quantity * self.unit_price
         
-        # Apply discount if any
         if self.discount_percentage > 0:
             discount_amount = (base_total * self.discount_percentage) / 100
             self.total_price = base_total - discount_amount
         else:
             self.total_price = base_total
         
-        # Check stock availability for inventory products
         try:
             inventory_product = InventoryProduct.objects.filter(name__iexact=self.product_name).first()
             if inventory_product:
                 if inventory_product.stock_quantity < self.quantity:
                     raise ValueError(f"অপর্যাপ্ত স্টক! {self.product_name}-এর বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}, অর্ডার করা হয়েছে: {self.quantity}")
         except:
-            pass  # If no matching inventory product found, skip stock check
+            pass
         
         super().save(*args, **kwargs)
     
@@ -260,31 +241,25 @@ class Invoice(models.Model):
     """ইনভয়েস/ভাউচার - সিম্পল বিক্রয় রেকর্ড"""
     invoice_number = models.CharField(max_length=50, unique=True, verbose_name='ইনভয়েস নাম্বার', editable=False)
 
-    # কাস্টমার তথ্য
     customer_name = models.CharField(max_length=200, verbose_name='ক্রেতার নাম')
     mobile_number = models.CharField(max_length=20, verbose_name='মোবাইল নাম্বার')
 
-    # পণ্যের তথ্য (backward compat: nullable for multi-item invoices)
     product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য',
                                 null=True, blank=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', default=0)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য', default=0)
 
-    # মূল্য হিসাব
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False, default=0)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='ছাড় (%)', default=0)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='ছাড়ের টাকা', editable=False, default=0)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='মোট টাকা', editable=False, default=0)
 
-    # পেমেন্ট তথ্য
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিশোধিত টাকা', default=0)
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='বাকি টাকা', editable=False, default=0)
 
-    # অন্যান্য
     notes = models.TextField(verbose_name='নোট', blank=True)
     sale_date = models.DateField(default=timezone.now, verbose_name='বিক্রয়ের তারিখ')
 
-    # ভাউচার এডিট ট্র্যাকিং
     original_invoice = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
                                          related_name='edited_versions', verbose_name='মূল ইনভয়েস')
     is_latest = models.BooleanField(default=True, verbose_name='সর্বশেষ ভার্সন')
@@ -298,7 +273,6 @@ class Invoice(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        # ইনভয়েস নাম্বার জেনারেট
         if not self.invoice_number:
             last_invoice = Invoice.objects.all().order_by('-id').first()
             if last_invoice and last_invoice.invoice_number:
@@ -311,13 +285,11 @@ class Invoice(models.Model):
                 self.invoice_number = "INV-00001"
 
         if self.product_id:
-            # Single-product mode (backward compatibility with old invoices)
             self.subtotal = self.quantity * self.unit_price
             self.discount_amount = (self.subtotal * self.discount_percentage) / 100
             self.total_amount = self.subtotal - self.discount_amount
             self.due_amount = self.total_amount - self.paid_amount
 
-            # স্টক কমানো (শুধু নতুন ইনভয়েসের জন্য)
             if self.pk is None:
                 if self.product.stock_quantity >= self.quantity:
                     self.product.stock_quantity -= self.quantity
@@ -325,7 +297,6 @@ class Invoice(models.Model):
                 else:
                     raise ValueError(f"স্টক অপর্যাপ্ত! বর্তমান স্টক: {self.product.stock_quantity}")
         else:
-            # Multi-item mode: subtotal pre-calculated in view, just apply discount
             self.discount_amount = (self.subtotal * self.discount_percentage) / 100
             self.total_amount = self.subtotal - self.discount_amount
             self.due_amount = self.total_amount - self.paid_amount
@@ -337,31 +308,24 @@ class Invoice(models.Model):
 
     @property
     def total_item_savings(self):
-        """সকল আইটেমের ছাড়ের মোট পরিমাণ (multi-item মোডের জন্য)"""
         return sum(item.discount_amount for item in self.items.all())
 
     @property
     def total_gross_amount(self):
-        """সকল আইটেমের গ্রস মোট (ছাড়ের আগে)"""
         return sum(item.gross_amount for item in self.items.all())
 
     def get_total_paid_amount(self):
-        """আংশিক পেমেন্ট থেকে মোট পরিশোধিত পরিমাণ পান"""
         return sum(payment.amount for payment in self.payments.all())
 
 
 class InvoiceItem(models.Model):
-    """ইনভয়েস আইটেম - একটি ইনভয়েসে একাধিক পণ্যের জন্য (প্রতিটি পণ্যে আলাদা ছাড় সহ)"""
+    """ইনভয়েস আইটেম - একটি ইনভয়েসে একাধিক পণ্যের জন্য"""
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items', verbose_name='ইনভয়েস')
     product = models.ForeignKey(InventoryProduct, on_delete=models.PROTECT, verbose_name='পণ্য')
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
-    discount_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0, verbose_name='ছাড় (%)'
-    )
-    discount_amount = models.DecimalField(
-        max_digits=10, decimal_places=2, editable=False, default=0, verbose_name='ছাড়ের টাকা'
-    )
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='ছাড় (%)')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0, verbose_name='ছাড়ের টাকা')
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='সাবটোটাল', editable=False, default=0)
 
     class Meta:
@@ -418,7 +382,6 @@ class OrderPayment(models.Model):
         return f"অর্ডার পেমেন্ট {self.amount} - Order#{self.order.pk}"
 
     def save(self, *args, **kwargs):
-        # Prevent overpayment: sum existing payments (excluding this one if updating)
         existing_total = sum(p.amount for p in self.order.payments.exclude(pk=self.pk))
         new_total = existing_total + (self.amount or 0)
         if new_total > float(self.order.total_price):
@@ -427,7 +390,7 @@ class OrderPayment(models.Model):
 
 
 class PriceHistory(models.Model):
-    """মূল্য পরিবর্তনের ইতিহাস - বাল্ক/একক মূল্য পরিবর্তন ট্র্যাকিং"""
+    """মূল্য পরিবর্তনের ইতিহাস"""
     product = models.ForeignKey(InventoryProduct, on_delete=models.CASCADE, related_name='price_history', verbose_name='পণ্য')
     old_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পুরাতন মূল্য')
     new_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নতুন মূল্য')
@@ -470,28 +433,15 @@ class StockHistory(models.Model):
         return f"{self.product.name} - {self.get_operation_display()} ({self.quantity})"
 
 
-# Signals to update Order totals when OrderPayment changes
+# Signals
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
+from decimal import Decimal
 
 @receiver([post_save, post_delete], sender=OrderPayment)
 def update_order_payment_totals(sender, instance, **kwargs):
-    """
-    CRITICAL FIX: Properly calculate cash_paid and due_amount
-
-    Design:
-    - cash_paid field is used for initial payment when order is created (for convenience)
-    - But once we add OrderPayment records, we should track EVERYTHING via OrderPayment
-    - This signal migrates initial payment to OrderPayment on first payment addition
-    """
     order = instance.order
-    from decimal import Decimal
-
-    # Step 1: If initial payment exists and not yet migrated, create OrderPayment for it.
-    # CRITICAL: Always migrate the full order.cash_paid to an OrderPayment once. Otherwise
-    # when the user adds a payment that equals or exceeds the initial amount, we skip
-    # migration (existing_payment_total >= cash_paid) and then Step 2 overwrites
-    # cash_paid with sum(OrderPayments), losing the initial payment.
+    
     if order.cash_paid > 0 and not order.initial_payment_migrated:
         try:
             initial_amount = Decimal(str(order.cash_paid))
@@ -503,13 +453,8 @@ def update_order_payment_totals(sender, instance, **kwargs):
             )
             order.initial_payment_migrated = True
         except Exception:
-            pass  # Silently skip if migration fails
+            pass
 
-    # Step 2: Recalculate total paid from ALL OrderPayment records.
-    # CRITICAL: On post_save, include the triggering instance explicitly — the reverse
-    # relation order.payments.all() can miss the just-saved row, so the first payment
-    # would not be counted until a second payment is added. On post_delete, instance is
-    # already removed from DB so sum(order.payments.all()) is correct.
     if 'created' in kwargs and getattr(instance, 'pk', None):
         total_paid = sum(Decimal(str(p.amount)) for p in order.payments.exclude(pk=instance.pk)) + Decimal(str(instance.amount))
     else:
@@ -518,7 +463,6 @@ def update_order_payment_totals(sender, instance, **kwargs):
     order.due_amount = order.total_price - total_paid
     order.initial_payment_migrated = True
 
-    # Save without triggering signal again
     Order.objects.filter(pk=order.pk).update(
         cash_paid=order.cash_paid,
         due_amount=order.due_amount,
@@ -526,14 +470,9 @@ def update_order_payment_totals(sender, instance, **kwargs):
     )
 
 
-
 @receiver(post_save, sender=Order)
 def apply_customer_deposit_on_order_creation(sender, instance, created, **kwargs):
-    """
-    Automatically apply customer deposit balance when creating a new order
-    """
     if created and instance.customer and instance.customer.deposit_balance > 0 and instance.cash_paid > 0:
-        # Create a deposit deduction record
         try:
             CustomerDeposit.objects.create(
                 customer=instance.customer,
@@ -541,34 +480,25 @@ def apply_customer_deposit_on_order_creation(sender, instance, created, **kwargs
                 transaction_type='deduct',
                 notes=f'অর্ডার #{instance.pk} থেকে কাটা'
             )
-        except Exception as e:
-            # Silently fail if deduction record creation fails
+        except Exception:
             pass
 
 
 @receiver(post_delete, sender=CustomerDeposit)
 def revert_customer_deposit_on_deletion(sender, instance, **kwargs):
-    """
-    Revert customer deposit balance when a deposit record is deleted
-    """
     customer = instance.customer
     if instance.transaction_type == 'deposit':
         customer.deposit_balance -= instance.amount
     elif instance.transaction_type == 'deduct':
         customer.deposit_balance += instance.amount
-    
     customer.save()
 
 
-# Store the old amount before saving (for tracking changes)
 _deposit_old_amount = {}
 
 @receiver(pre_save, sender=CustomerDeposit)
 def track_deposit_amount_change(sender, instance, **kwargs):
-    """
-    Track the old amount before a deposit is edited
-    """
-    if instance.pk:  # Only for existing records (edits)
+    if instance.pk:
         try:
             old_instance = CustomerDeposit.objects.get(pk=instance.pk)
             _deposit_old_amount[instance.pk] = old_instance.amount
@@ -578,22 +508,16 @@ def track_deposit_amount_change(sender, instance, **kwargs):
 
 @receiver(post_save, sender=CustomerDeposit)
 def update_customer_balance_on_deposit_edit(sender, instance, created, **kwargs):
-    """
-    Update customer balance when a deposit is edited (not created)
-    """
     if not created and instance.pk in _deposit_old_amount:
-        # This is an edit
         old_amount = _deposit_old_amount.pop(instance.pk)
         if old_amount != instance.amount:
-            # Amount changed, update customer balance
             difference = instance.amount - old_amount
             customer = instance.customer
             customer.deposit_balance += difference
             customer.save()
 
 
-
-# ==================== টেস্ট কাস্টম অর্ডার সিস্টেম (PRODUCTION GRADE) ====================
+# ==================== টেস্ট কাস্টম অর্ডার সিস্টেম ====================
 
 class TestCustomer(models.Model):
     """টেস্ট কাস্টম অর্ডারের জন্য গ্রাহক"""
@@ -614,7 +538,6 @@ class TestCustomer(models.Model):
 
     @property
     def total_submitted(self):
-        """মোট জমা"""
         from django.db.models import Sum
         result = self.test_transactions.filter(
             transaction_type='submission',
@@ -624,7 +547,6 @@ class TestCustomer(models.Model):
 
     @property
     def total_purchased(self):
-        """মোট ক্রয়"""
         from django.db.models import Sum
         result = self.test_transactions.filter(
             transaction_type='purchase',
@@ -634,7 +556,6 @@ class TestCustomer(models.Model):
 
     @property
     def total_withdrawn(self):
-        """মোট উত্তোলন"""
         from django.db.models import Sum
         result = self.test_transactions.filter(
             transaction_type='withdrawal',
@@ -660,6 +581,11 @@ class TestCustomerTransaction(models.Model):
         ('cancelled', 'বাতিলকৃত'),
     ]
     
+    # Edit tracking
+    is_edited = models.BooleanField(default=False, verbose_name='সম্পাদিত হয়েছে')
+    original_transaction = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
+                                             related_name='edited_versions', verbose_name='মূল লেনদেন')
+    
     # Core fields
     transaction_number = models.CharField(max_length=50, unique=True, verbose_name='লেনদেন নাম্বার', editable=False)
     customer = models.ForeignKey(TestCustomer, on_delete=models.PROTECT, related_name='test_transactions', verbose_name='ক্রেতা')
@@ -670,12 +596,19 @@ class TestCustomerTransaction(models.Model):
     balance_before = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পূর্ববর্তী ব্যালেন্স', default=0)
     balance_after = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='নতুন ব্যালেন্স', default=0)
     
-    # Item details (for purchase type)
+    # Item details (for purchase type - single item for backward compatibility)
     item_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম', blank=True)
     item_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
     item_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ', null=True, blank=True)
     item_unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য', null=True, blank=True)
     inventory_product = models.ForeignKey(InventoryProduct, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='ইনভেন্টরি পণ্য')
+    
+    # Discount tracking
+    item_discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='পণ্যের ছাড় (%)')
+    item_discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='পণ্যের ছাড়ের টাকা')
+    total_discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='মোট ছাড় (%)')
+    total_discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='মোট ছাড়ের টাকা')
+    gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='গ্রস অ্যামাউন্ট')
     
     # Status and audit
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', verbose_name='অবস্থা')
@@ -705,7 +638,6 @@ class TestCustomerTransaction(models.Model):
         return f"{self.transaction_number} - {self.get_transaction_type_display()} - ৳{self.amount}"
     
     def save(self, *args, **kwargs):
-        # Auto-generate transaction number
         if not self.transaction_number:
             from django.utils import timezone
             year = timezone.now().year
@@ -724,8 +656,7 @@ class TestCustomerTransaction(models.Model):
             
             self.transaction_number = f"TCO-{year}-{new_num:05d}"
         
-        # Calculate balance_before and balance_after
-        if not self.pk:  # New transaction
+        if not self.pk:
             self.balance_before = self.customer.current_balance
             
             if self.transaction_type == 'submission':
@@ -735,18 +666,70 @@ class TestCustomerTransaction(models.Model):
             elif self.transaction_type == 'adjustment':
                 self.balance_after = self.balance_before + self.amount
             elif self.transaction_type == 'reversal':
-                # Reversal inverts the original transaction
                 self.balance_after = self.balance_before + self.amount
         
         super().save(*args, **kwargs)
         
-        # Update customer balance
         if self.status == 'completed' and not self.is_reversed:
             self.customer.current_balance = self.balance_after
             self.customer.save()
 
 
-# Keep old models for backward compatibility (marked as deprecated)
+class TestCustomerTransactionItem(models.Model):
+    """টেস্ট লেনদেনের আইটেম - একটি লেনদেনে একাধিক পণ্য"""
+    transaction = models.ForeignKey(TestCustomerTransaction, on_delete=models.CASCADE, related_name='items', verbose_name='লেনদেন')
+    product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
+    product_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='পরিমাণ')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='একক মূল্য')
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='ছাড় (%)')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='ছাড়ের টাকা', editable=False)
+    gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='গ্রস অ্যামাউন্ট', editable=False)
+    net_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='নেট অ্যামাউন্ট', editable=False)
+    inventory_product = models.ForeignKey(InventoryProduct, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='ইনভেন্টরি পণ্য')
+    
+    class Meta:
+        verbose_name = 'টেস্ট লেনদেনের আইটেম'
+        verbose_name_plural = 'টেস্ট লেনদেনের আইটেমসমূহ'
+    
+    def save(self, *args, **kwargs):
+        self.gross_amount = self.quantity * self.unit_price
+        self.discount_amount = (self.gross_amount * self.discount_percentage) / 100
+        self.net_amount = self.gross_amount - self.discount_amount
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.product_name} × {self.quantity} - {self.transaction.transaction_number}"
+
+
+class TestTransactionHistory(models.Model):
+    """টেস্ট লেনদেনের ইতিহাস - সব অ্যাকশনের ট্র্যাকিং"""
+    ACTION_CHOICES = [
+        ('created', 'তৈরি হয়েছে'),
+        ('edited', 'সম্পাদিত হয়েছে'),
+        ('reversed', 'বাতিল হয়েছে'),
+        ('deleted', 'মুছে ফেলা হয়েছে'),
+    ]
+    
+    transaction = models.ForeignKey(TestCustomerTransaction, on_delete=models.CASCADE, related_name='history', verbose_name='লেনদেন')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='অ্যাকশন')
+    old_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='পুরাতন পরিমাণ')
+    new_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='নতুন পরিমাণ')
+    old_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='পুরাতন ব্যালেন্স')
+    new_balance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='নতুন ব্যালেন্স')
+    notes = models.TextField(verbose_name='নোট', blank=True)
+    performed_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='কর্মকর্তা')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='তারিখ ও সময়')
+    
+    class Meta:
+        verbose_name = 'টেস্ট লেনদেনের ইতিহাস'
+        verbose_name_plural = 'টেস্ট লেনদেনের ইতিহাসসমূহ'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.transaction.transaction_number} - {self.get_action_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
 class TestCustomerSubmission(models.Model):
     """DEPRECATED - Use TestCustomerTransaction instead"""
     customer = models.ForeignKey(TestCustomer, on_delete=models.CASCADE, related_name='submissions', verbose_name='ক্রেতা')
@@ -770,7 +753,7 @@ class TestCustomerSubmission(models.Model):
 
 
 class TestCustomerItem(models.Model):
-    """DEPRECATED - Use TestCustomerTransaction instead"""
+    """DEPRECATED - Use TestCustomerTransactionItem instead"""
     submission = models.ForeignKey(TestCustomerSubmission, on_delete=models.CASCADE, related_name='items', verbose_name='জমা')
     product_name = models.CharField(max_length=200, verbose_name='পণ্যের নাম')
     product_description = models.TextField(verbose_name='পণ্যের বিবরণ', blank=True)

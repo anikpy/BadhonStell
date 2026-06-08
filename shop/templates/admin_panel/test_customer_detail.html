@@ -30,7 +30,7 @@
                 {% if customer.current_balance >= 0 %}
                 <div style="font-size: 1.8rem; font-weight: 700;">৳{{ customer.current_balance|floatformat:2 }}</div>
                 {% else %}
-                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;">-৳{{ customer.current_balance|floatformat:2|slice:"1:" }}</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }}</div>
                 {% endif %}
             </div>
         </div>
@@ -64,6 +64,7 @@
         <a href="{% url 'test_transaction_withdrawal_create' customer.pk %}" class="btn btn-warning">💸 টাকা উত্তোলন</a>
         <a href="{% url 'test_transaction_list' customer.pk %}" class="btn btn-info">📋 সব লেনদেন</a>
         <a href="{% url 'test_customer_statement' customer.pk %}" class="btn btn-secondary">📄 স্টেটমেন্ট</a>
+        <a href="{% url 'test_customer_history' customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
     </div>
 
     <!-- Recent Transactions -->
@@ -135,11 +136,14 @@
                         {% if txn.balance_after >= 0 %}
                         <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
                         {% else %}
-                        <span style="color: #dc3545;">-৳{{ txn.balance_after|floatformat:2|slice:"1:" }}</span>
+                        <span style="color: #dc3545;">৳-{{ txn.balance_after|floatformat:2|slice:"1:" }}</span>
                         {% endif %}
                     </td>
                     <td style="padding: 10px 8px; text-align: center;">
                         <a href="{% url 'test_transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার দেখুন">🧾</a>
+                        {% if txn.transaction_type == 'purchase' and not txn.is_reversed %}
+                        <a href="{% url 'test_transaction_edit' txn.pk %}" class="btn btn-sm btn-warning" title="সম্পাদনা করুন">✏️</a>
+                        {% endif %}
                         {% if not txn.is_reversed %}
                         <a href="{% url 'test_transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
                         {% endif %}

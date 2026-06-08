@@ -8,7 +8,7 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.db.models import Sum, Count, Q, Avg, F
 from decimal import Decimal
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -35,6 +35,8 @@ from .models import (
     TestCustomerSubmission,
     TestCustomerItem,
     TestCustomerTransaction,
+    TestCustomerTransactionItem,
+    TestTransactionHistory,
 )
 from .forms import (
     OrderForm, InventoryProductForm, InvoiceForm, PaymentForm, OrderPaymentForm, 
@@ -2993,6 +2995,96 @@ def print_stock_history_pdf(request):
 # ==================== টেস্ট কাস্টম অর্ডার ভিউ (PRODUCTION GRADE) ====================
 
 @login_required
+def test_order_create(request):
+    """টেস্ট অর্ডার তৈরি - ক্রেতা সিলেক্ট করে পurchase transaction"""
+    # Get all test customers for selection
+    test_customers = TestCustomer.objects.all().order_by('name')
+    
+    if request.method == 'POST':
+        customer_id = request.POST.get('customer_id')
+        
+        if not customer_id:
+            messages.error(request, '❌ অনুগ্রহ করে একটি ক্রেতা নির্বাচন করুন!')
+        else:
+            try:
+                customer = TestCustomer.objects.get(pk=customer_id)
+                # Redirect to purchase creation for this customer
+                return redirect('test_transaction_purchase_create', customer_pk=customer.pk)
+            except TestCustomer.DoesNotExist:
+                messages.error(request, '❌ ক্রেতা পাওয়া যায়নি!')
+    
+    context = {
+        'test_customers': test_customers,
+        'page_title': 'নতুন টেস্ট অর্ডার তৈরি করুন',
+    }
+    return render(request, 'admin_panel/test_order_create.html', context)
+
+
+@login_required
+def import_custom_orders_to_test(request):
+    """Import customers and orders from custom order system to test order system"""
+    from django.core.management import call_command
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'dry_run':
+            # Dry run - show what would be imported
+            from io import StringIO
+            import sys
+            
+            output = StringIO()
+            sys.stdout = output
+            
+            try:
+                call_command('import_custom_orders_to_test', dry_run=True)
+                result = output.getvalue()
+                messages.success(request, '✅ Dry run completed. Check the output below.')
+            except Exception as e:
+                messages.error(request, f'❌ Error during dry run: {str(e)}')
+                result = str(e)
+            finally:
+                sys.stdout = sys.__stdout__
+            
+            context = {
+                'page_title': 'Import Custom Orders to Test System',
+                'result': result,
+                'is_dry_run': True,
+            }
+            return render(request, 'admin_panel/import_custom_orders.html', context)
+        
+        elif action == 'import':
+            # Actual import
+            try:
+                call_command('import_custom_orders_to_test')
+                messages.success(request, '✅ Import completed successfully!')
+                return redirect('test_customer_list')
+            except Exception as e:
+                messages.error(request, f'❌ Error during import: {str(e)}')
+    
+    # GET request - show import page
+    # Get statistics
+    total_customers = Customer.objects.count()
+    total_orders = Order.objects.count()
+    test_customers = TestCustomer.objects.count()
+    
+    # Count customers that would be imported (not already in test system)
+    customers_to_import = 0
+    for customer in Customer.objects.all():
+        if not TestCustomer.objects.filter(mobile_number=customer.mobile_number).exists():
+            customers_to_import += 1
+    
+    context = {
+        'page_title': 'Import Custom Orders to Test System',
+        'total_customers': total_customers,
+        'total_orders': total_orders,
+        'test_customers': test_customers,
+        'customers_to_import': customers_to_import,
+    }
+    return render(request, 'admin_panel/import_custom_orders.html', context)
+
+
+@login_required
 def test_customer_list(request):
     """টেস্ট কাস্টমার তালিকা"""
     search_query = request.GET.get('search', '')
@@ -3069,7 +3161,22 @@ def test_customer_edit(request, pk):
     if request.method == 'POST':
         form = TestCustomerForm(request.POST, instance=customer)
         if form.is_valid():
+            old_name = customer.name
+            old_mobile = customer.mobile_number
+            old_address = customer.address
+            
             customer = form.save()
+            
+            # Record history
+            TestTransactionHistory.objects.create(
+                transaction=None,  # Customer edit, not transaction
+                action='edited',
+                old_balance=customer.current_balance,
+                new_balance=customer.current_balance,
+                notes=f'ক্রেতা সম্পাদনা: নাম {old_name} → {customer.name}, মোবাইল {old_mobile} → {customer.mobile_number}',
+                performed_by=request.user
+            )
+            
             messages.success(request, f'✅ {customer.name} সফলভাবে আপডেট হয়েছে!')
             return redirect('test_customer_detail', pk=customer.pk)
     else:
@@ -3089,20 +3196,99 @@ def test_customer_delete(request, pk):
     customer = get_object_or_404(TestCustomer, pk=pk)
     
     # Check if customer has transactions
-    if customer.test_transactions.exists():
-        messages.error(request, f'❌ এই ক্রেতার লেনদেন আছে। মুছে ফেলা যাবে না!')
-        return redirect('test_customer_detail', pk=customer.pk)
+    has_transactions = customer.test_transactions.exists()
+    transaction_count = customer.test_transactions.count() if has_transactions else 0
     
-    if request.method == 'POST':
+    # For GET requests with force delete parameter, delete with all transactions
+    if request.method == 'GET' and request.GET.get('force') == 'yes':
+        name = customer.name
+        # Delete all transactions first (cascade will handle this, but being explicit)
+        if has_transactions:
+            customer.test_transactions.all().delete()
+        customer.delete()
+        messages.warning(request, f'⚠️ {name} এবং {transaction_count}টি লেনদেন সফলভাবে মুছে ফেলা হয়েছে!')
+        return redirect('test_customer_list')
+    
+    # For GET requests with normal confirmation parameter, only delete if no transactions
+    if request.method == 'GET' and request.GET.get('confirm') == 'yes':
+        if has_transactions:
+            messages.error(request, f'❌ এই ক্রেতার {transaction_count}টি লেনদেন আছে! বাধ্যতামূলকভাবে মুছে ফেলতে "বাধ্যতামূলক মুছুন" বাটন ব্যবহার করুন।')
+            return redirect('test_customer_detail', pk=customer.pk)
         name = customer.name
         customer.delete()
         messages.success(request, f'✅ {name} সফলভাবে মুছে ফেলা হয়েছে!')
         return redirect('test_customer_list')
     
+    # For POST requests (from form submission)
+    if request.method == 'POST':
+        force_delete = request.POST.get('force_delete') == 'yes'
+        
+        if force_delete:
+            # Force delete with all transactions
+            name = customer.name
+            if has_transactions:
+                customer.test_transactions.all().delete()
+            customer.delete()
+            messages.warning(request, f'⚠️ {name} এবং {transaction_count}টি লেনদেন বাধ্যতামূলকভাবে মুছে ফেলা হয়েছে!')
+        else:
+            # Normal delete only if no transactions
+            if has_transactions:
+                messages.error(request, f'❌ এই ক্রেতার {transaction_count}টি লেনদেন আছে!')
+                return redirect('test_customer_detail', pk=customer.pk)
+            name = customer.name
+            customer.delete()
+            messages.success(request, f'✅ {name} সফলভাবে মুছে ফেলা হয়েছে!')
+        
+        return redirect('test_customer_list')
+    
+    # Show confirmation page for GET requests
     context = {
         'customer': customer,
+        'has_transactions': has_transactions,
+        'transaction_count': transaction_count,
     }
     return render(request, 'admin_panel/test_customer_delete.html', context)
+
+
+@login_required
+def test_customer_bulk_delete(request):
+    """বাল্কভাবে টেস্ট কাস্টমার মুছে ফেলা"""
+    if request.method != 'POST':
+        messages.error(request, '❌ অবৈধ অনুরোধ')
+        return redirect('test_customer_list')
+    
+    selected_ids = request.POST.getlist('selected_customers')
+    
+    if not selected_ids:
+        messages.error(request, '❌ কোনো কাস্টমার নির্বাচন করা হয়নি')
+        return redirect('test_customer_list')
+    
+    deleted_count = 0
+    failed_count = 0
+    
+    for customer_id in selected_ids:
+        try:
+            customer = TestCustomer.objects.get(pk=customer_id)
+            
+            # Check if customer has transactions
+            if customer.test_transactions.exists():
+                failed_count += 1
+                continue
+            
+            name = customer.name
+            customer.delete()
+            deleted_count += 1
+        except TestCustomer.DoesNotExist:
+            failed_count += 1
+            continue
+    
+    if deleted_count > 0:
+        messages.success(request, f'✅ {deleted_count}টি কাস্টমার সফলভাবে মুছে ফেলা হয়েছে!')
+    
+    if failed_count > 0:
+        messages.warning(request, f'⚠️ {failed_count}টি কাস্টমার মুছে ফেলা যায়নি (লেনদেন থাকতে পারে)')
+    
+    return redirect('test_customer_list')
 
 
 # ==================== টেস্ট লেনদেন - জমা (SUBMISSION) ====================
@@ -3128,6 +3314,16 @@ def test_transaction_submission_create(request, customer_pk):
                 created_by=request.user
             )
             
+            # Record history
+            TestTransactionHistory.objects.create(
+                transaction=transaction,
+                action='created',
+                old_balance=transaction.balance_before,
+                new_balance=transaction.balance_after,
+                notes=f'জমা তৈরি: ৳{amount}',
+                performed_by=request.user
+            )
+            
             messages.success(request, f'✅ ৳{amount} জমা সফলভাবে যুক্ত হয়েছে! লেনদেন নং: {transaction.transaction_number}')
             return redirect('test_transaction_voucher', pk=transaction.pk)
     else:
@@ -3145,63 +3341,154 @@ def test_transaction_submission_create(request, customer_pk):
 
 @login_required
 def test_transaction_purchase_create(request, customer_pk):
-    """টেস্ট লেনদেন - ক্রয় তৈরি করা"""
+    """টেস্ট লেনদেন - ক্রয় তৈরি করা (একাধিক পণ্য + ডিসকাউন্ট সাপোর্ট)"""
     customer = get_object_or_404(TestCustomer, pk=customer_pk)
     
+    # Get all inventory products for search
+    inventory_products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in inventory_products
+    ])
+    
     if request.method == 'POST':
-        form = TestTransactionPurchaseForm(request.POST)
-        if form.is_valid():
-            inventory_product = form.cleaned_data['inventory_product']
-            quantity = form.cleaned_data['quantity']
-            unit_price = form.cleaned_data['unit_price']
-            item_description = form.cleaned_data.get('item_description', '')
-            notes = form.cleaned_data.get('notes', '')
-            
-            # Calculate total amount
-            total_amount = quantity * unit_price
-            
-            # Check stock availability
-            if inventory_product.stock_quantity < quantity:
-                messages.error(request, f'❌ স্টক অপর্যাপ্ত! বর্তমান স্টক: {inventory_product.stock_quantity} {inventory_product.get_unit_display()}')
-                return redirect('test_transaction_purchase_create', customer_pk=customer_pk)
-            
-            # Create transaction (amount is negative for purchase)
-            transaction = TestCustomerTransaction.objects.create(
-                customer=customer,
-                transaction_type='purchase',
-                amount=total_amount,  # Store as positive, balance calculation handles sign
-                item_name=inventory_product.name,
-                item_description=item_description,
-                item_quantity=quantity,
-                item_unit_price=unit_price,
-                inventory_product=inventory_product,
-                notes=notes,
-                status='completed',
-                created_by=request.user
-            )
-            
-            # Deduct from inventory
-            inventory_product.remove_stock(quantity)
-            
-            # Create stock history
-            StockHistory.objects.create(
-                product=inventory_product,
-                operation='sale',
-                quantity=quantity,
-                previous_quantity=inventory_product.stock_quantity + quantity,
-                new_quantity=inventory_product.stock_quantity,
-                notes=f'টেস্ট অর্ডার - {customer.name} ({transaction.transaction_number})'
-            )
-            
-            messages.success(request, f'✅ ক্রয় সফল! ৳{total_amount} | লেনদেন নং: {transaction.transaction_number}')
-            return redirect('test_transaction_voucher', pk=transaction.pk)
-    else:
-        form = TestTransactionPurchaseForm()
+        items_json_str = request.POST.get('items_json', '[]')
+        total_discount = request.POST.get('total_discount', '0')
+        
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+        
+        # Convert total discount
+        try:
+            total_discount = Decimal(str(total_discount))
+            if total_discount < 0:
+                total_discount = Decimal('0')
+            if total_discount > 100:
+                total_discount = Decimal('100')
+        except:
+            total_discount = Decimal('0')
+        
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        else:
+            try:
+                validated_items = []
+                subtotal = Decimal('0')
+                
+                # Validate and calculate items
+                for item in items_data:
+                    product_name = item.get('product_name', '').strip()
+                    quantity = Decimal(str(item.get('quantity', 0)))
+                    unit_price = Decimal(str(item.get('unit_price', 0)))
+                    item_discount = Decimal(str(item.get('discount_percentage', 0)))
+                    
+                    if not product_name:
+                        raise ValueError("পণ্যের নাম লিখুন")
+                    if quantity <= 0:
+                        raise ValueError(f"{product_name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if unit_price <= 0:
+                        raise ValueError(f"{product_name}: মূল্য ০-এর বেশি হতে হবে")
+                    if item_discount < 0 or item_discount > 100:
+                        raise ValueError(f"{product_name}: ডিসকাউন্ট ০-১০০%-এর মধ্যে হতে হবে")
+                    
+                    # Find inventory product (stock check will happen AFTER restoring old stock)
+                    inventory_product = InventoryProduct.objects.filter(name__iexact=product_name).first()
+                    
+                    # Calculate item total with discount
+                    item_gross = quantity * unit_price
+                    item_discount_amount = (item_gross * item_discount) / 100
+                    item_net = item_gross - item_discount_amount
+                    
+                    subtotal += item_net
+                    
+                    validated_items.append({
+                        'product_name': product_name,
+                        'product_description': item.get('product_description', ''),
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                        'discount_percentage': item_discount,
+                        'gross_amount': item_gross,
+                        'discount_amount': item_discount_amount,
+                        'net_amount': item_net,
+                        'inventory_product': inventory_product,
+                    })
+                
+                # Apply total discount on subtotal
+                total_discount_amount = (subtotal * total_discount) / 100
+                final_total = subtotal - total_discount_amount
+                
+                # Create main transaction
+                item_names = ', '.join([item['product_name'] for item in validated_items])
+                transaction = TestCustomerTransaction.objects.create(
+                    customer=customer,
+                    transaction_type='purchase',
+                    amount=final_total,
+                    item_name=item_names,
+                    item_description=f'{len(validated_items)} items purchased',
+                    item_quantity=sum(item['quantity'] for item in validated_items),
+                    item_unit_price=final_total / sum(item['quantity'] for item in validated_items) if sum(item['quantity'] for item in validated_items) > 0 else Decimal('0'),
+                    gross_amount=subtotal + total_discount_amount,
+                    item_discount_percentage=total_discount,
+                    item_discount_amount=total_discount_amount,
+                    total_discount_percentage=total_discount,
+                    total_discount_amount=total_discount_amount,
+                    notes=request.POST.get('notes', ''),
+                    status='completed',
+                    created_by=request.user
+                )
+                
+                # Create transaction items for each product
+                for item in validated_items:
+                    TestCustomerTransactionItem.objects.create(
+                        transaction=transaction,
+                        product_name=item['product_name'],
+                        product_description=item['product_description'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                        discount_percentage=item['discount_percentage'],
+                        discount_amount=item['discount_amount'],
+                        gross_amount=item['gross_amount'],
+                        net_amount=item['net_amount'],
+                        inventory_product=item['inventory_product']
+                    )
+                
+                # Deduct stock and create history for inventory products
+                for item in validated_items:
+                    if item['inventory_product']:
+                        inv_product = item['inventory_product']
+                        previous_stock = inv_product.stock_quantity
+                        inv_product.remove_stock(item['quantity'])
+                        
+                        StockHistory.objects.create(
+                            product=inv_product,
+                            operation='sale',
+                            quantity=item['quantity'],
+                            previous_quantity=previous_stock,
+                            new_quantity=inv_product.stock_quantity,
+                            notes=f'টেস্ট অর্ডার - {customer.name} ({transaction.transaction_number})'
+                        )
+                
+                messages.success(request, f'✅ ক্রয় সফল! ৳{final_total} | লেনদেন নং: {transaction.transaction_number}')
+                return redirect('test_transaction_voucher', pk=transaction.pk)
+                
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
+            except Exception as e:
+                messages.error(request, f'❌ ত্রুটি: {str(e)}')
     
     context = {
-        'form': form,
+        'form': None,  # No form needed, using custom template
         'customer': customer,
         'page_title': f'{customer.name} - নতুন ক্রয়',
+        'products_json': products_json,
     }
     return render(request, 'admin_panel/test_transaction_purchase_form.html', context)
 
@@ -3219,18 +3506,24 @@ def test_transaction_withdrawal_create(request, customer_pk):
             amount = form.cleaned_data['amount']
             notes = form.cleaned_data.get('notes', '')
             
-            # Check if customer has sufficient balance (allow negative)
-            # if customer.current_balance < amount:
-            #     messages.warning(request, f'⚠️ বর্তমান ব্যালেন্স: ৳{customer.current_balance}। উত্তোলন পরে নেগেটিভ হবে।')
-            
             # Create transaction (amount is negative for withdrawal)
             transaction = TestCustomerTransaction.objects.create(
                 customer=customer,
                 transaction_type='withdrawal',
-                amount=amount,  # Store as positive, balance calculation handles sign
+                amount=amount,
                 notes=notes,
                 status='completed',
                 created_by=request.user
+            )
+            
+            # Record history
+            TestTransactionHistory.objects.create(
+                transaction=transaction,
+                action='created',
+                old_balance=transaction.balance_before,
+                new_balance=transaction.balance_after,
+                notes=f'উত্তোলন তৈরি: ৳{amount}',
+                performed_by=request.user
             )
             
             messages.success(request, f'✅ ৳{amount} উত্তোলন সফল! লেনদেন নং: {transaction.transaction_number}')
@@ -3308,6 +3601,9 @@ def test_transaction_reverse(request, pk):
         return redirect('test_customer_detail', pk=transaction.customer.pk)
     
     if request.method == 'POST':
+        # Store old balance for history
+        old_balance = transaction.customer.current_balance
+        
         # Create reversal transaction
         reversal_amount = -transaction.amount if transaction.transaction_type == 'submission' else transaction.amount
         
@@ -3325,19 +3621,40 @@ def test_transaction_reverse(request, pk):
         transaction.is_reversed = True
         transaction.save()
         
-        # If it was a purchase, restore inventory stock
-        if transaction.transaction_type == 'purchase' and transaction.inventory_product:
-            transaction.inventory_product.add_stock(transaction.item_quantity)
-            
-            # Create stock history
-            StockHistory.objects.create(
-                product=transaction.inventory_product,
-                operation='adjustment',
-                quantity=transaction.item_quantity,
-                previous_quantity=transaction.inventory_product.stock_quantity - transaction.item_quantity,
-                new_quantity=transaction.inventory_product.stock_quantity,
-                notes=f'লেনদেন বাতিল: {transaction.transaction_number}'
-            )
+        # If it was a purchase, restore inventory stock for all items
+        if transaction.transaction_type == 'purchase':
+            for item in transaction.items.all():
+                if item.inventory_product:
+                    item.inventory_product.add_stock(item.quantity)
+                    
+                    # Create stock history
+                    StockHistory.objects.create(
+                        product=item.inventory_product,
+                        operation='adjustment',
+                        quantity=item.quantity,
+                        previous_quantity=item.inventory_product.stock_quantity - item.quantity,
+                        new_quantity=item.inventory_product.stock_quantity,
+                        notes=f'লেনদেন বাতিল: {transaction.transaction_number}'
+                    )
+        
+        # Record history for both original and reversal
+        TestTransactionHistory.objects.create(
+            transaction=transaction,
+            action='reversed',
+            old_balance=old_balance,
+            new_balance=transaction.customer.current_balance,
+            notes=f'লেনদেন বাতিল: {transaction.transaction_number}',
+            performed_by=request.user
+        )
+        
+        TestTransactionHistory.objects.create(
+            transaction=reversal,
+            action='created',
+            old_balance=old_balance,
+            new_balance=reversal.balance_after,
+            notes=f'রিভার্সাল তৈরি: {transaction.transaction_number}',
+            performed_by=request.user
+        )
         
         messages.success(request, f'✅ লেনদেন বাতিল সফল! রিভার্সাল নং: {reversal.transaction_number}')
         return redirect('test_customer_detail', pk=transaction.customer.pk)
@@ -3375,6 +3692,317 @@ def test_customer_statement(request, customer_pk):
         'today': timezone.now(),
     }
     return render(request, 'admin_panel/test_customer_statement.html', context)
+
+
+@login_required
+def customer_search_api(request):
+    """API endpoint for customer autocomplete search"""
+    query = request.GET.get('q', '')
+    
+    if len(query) < 2:
+        return JsonResponse({'customers': []})
+    
+    # Search in both Customer and TestCustomer models
+    customers = Customer.objects.filter(
+        Q(name__icontains=query) | Q(mobile_number__icontains=query)
+    )[:10]
+    
+    test_customers = TestCustomer.objects.filter(
+        Q(name__icontains=query) | Q(mobile_number__icontains=query)
+    )[:10]
+    
+    results = []
+    
+    # Add regular customers
+    for customer in customers:
+        results.append({
+            'id': customer.pk,
+            'name': customer.name,
+            'mobile': customer.mobile_number,
+            'type': 'customer',
+            'balance': float(customer.deposit_balance) if hasattr(customer, 'deposit_balance') else 0
+        })
+    
+    # Add test customers
+    for customer in test_customers:
+        results.append({
+            'id': customer.pk,
+            'name': customer.name,
+            'mobile': customer.mobile_number,
+            'type': 'test_customer',
+            'balance': float(customer.current_balance)
+        })
+    
+    return JsonResponse({'customers': results})
+
+
+@login_required
+def test_customer_history(request, customer_pk):
+    """টেস্ট কাস্টমারের সম্পূর্ণ ইতিহাস - সব অ্যাকশন"""
+    customer = get_object_or_404(TestCustomer, pk=customer_pk)
+    
+    # Get all history records for this customer's transactions
+    history_records = TestTransactionHistory.objects.filter(
+        transaction__customer=customer
+    ).select_related('transaction', 'performed_by').order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(history_records, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'customer': customer,
+        'page_obj': page_obj,
+        'history_records': page_obj.object_list,
+        'total_records': history_records.count(),
+    }
+    return render(request, 'admin_panel/test_customer_history.html', context)
+
+
+@login_required
+def test_transaction_edit(request, pk):
+    """টেস্ট লেনদেন সম্পাদনা - ক্রয় এডিট"""
+    transaction = get_object_or_404(TestCustomerTransaction, pk=pk)
+    
+    # Only allow editing purchase transactions
+    if transaction.transaction_type != 'purchase':
+        messages.error(request, '❌ শুধুমাত্র ক্রয় লেনদেন সম্পাদনা করা যাবে!')
+        return redirect('test_customer_detail', pk=transaction.customer.pk)
+    
+    # Don't allow editing reversed transactions
+    if transaction.is_reversed:
+        messages.error(request, '❌ বাতিল করা লেনদেন সম্পাদনা করা যাবে না!')
+        return redirect('test_customer_detail', pk=transaction.customer.pk)
+    
+    customer = transaction.customer
+    
+    # Get all inventory products for search
+    inventory_products = InventoryProduct.objects.filter(is_active=True, stock_quantity__gt=0).order_by('name')
+    products_json = json.dumps([
+        {
+            'id': p.pk,
+            'name': p.name,
+            'price': float(p.price_per_unit),
+            'unit': p.get_unit_display(),
+            'stock': float(p.stock_quantity),
+        }
+        for p in inventory_products
+    ])
+    
+    if request.method == 'POST':
+        items_json_str = request.POST.get('items_json', '[]')
+        total_discount = request.POST.get('total_discount', '0')
+        
+        try:
+            items_data = json.loads(items_json_str)
+        except (json.JSONDecodeError, ValueError):
+            items_data = []
+        
+        # Convert total discount
+        try:
+            total_discount = Decimal(str(total_discount))
+            if total_discount < 0:
+                total_discount = Decimal('0')
+            if total_discount > 100:
+                total_discount = Decimal('100')
+        except:
+            total_discount = Decimal('0')
+        
+        if not items_data:
+            messages.error(request, '❌ কমপক্ষে একটি পণ্য যোগ করুন!')
+        else:
+            try:
+                validated_items = []
+                subtotal = Decimal('0')
+                
+                # Validate and calculate items
+                for item in items_data:
+                    product_name = item.get('product_name', '').strip()
+                    quantity = Decimal(str(item.get('quantity', 0)))
+                    unit_price = Decimal(str(item.get('unit_price', 0)))
+                    item_discount = Decimal(str(item.get('discount_percentage', 0)))
+                    
+                    if not product_name:
+                        raise ValueError("পণ্যের নাম লিখুন")
+                    if quantity <= 0:
+                        raise ValueError(f"{product_name}: পরিমাণ ০-এর বেশি হতে হবে")
+                    if unit_price <= 0:
+                        raise ValueError(f"{product_name}: মূল্য ০-এর বেশি হতে হবে")
+                    if item_discount < 0 or item_discount > 100:
+                        raise ValueError(f"{product_name}: ডিসকাউন্ট ০-১০০%-এর মধ্যে হতে হবে")
+                    
+                    # Find inventory product but DON'T check stock yet (we'll check after restoring old stock)
+                    inventory_product = InventoryProduct.objects.filter(name__iexact=product_name).first()
+                    
+                    # Calculate item total with discount
+                    item_gross = quantity * unit_price
+                    item_discount_amount = (item_gross * item_discount) / 100
+                    item_net = item_gross - item_discount_amount
+                    
+                    subtotal += item_net
+                    
+                    validated_items.append({
+                        'product_name': product_name,
+                        'product_description': item.get('product_description', ''),
+                        'quantity': quantity,
+                        'unit_price': unit_price,
+                        'discount_percentage': item_discount,
+                        'gross_amount': item_gross,
+                        'discount_amount': item_discount_amount,
+                        'net_amount': item_net,
+                        'inventory_product': inventory_product,
+                    })
+                
+                # Apply total discount on subtotal
+                total_discount_amount = (subtotal * total_discount) / 100
+                final_total = subtotal - total_discount_amount
+                
+                # Build a map of old items by product name for comparison
+                old_items_map = {}
+                for old_item in transaction.items.all():
+                    if old_item.inventory_product:
+                        old_items_map[old_item.inventory_product.pk] = {
+                            'item': old_item,
+                            'quantity': old_item.quantity
+                        }
+                    else:
+                        old_items_map[old_item.product_name] = {
+                            'item': old_item,
+                            'quantity': old_item.quantity
+                        }
+                
+                # Update main transaction
+                item_names = ', '.join([item['product_name'] for item in validated_items])
+                transaction.item_name = item_names
+                transaction.item_description = f'{len(validated_items)} items purchased'
+                transaction.item_quantity = sum(item['quantity'] for item in validated_items)
+                transaction.item_unit_price = final_total / sum(item['quantity'] for item in validated_items) if sum(item['quantity'] for item in validated_items) > 0 else Decimal('0')
+                transaction.gross_amount = subtotal + total_discount_amount
+                transaction.item_discount_percentage = total_discount
+                transaction.item_discount_amount = total_discount_amount
+                transaction.total_discount_percentage = total_discount
+                transaction.total_discount_amount = total_discount_amount
+                transaction.amount = final_total
+                transaction.notes = request.POST.get('notes', transaction.notes)
+                transaction.save()
+                
+                # FIRST: Restore old stock for all old items
+                restored_items = []
+                for old_item in transaction.items.all():
+                    # Try to find inventory product by FK first, then by name (case-insensitive)
+                    inv_product = old_item.inventory_product
+                    if not inv_product:
+                        # Try exact match first, then case-insensitive
+                        inv_product = InventoryProduct.objects.filter(name__iexact=old_item.product_name).first()
+                        if not inv_product:
+                            # Try partial match as fallback
+                            inv_product = InventoryProduct.objects.filter(name__icontains=old_item.product_name).first()
+                    
+                    if inv_product:
+                        try:
+                            # Store old stock level for verification
+                            stock_before = float(inv_product.stock_quantity)
+                            inv_product.add_stock(old_item.quantity)
+                            stock_after = float(inv_product.stock_quantity)
+                            restored_items.append(f"{old_item.product_name} (ID:{inv_product.pk}): {stock_before} → {stock_after}")
+                        except Exception as e:
+                            # If restore fails, log it but continue
+                            print(f"WARNING: Failed to restore stock for {old_item.product_name}: {e}")
+                    else:
+                        print(f"WARNING: No inventory product found for '{old_item.product_name}'")
+                
+                if restored_items:
+                    print(f"✓ Stock restored: {', '.join(restored_items)}")
+                else:
+                    print("WARNING: No stock was restored!")
+                
+                # Delete old items and create new ones
+                transaction.items.all().delete()
+                for item in validated_items:
+                    TestCustomerTransactionItem.objects.create(
+                        transaction=transaction,
+                        product_name=item['product_name'],
+                        product_description=item['product_description'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                        discount_percentage=item['discount_percentage'],
+                        discount_amount=item['discount_amount'],
+                        gross_amount=item['gross_amount'],
+                        net_amount=item['net_amount'],
+                        inventory_product=item['inventory_product']
+                    )
+                
+                # THEN: Deduct new stock for all items (now inventory is back to original state)
+                for item in validated_items:
+                    # Try to find inventory product by FK first, then by name
+                    inv_product = item['inventory_product']
+                    if not inv_product:
+                        inv_product = InventoryProduct.objects.filter(name__iexact=item['product_name']).first()
+                    
+                    if inv_product:
+                        # Check if enough stock available
+                        if inv_product.stock_quantity < item['quantity']:
+                            raise ValueError(f"{item['product_name']}: স্টক অপর্যাপ্ত! বর্তমান স্টক: {inv_product.stock_quantity} {inv_product.get_unit_display()}, প্রয়োজন: {item['quantity']}")
+                        
+                        # Deduct stock
+                        previous_stock = inv_product.stock_quantity
+                        inv_product.remove_stock(item['quantity'])
+                        StockHistory.objects.create(
+                            product=inv_product,
+                            operation='sale',
+                            quantity=item['quantity'],
+                            previous_quantity=previous_stock,
+                            new_quantity=inv_product.stock_quantity,
+                            notes=f'টেস্ট অর্ডার এডিট - {customer.name} ({transaction.transaction_number})'
+                        )
+                
+                # Record history
+                TestTransactionHistory.objects.create(
+                    transaction=transaction,
+                    action='edited',
+                    old_balance=transaction.balance_before,
+                    new_balance=transaction.balance_after,
+                    notes=f'ক্রয় সম্পাদনা: {item_names}',
+                    performed_by=request.user
+                )
+                
+                messages.success(request, f'✅ ক্রয় সফলভাবে আপডেট হয়েছে! ৳{final_total} | লেনদেন নং: {transaction.transaction_number}')
+                return redirect('test_transaction_voucher', pk=transaction.pk)
+                
+            except ValueError as e:
+                messages.error(request, f'❌ {str(e)}')
+            except Exception as e:
+                messages.error(request, f'❌ ত্রুটি: {str(e)}')
+    
+    # Build existing items for template
+    existing_items = []
+    for item in transaction.items.all():
+        existing_items.append({
+            'product_name': item.product_name,
+            'product_description': item.product_description or '',
+            'quantity': float(item.quantity),
+            'unit_price': float(item.unit_price),
+            'discount_percentage': float(item.discount_percentage),
+            'gross_amount': float(item.gross_amount),
+            'discount_amount': float(item.discount_amount),
+            'net_amount': float(item.net_amount),
+            'inventory_product_id': item.inventory_product.pk if item.inventory_product else None,
+        })
+    
+    context = {
+        'form': None,
+        'customer': customer,
+        'transaction': transaction,
+        'page_title': f'{customer.name} - ক্রয় সম্পাদনা',
+        'products_json': products_json,
+        'edit_items_json': json.dumps(existing_items),
+        'total_discount': float(transaction.total_discount_percentage),
+    }
+    return render(request, 'admin_panel/test_transaction_purchase_form.html', context)
+
+
+# ==================== OLD VIEWS - Keep for backward compatibility ====================
 
 
 # ==================== OLD VIEWS - Keep for backward compatibility ====================

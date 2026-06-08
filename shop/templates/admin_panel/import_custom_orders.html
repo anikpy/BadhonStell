@@ -1,0 +1,85 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}Import Custom Orders to Test System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📥 Import Custom Orders to Test System
+        <div style="float: right;">
+            <a href="{% url 'test_customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <div style="padding: 20px;">
+        <!-- Statistics -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                <div style="font-size: 0.9rem; color: #666;">মোট ক্রেতা (Custom)</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #007bff;">{{ total_customers }}</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                <div style="font-size: 0.9rem; color: #666;">মোট অর্ডার (Custom)</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #28a745;">{{ total_orders }}</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <div style="font-size: 0.9rem; color: #666;">টেস্ট ক্রেতা (Test)</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #ffc107;">{{ test_customers }}</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
+                <div style="font-size: 0.9rem; color: #666;">ইমপোর্ট করার জন্য</div>
+                <div style="font-size: 1.8rem; font-weight: 700; color: #dc3545;">{{ customers_to_import }}</div>
+            </div>
+        </div>
+
+        <!-- Warning -->
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="margin-top: 0; color: #856404;">⚠️ সতর্কতা</h4>
+            <ul style="margin-bottom: 0; color: #856404;">
+                <li>এই প্রক্রিয়াটি কাস্টম অর্ডার সিস্টেম থেকে টেস্ট অর্ডার সিস্টেমে ডেটা স্থানান্তর করবে</li>
+                <li>শুধুমাত্র সেই ক্রেতারা ইমপোর্ট হবে যারা ইতিমধ্যে টেস্ট সিস্টেমে নেই</li>
+                <li>প্রতিটি কাস্টম অর্ডার একটি টেস্ট ক্রয় লেনদেন হিসেবে ইমপোর্ট হবে</li>
+                <li>ইমপোর্টের আগে <strong>Dry Run</strong> চালিয়ে দেখুন কী কী ইমপোর্ট হবে</li>
+                <li>ইমপোর্ট করা ডেটা পুনরায় মুছে ফেলা যাবে না</li>
+            </ul>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+            <form method="post" style="flex: 1;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dry_run">
+                <button type="submit" class="btn btn-warning" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+                    🔍 Dry Run - দেখুন কী কী ইমপোর্ট হবে
+                </button>
+            </form>
+            
+            <form method="post" style="flex: 1;" onsubmit="return confirm('আপনি কি নিশ্চিত সব ডেটা ইমপোর্ট করতে চান?\n\nএই পদক্ষেপ বাতিল করা যাবে না!');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="import">
+                <button type="submit" class="btn btn-success" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+                    ✅ ইমপোর্ট শুরু করুন
+                </button>
+            </form>
+        </div>
+
+        <!-- Result Section -->
+        {% if result %}
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">
+            <h3 style="margin-top: 0;">{% if is_dry_run %}🔍 Dry Run Result{% else %}✅ Import Result{% endif %}</h3>
+            <pre style="background: white; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">{{ result }}</pre>
+        </div>
+        {% endif %}
+
+        <!-- Information -->
+        <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin-top: 20px;">
+            <h4 style="margin-top: 0;">ℹ️ তথ্য</h4>
+            <p style="margin-bottom: 0; color: #004085;">
+                এই টুল কাস্টম অর্ডার সিস্টেমের সব ক্রেতা এবং তাদের অর্ডারগুলো টেস্ট অর্ডার সিস্টেমে স্থানান্তর করবে। 
+                প্রতিটি ক্রেতার জন্য একটি টেস্ট ক্রেতা তৈরি হবে এবং তাদের সব অর্ডার ক্রয় লেনদেন হিসেবে সংরক্ষিত হবে।
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
