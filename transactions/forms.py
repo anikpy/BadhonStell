@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Customer, Transaction
 
 
@@ -12,6 +13,25 @@ class CustomerForm(forms.ModelForm):
             'mobile_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter mobile number'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter address'}),
         }
+
+    def clean_mobile_number(self):
+        mobile_number = self.cleaned_data.get('mobile_number', '').strip()
+        if not mobile_number:
+            raise ValidationError('মোবাইল নম্বর প্রয়োজন!')
+
+        # Check for duplicate mobile number
+        existing = Customer.objects.filter(mobile_number=mobile_number)
+        if self.instance and self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+
+        if existing.exists():
+            existing_customer = existing.first()
+            raise ValidationError(
+                f'❌ এই মোবাইল নম্বরটি ইতিমধ্যে "{existing_customer.name}" নামে নিবন্ধিত আছে! '
+                f'একই মোবাইল নম্বর দিয়ে নতুন কাস্টমার তৈরি করা যাবে না।'
+            )
+
+        return mobile_number
 
 
 class TransactionSubmissionForm(forms.ModelForm):

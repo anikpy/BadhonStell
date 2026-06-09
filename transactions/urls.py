@@ -4,6 +4,11 @@ from . import views
 app_name = 'transactions'
 
 urlpatterns = [
+    # Notifications
+    path('notifications/', views.notification_list, name='notification_list'),
+    path('notifications/<int:pk>/read/', views.notification_mark_read, name='notification_mark_read'),
+    path('api/notifications/count/', views.notification_count_api, name='notification_count_api'),
+    
     # Order Management
     path('order/create/', views.order_create, name='order_create'),
     path('import-legacy-orders/', views.import_legacy_orders, name='import_legacy_orders'),
@@ -35,6 +40,7 @@ urlpatterns = [
     # Transaction Actions
     path('transactions/<int:pk>/reverse/', views.transaction_reverse, name='transaction_reverse'),
     path('transactions/<int:pk>/edit/', views.transaction_edit, name='transaction_edit'),
+    path('transactions/<int:pk>/complete/', views.transaction_complete, name='transaction_complete'),
     
     # Customer Statements & History
     path('customers/<int:customer_pk>/statement/', views.customer_statement, name='customer_statement'),

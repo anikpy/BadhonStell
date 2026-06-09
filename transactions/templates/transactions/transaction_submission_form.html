@@ -1,6 +1,5 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
-{% load custom_filters %}
 
 {% block title %}{{ customer.name }} - নতুন জমা{% endblock %}
 
@@ -25,14 +24,14 @@
                 <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.mobile_number }}</div>
             </div>
             <div>
-                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
-                <div style="font-size: 1.5rem; font-weight: 700;">
-                    {% if customer.current_balance >= 0 %}
-                    ৳{{ customer.current_balance|floatformat:2 }}
-                    {% else %}
-                    -৳{{ customer.current_balance|abs_value|floatformat:2 }}
-                    {% endif %}
-                </div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">
+                        {% if customer.current_balance >= 0 %}
+                        ৳{{ customer.current_balance|floatformat:2 }}
+                        {% else %}
+                        <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
+                        {% endif %}
+                    </div>
             </div>
         </div>
     </div>
@@ -42,7 +41,7 @@
         {% csrf_token %}
         
         <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.amount.label }}</label>
+            <label for="{{ form.amount.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.amount.label }}</label>
             {{ form.amount }}
             {% if form.amount.errors %}
             <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.amount.errors.0 }}</div>
@@ -53,7 +52,7 @@
         </div>
 
         <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.notes.label }}</label>
+            <label for="{{ form.notes.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.notes.label }}</label>
             {{ form.notes }}
             {% if form.notes.errors %}
             <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.notes.errors.0 }}</div>

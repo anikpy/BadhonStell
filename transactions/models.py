@@ -60,9 +60,15 @@ class Transaction(models.Model):
     ]
     
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
+        ('pending', 'চলমান'),
+        ('ready', 'প্রস্তুত'),
+        ('completed', 'সম্পন্ন'),
+        ('cancelled', 'বাতিল'),
+    ]
+    
+    DELIVERY_STATUS_CHOICES = [
+        ('not_delivered', 'ডেলিভারি হয়নি'),
+        ('delivered', 'ডেলিভারি সম্পন্ন'),
     ]
     
     # Edit tracking
@@ -96,12 +102,14 @@ class Transaction(models.Model):
     gross_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Gross Amount')
     
     # Status and audit
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='completed', verbose_name='Status')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Order Status')
+    delivery_status = models.CharField(max_length=20, choices=DELIVERY_STATUS_CHOICES, default='not_delivered', verbose_name='Delivery Status')
     notes = models.TextField(verbose_name='Notes', blank=True)
     
     # Date tracking
     order_date = models.DateField(default=timezone.now, verbose_name='Order Date')
     delivery_date = models.DateField(null=True, blank=True, verbose_name='Delivery Date')
+    payment_date = models.DateField(null=True, blank=True, verbose_name='Payment Due Date')
     
     # Reversal tracking
     reverses_transaction = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, 
@@ -225,6 +233,39 @@ class TransactionHistory(models.Model):
     
     def __str__(self):
         return f"{self.transaction.transaction_number} - {self.get_action_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class Notification(models.Model):
+    """Notification model for payment due alerts"""
+    
+    NOTIFICATION_TYPE_CHOICES = [
+        ('payment_due', 'Payment Due'),
+        ('delivery_due', 'Delivery Due'),
+    ]
+    
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES, verbose_name='Notification Type')
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='notifications', verbose_name='Customer')
+    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name='Transaction')
+    title = models.CharField(max_length=255, verbose_name='Title')
+    message = models.TextField(verbose_name='Message')
+    is_read = models.BooleanField(default=False, verbose_name='Is Read')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name='Read At')
+    
+    class Meta:
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.customer.name}"
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save()
 
 
 # ==================== DEPRECATED MODELS (Keep for backward compatibility) ====================

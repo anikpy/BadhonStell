@@ -7,15 +7,14 @@
 <div class="card">
     <div class="card-title">
         📋 অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা
-    </div>
-
-    <div class="card-actions">
-        <a href="{% url 'transactions:order_create' %}" class="btn btn-success">
-            🛒 নতুন অর্ডার
-        </a>
-        <a href="{% url 'transactions:customer_create' %}" class="btn btn-primary">
-            ➕ নতুন ক্রেতা
-        </a>
+        <div style="float: right; display: flex; gap: 10px; align-items: center;">
+            <a href="{% url 'transactions:customer_create' %}" class="btn btn-success">➕ নতুন কাস্টমার</a>
+            <div style="font-size: 0.9rem; color: #666;">
+                {% if page_obj %}
+                মোট {{ page_obj.paginator.count }} জন কাস্টমার
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <!-- Dynamic Search Form -->
@@ -77,8 +76,7 @@
                         <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
                         <a href="{% url 'transactions:customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
                         <a href="{% url 'transactions:transaction_purchase_create' customer.pk %}" class="btn btn-sm btn-success">🛒 ক্রয়</a>
-                        <a href="{% url 'transactions:customer_delete' customer.pk %}?confirm=yes" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
-                        <a href="{% url 'transactions:customer_delete' customer.pk %}?force=yes" class="btn btn-sm btn-warning" onclick="return confirmForceDelete('{{ customer.name }}')">⚠️ বাধ্যতামূলক মুছুন</a>
+                        <a href="{% url 'transactions:customer_delete' customer.pk %}" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -113,14 +111,9 @@
 </div>
 
 <script>
-// Confirm delete for individual customer
+// Confirm delete for individual customer - will delete customer and all transactions
 function confirmDelete(customerName) {
-    return confirm(`আপনি কি নিশ্চিত "${customerName}" কাস্টমার মুছে ফেলতে চান?`);
-}
-
-// Confirm force delete for customer with transactions
-function confirmForceDelete(customerName) {
-    return confirm(`আপনি কি নিশ্চিত "${customerName}" কাস্টমার এবং তার সব লেনদেন বাধ্যতামূলকভাবে মুছে ফেলতে চান?\n\nএই পদক্ষেপ বাতিল করা যাবে না!`);
+    return confirm(`আপনি কি নিশ্চিত "${customerName}" কাস্টমার এবং তার সব লেনদেন মুছে ফেলতে চান?\n\nএই পদক্ষেপ বাতিল করা যাবে না!`);
 }
 
 // Dynamic search with autocomplete

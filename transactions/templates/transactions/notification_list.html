@@ -1,0 +1,72 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        🔔 Notifications
+        <div style="float: right;">
+            <span style="background: #dc3545; color: white; padding: 5px 15px; border-radius: 20px; font-weight: 600;">
+                {{ total_unread }} Unread
+            </span>
+        </div>
+    </div>
+
+    {% if notifications %}
+        <div style="max-width: 800px;">
+            {% for notification in notifications %}
+            <div style="background: {% if notification.notification_type == 'payment_due' %}#fff3cd{% else %}#e7f3ff{% endif %}; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid {% if notification.notification_type == 'payment_due' %}#ffc107{% else %}#007bff{% endif %};">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; color: {% if notification.notification_type == 'payment_due' %}#856404{% else %}#004085{% endif %};">
+                            {{ notification.title }}
+                        </h4>
+                        <p style="margin: 0 0 10px 0; color: {% if notification.notification_type == 'payment_due' %}#856404{% else %}#004085{% endif %}; line-height: 1.5;">
+                            {{ notification.message }}
+                        </p>
+                        <small style="color: #6c757d;">
+                            Created: {{ notification.created_at|date:"d/m/Y H:i" }}
+                        </small>
+                    </div>
+                    <div>
+                        <a href="{% url 'transactions:notification_mark_read' notification.pk %}" class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9rem; white-space: nowrap;">
+                            ✓ View Customer
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 40px; color: #6c757d;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">✓</div>
+            <h3>No Notifications</h3>
+            <p>All caught up! No payment due notifications at the moment.</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+</style>
+{% endblock %}

@@ -10,9 +10,10 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-from .models import Customer, Transaction, TransactionItem, TransactionHistory, CustomerSubmission, CustomerItem
+from .models import Customer, Transaction, TransactionItem, TransactionHistory, CustomerSubmission, CustomerItem, Notification
 from .forms import CustomerForm, TransactionSubmissionForm, TransactionPurchaseForm, TransactionWithdrawalForm
 from shop.models import InventoryProduct, StockHistory
+from .notifications import generate_payment_notifications, get_unread_notifications, get_unread_notification_count
 
 
 # ==================== Order Management ====================
@@ -144,7 +145,7 @@ def customer_create(request):
         if form.is_valid():
             customer = form.save()
             messages.success(request, f'✅ {customer.name} successfully added!')
-            return redirect('customer_detail', pk=customer.pk)
+            return redirect('transactions:customer_detail', pk=customer.pk)
     else:
         form = CustomerForm()
     
@@ -218,51 +219,24 @@ def customer_edit(request, pk):
 
 @login_required
 def customer_delete(request, pk):
-    """Delete customer"""
+    """Delete customer and all associated transactions"""
     customer = get_object_or_404(Customer, pk=pk)
     
     # Check if customer has transactions
     has_transactions = customer.transactions.exists()
     transaction_count = customer.transactions.count() if has_transactions else 0
     
-    # For GET requests with force delete parameter, delete with all transactions
-    if request.method == 'GET' and request.GET.get('force') == 'yes':
+    # For POST requests (from form submission) - delete everything
+    if request.method == 'POST':
         name = customer.name
         # Delete all transactions first (cascade will handle this, but being explicit)
         if has_transactions:
             customer.transactions.all().delete()
         customer.delete()
-        messages.warning(request, f'⚠️ {name} and {transaction_count} transactions successfully deleted!')
-        return redirect('customer_list')
-    
-    # For GET requests with normal confirmation parameter, only delete if no transactions
-    if request.method == 'GET' and request.GET.get('confirm') == 'yes':
-        if has_transactions:
-            messages.error(request, f'❌ This customer has {transaction_count} transactions! Use "Force Delete" button to delete.')
-            return redirect('customer_detail', pk=customer.pk)
-        name = customer.name
-        customer.delete()
-        messages.success(request, f'✅ {name} successfully deleted!')
-        return redirect('customer_list')
-    
-    # For POST requests (from form submission)
-    if request.method == 'POST':
-        force_delete = request.POST.get('force_delete') == 'yes'
         
-        if force_delete:
-            # Force delete with all transactions
-            name = customer.name
-            if has_transactions:
-                customer.transactions.all().delete()
-            customer.delete()
-            messages.warning(request, f'⚠️ {name} and {transaction_count} transactions force deleted!')
+        if has_transactions:
+            messages.warning(request, f'⚠️ {name} and {transaction_count} transactions successfully deleted!')
         else:
-            # Normal delete only if no transactions
-            if has_transactions:
-                messages.error(request, f'❌ This customer has {transaction_count} transactions!')
-                return redirect('customer_detail', pk=customer.pk)
-            name = customer.name
-            customer.delete()
             messages.success(request, f'✅ {name} successfully deleted!')
         
         return redirect('customer_list')
@@ -351,7 +325,7 @@ def transaction_submission_create(request, customer_pk):
             )
             
             messages.success(request, f'✅ ৳{amount} submission successfully added! Transaction #: {transaction.transaction_number}')
-            return redirect('transaction_voucher', pk=transaction.pk)
+            return redirect('transactions:transaction_voucher', pk=transaction.pk)
     else:
         form = TransactionSubmissionForm()
     
@@ -386,11 +360,16 @@ def transaction_purchase_create(request, customer_pk):
     today = timezone.now().date()
     default_delivery_date = today + timedelta(days=7)
     
+    # Status choices for template
+    status_choices = Transaction.STATUS_CHOICES
+    delivery_status_choices = Transaction.DELIVERY_STATUS_CHOICES
+    
     if request.method == 'POST':
         items_json_str = request.POST.get('items_json', '[]')
         total_discount = request.POST.get('total_discount', '0')
         order_date = request.POST.get('order_date', '')
         delivery_date = request.POST.get('delivery_date', '')
+        payment_date = request.POST.get('payment_date', '')
         
         try:
             items_data = json.loads(items_json_str)
@@ -527,7 +506,7 @@ def transaction_purchase_create(request, customer_pk):
                         )
                 
                 messages.success(request, f'✅ Purchase successful! ৳{final_total} | Transaction #: {transaction.transaction_number}')
-                return redirect('transaction_voucher', pk=transaction.pk)
+                return redirect('transactions:transaction_voucher', pk=transaction.pk)
                 
             except ValueError as e:
                 messages.error(request, f'❌ {str(e)}')
@@ -541,6 +520,8 @@ def transaction_purchase_create(request, customer_pk):
         'products_json': products_json,
         'today': today,
         'delivery_date': default_delivery_date,
+        'status_choices': status_choices,
+        'delivery_status_choices': delivery_status_choices,
     }
     return render(request, 'transactions/transaction_purchase_form.html', context)
 
@@ -577,7 +558,7 @@ def transaction_withdrawal_create(request, customer_pk):
             )
             
             messages.success(request, f'✅ ৳{amount} withdrawal successful! Transaction #: {transaction.transaction_number}')
-            return redirect('transaction_voucher', pk=transaction.pk)
+            return redirect('transactions:transaction_voucher', pk=transaction.pk)
     else:
         form = TransactionWithdrawalForm()
     
@@ -640,13 +621,52 @@ def transaction_list(request, customer_pk):
 
 
 @login_required
+def transaction_complete(request, pk):
+    """Mark purchase transaction as completed (delivered)"""
+    transaction = get_object_or_404(Transaction, pk=pk)
+    
+    # Only allow completing purchase transactions
+    if transaction.transaction_type != 'purchase':
+        messages.error(request, '❌ শুধুমাত্র ক্রয় লেনদেন সম্পন্ন করা যায়!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    # Don't allow completing reversed transactions
+    if transaction.is_reversed:
+        messages.error(request, '❌ বাতিলকৃত লেনদেন সম্পন্ন করা যায় না!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    # Check if already completed
+    if transaction.delivery_status == 'delivered':
+        messages.info(request, 'ℹ️ এই অর্ডার ইতিমধ্যে সম্পন্ন হয়েছে!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    # Mark as completed
+    transaction.delivery_status = 'delivered'
+    transaction.status = 'completed'
+    transaction.save()
+    
+    # Record history
+    TransactionHistory.objects.create(
+        transaction=transaction,
+        action='completed',
+        old_balance=transaction.customer.current_balance,
+        new_balance=transaction.customer.current_balance,
+        notes=f'অর্ডার সম্পন্ন: {transaction.transaction_number}',
+        performed_by=request.user
+    )
+    
+    messages.success(request, f'✅ অর্ডার সম্পন্ন হয়েছে! লেনদেন #: {transaction.transaction_number}')
+    return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+
+
+@login_required
 def transaction_reverse(request, pk):
     """Reverse/cancel transaction"""
     transaction = get_object_or_404(Transaction, pk=pk)
     
     if transaction.is_reversed:
         messages.error(request, '❌ This transaction has already been reversed!')
-        return redirect('customer_detail', pk=transaction.customer.pk)
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
     
     if request.method == 'POST':
         # Store old balance for history
@@ -705,7 +725,7 @@ def transaction_reverse(request, pk):
         )
         
         messages.success(request, f'✅ Transaction reversal successful! Reversal #: {reversal.transaction_number}')
-        return redirect('customer_detail', pk=transaction.customer.pk)
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
     
     context = {
         'transaction': transaction,
@@ -716,26 +736,63 @@ def transaction_reverse(request, pk):
 
 @login_required
 def customer_statement(request, customer_pk):
-    """Customer statement - complete transaction history"""
+    """Customer statement - complete transaction history with date filtering"""
     customer = get_object_or_404(Customer, pk=customer_pk)
     
     date_from = request.GET.get('from_date', '')
     date_to = request.GET.get('to_date', '')
     
-    transactions = customer.transactions.filter(status='completed').order_by('created_at')
+    # Use order_date for filtering instead of created_at to preserve original order dates
+    transactions = customer.transactions.filter(status='completed').order_by('order_date')
+    
+    # Parse dates if provided
+    from_date_obj = None
+    to_date_obj = None
     
     if date_from:
-        transactions = transactions.filter(created_at__gte=date_from)
+        try:
+            from_date_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            transactions = transactions.filter(order_date__gte=from_date_obj)
+        except ValueError:
+            date_from = ''
     
     if date_to:
-        transactions = transactions.filter(created_at__lte=date_to)
+        try:
+            to_date_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            transactions = transactions.filter(order_date__lte=to_date_obj)
+        except ValueError:
+            date_to = ''
+    
+    # Calculate running balance
+    running_balance = Decimal('0')
+    transactions_with_balance = []
+    
+    for txn in transactions:
+        running_balance = txn.balance_after
+        transactions_with_balance.append({
+            'transaction': txn,
+            'running_balance': running_balance
+        })
+    
+    # Calculate totals
+    total_submitted = transactions.filter(transaction_type='submission').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    total_purchased = transactions.filter(transaction_type='purchase').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    total_withdrawn = transactions.filter(transaction_type='withdrawal').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
     
     context = {
         'customer': customer,
         'transactions': transactions,
+        'transactions_with_balance': transactions_with_balance,
         'date_from': date_from,
         'date_to': date_to,
-        'today': timezone.now(),
+        'from_date_obj': from_date_obj,
+        'to_date_obj': to_date_obj,
+        'today': timezone.now().date(),
+        'now': timezone.now(),
+        'total_submitted': total_submitted,
+        'total_purchased': total_purchased,
+        'total_withdrawn': total_withdrawn,
+        'net_balance': total_submitted - total_purchased - total_withdrawn,
     }
     return render(request, 'transactions/customer_statement.html', context)
 
@@ -889,6 +946,13 @@ def transaction_edit(request, pk):
                 transaction.total_discount_amount = total_discount_amount
                 transaction.amount = final_total
                 transaction.notes = request.POST.get('notes', transaction.notes)
+                
+                # Update status fields
+                status = request.POST.get('status', 'completed')
+                delivery_status = request.POST.get('delivery_status', 'not_delivered')
+                transaction.status = status
+                transaction.delivery_status = delivery_status
+                
                 transaction.save()
                 
                 # FIRST: Restore old stock for all old items
@@ -972,7 +1036,7 @@ def transaction_edit(request, pk):
                 )
                 
                 messages.success(request, f'✅ Purchase successfully updated! ৳{final_total} | Transaction #: {transaction.transaction_number}')
-                return redirect('transaction_voucher', pk=transaction.pk)
+                return redirect('transactions:transaction_voucher', pk=transaction.pk)
                 
             except ValueError as e:
                 messages.error(request, f'❌ {str(e)}')
@@ -1125,3 +1189,46 @@ def submission_remove_item(request, item_pk):
         messages.success(request, f'✅ {product_name} successfully removed!')
     
     return redirect('submission_detail', pk=submission.pk)
+
+
+# ==================== Notification Views ====================
+
+@login_required
+def notification_list(request):
+    """List all unread notifications"""
+    # Generate new notifications for today/overdue payments
+    generate_payment_notifications()
+    
+    # Get all unread notifications
+    notifications = get_unread_notifications()
+    
+    context = {
+        'notifications': notifications,
+        'total_unread': notifications.count(),
+    }
+    return render(request, 'transactions/notification_list.html', context)
+
+
+@login_required
+def notification_mark_read(request, pk):
+    """Mark notification as read and redirect to customer profile"""
+    notification = get_object_or_404(Notification, pk=pk)
+    customer = notification.customer
+    
+    # Mark as read
+    notification.mark_as_read()
+    
+    # Redirect to customer profile
+    return redirect('transactions:customer_detail', pk=customer.pk)
+
+
+@login_required
+def notification_count_api(request):
+    """API endpoint to get unread notification count"""
+    # Generate new notifications for today/overdue payments
+    generate_payment_notifications()
+    
+    # Get count
+    count = get_unread_notification_count()
+    
+    return JsonResponse({'unread_count': count})

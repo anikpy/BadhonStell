@@ -1,4 +1,6 @@
 from django.urls import path
+from django.views.generic import RedirectView
+from django.shortcuts import redirect
 from . import views
 
 urlpatterns = [
@@ -11,23 +13,23 @@ urlpatterns = [
     path('admin-panel/logout/', views.admin_logout, name='admin_logout'),
     path('admin-panel/', views.admin_dashboard, name='admin_dashboard'),
 
-    # অর্ডার ম্যানেজমেন্ট URLs (কাস্টম পণ্য)
-    path('admin-panel/orders/', views.order_list, name='order_list'),
-    path('admin-panel/orders/completed/', views.completed_order_list, name='completed_order_list'),
-    path('admin-panel/orders/create/', views.order_create, name='order_create'),
-    path('admin-panel/orders/<int:pk>/edit/', views.order_edit, name='order_edit'),
-    path('admin-panel/orders/<int:pk>/delete/', views.order_delete, name='order_delete'),
-    path('admin-panel/orders/<int:pk>/complete/', views.order_complete, name='order_complete'),
-    path('admin-panel/orders/<int:order_pk>/payment/', views.order_payment_create, name='order_payment_create'),
-    path('admin-panel/orders/payments/<int:pk>/edit/', views.order_payment_edit, name='order_payment_edit'),
-    path('admin-panel/orders/payments/<int:pk>/delete/', views.order_payment_delete, name='order_payment_delete'),
-    path('admin-panel/orders/<int:pk>/voucher/', views.order_voucher, name='order_voucher'),
-    path('admin-panel/customers/<int:customer_pk>/combined-voucher/', views.customer_combined_voucher, name='customer_combined_voucher'),
+    # অর্ডার ম্যানেজমেন্ট URLs - REDIRECTED TO TRANSACTIONS APP
+    path('admin-panel/orders/', views.redirect_order_list, name='order_list'),
+    path('admin-panel/orders/completed/', views.redirect_order_list, name='completed_order_list'),
+    path('admin-panel/orders/create/', views.redirect_order_create, name='order_create'),
+    path('admin-panel/orders/<int:pk>/edit/', views.redirect_order_list, name='order_edit'),
+    path('admin-panel/orders/<int:pk>/delete/', views.redirect_order_list, name='order_delete'),
+    path('admin-panel/orders/<int:pk>/complete/', views.redirect_order_list, name='order_complete'),
+    path('admin-panel/orders/<int:order_pk>/payment/', views.redirect_order_list, name='order_payment_create'),
+    path('admin-panel/orders/payments/<int:pk>/edit/', views.redirect_order_list, name='order_payment_edit'),
+    path('admin-panel/orders/payments/<int:pk>/delete/', views.redirect_order_list, name='order_payment_delete'),
+    path('admin-panel/orders/<int:pk>/voucher/', views.redirect_order_voucher, name='order_voucher'),
+    path('admin-panel/customers/<int:customer_pk>/combined-voucher/', views.redirect_combined_voucher, name='customer_combined_voucher'),
 
     # ক্রেতা ব্যবস্থাপনা URLs (Customer Management - Custom Orders)
     path('admin-panel/customers/new/', views.customer_list_new, name='customer_list_new'),
     path('admin-panel/customers/new/create/', views.customer_create, name='customer_create'),
-    path('admin-panel/customers/new/<int:pk>/', views.customer_detail, name='customer_detail'),
+    path('admin-panel/customers/new/<int:pk>/', views.customer_detail_redirect, name='customer_detail'),
     path('admin-panel/customers/new/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('admin-panel/customers/new/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
     path('admin-panel/customers/new/<int:customer_pk>/deposit/', views.customer_deposit_create, name='customer_deposit_create'),
@@ -76,7 +78,7 @@ urlpatterns = [
     # বাকি খাতা এবং কাস্টমার লিস্ট URLs
     path('admin-panel/due-accounts/', views.due_accounts_list, name='due_accounts_list'),
     path('admin-panel/due-accounts/print/', views.due_accounts_print, name='due_accounts_print'),
-    path('admin-panel/customers/', views.customer_list, name='customer_list'),
+    path('admin-panel/customers/', RedirectView.as_view(url='/admin-panel/transactions/customers/', permanent=False), name='customer_list'),
 
     # API endpoint for customer search (autocomplete)
     path('api/customers/search/', views.customer_search_api, name='customer_search_api'),

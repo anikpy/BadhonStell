@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ customer.name }} - হিসাব বিবরণী</title>
-    {% load custom_filters %}
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -267,6 +266,22 @@
         <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
         <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
     </div>
+
+    <!-- Date Filter Form -->
+    <div style="background: #f5f5f5; padding: 15px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ddd;">
+        <form method="get" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label for="from_date" style="display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem;">শুরুর তারিখ</label>
+                <input type="date" name="from_date" id="from_date" value="{{ date_from }}" style="padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.9rem;">
+            </div>
+            <div>
+                <label for="to_date" style="display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem;">শেষের তারিখ</label>
+                <input type="date" name="to_date" id="to_date" value="{{ date_to }}" style="padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.9rem;">
+            </div>
+            <button type="submit" class="btn" style="padding: 8px 16px; font-size: 0.9rem;">🔍 ফিল্টার করুন</button>
+            <a href="{% url 'transactions:customer_statement' customer_pk=customer.pk %}" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9rem;">সব সময়</a>
+        </form>
+    </div>
     
     <div class="statement-container">
         <!-- Header -->
@@ -322,9 +337,33 @@
                     {% if customer.current_balance >= 0 %}
                     ৳{{ customer.current_balance|floatformat:0 }}
                     {% else %}
-                    -৳{{ customer.current_balance|abs_value|floatformat:0 }}
+                    <span style="color: #dc3545;">৳-{{ customer.current_balance|floatformat:0|slice:"1:" }}</span>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+
+        <!-- Final Balance Explanation -->
+        <div style="background: {% if customer.current_balance >= 0 %}#d4edda{% else %}#f8d7da{% endif %}; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid {% if customer.current_balance >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+            <div style="text-align: center;">
+                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: {% if customer.current_balance >= 0 %}#155724{% else %}#721c24{% endif %};">
+                    💰 চূড়ান্ত হিসাব
+                </div>
+                {% if customer.current_balance >= 0 %}
+                <div style="font-size: 1.3rem; font-weight: 700; color: #155724;">
+                    {{ customer.name }} এর অতিরিক্ত জমা আছে ৳{{ customer.current_balance|floatformat:0 }} টাকা
+                </div>
+                <div style="font-size: 0.9rem; margin-top: 5px; color: #155724;">
+                    (ক্রেতা দোকান থেকে এই টাকা ফেরত নিতে পারবে)
+                </div>
+                {% else %}
+                <div style="font-size: 1.3rem; font-weight: 700; color: #721c24;">
+                    {{ customer.name }} এর বাকি আছে ৳{{ customer.current_balance|floatformat:0|slice:"1:" }} টাকা
+                </div>
+                <div style="font-size: 0.9rem; margin-top: 5px; color: #721c24;">
+                    (ক্রেতা দোকানকে এই টাকা দিতে হবে)
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -372,17 +411,17 @@
                         <span class="amount-negative">-৳{{ txn.amount|floatformat:0 }}</span>
                         {% elif txn.transaction_type == 'reversal' %}
                             {% if txn.reverses_transaction.transaction_type == 'submission' %}
-                            <span class="amount-negative">-৳{{ txn.amount|abs_value|floatformat:0 }}</span>
+                            <span class="amount-negative">-৳{{ txn.amount|floatformat:0 }}</span>
                             {% else %}
-                            <span class="amount-positive">+৳{{ txn.amount|abs_value|floatformat:0 }}</span>
+                            <span class="amount-positive">+৳{{ txn.amount|floatformat:0 }}</span>
                             {% endif %}
                         {% endif %}
                     </td>
                     <td style="text-align: right; font-weight: 700;">
                         {% if txn.balance_after >= 0 %}
-                        ৳{{ txn.balance_after|floatformat:0 }}
+                        <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:0 }}</span>
                         {% else %}
-                        -৳{{ txn.balance_after|abs_value|floatformat:0 }}
+                        <span style="color: #dc3545;">৳{{ txn.balance_after|floatformat:0 }}</span>
                         {% endif %}
                     </td>
                 </tr>

@@ -1,6 +1,5 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
-{% load custom_filters %}
 
 {% block title %}{{ customer.name }} - সব লেনদেন{% endblock %}
 
@@ -10,7 +9,7 @@
         📋 {{ customer.name }} - সম্পূর্ণ লেনদেন ইতিহাস
         <div style="float: right;">
             <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
-            <a href="{% url 'transactions:customer_statement' customer.pk %}{% if date_from or date_to %}?from_date={{ date_from }}&to_date={{ date_to }}{% endif %}" class="btn btn-info">📄 স্টেটমেন্ট</a>
+            <a href="{% url 'transactions:customer_statement' customer_pk=customer.pk %}{% if date_from or date_to %}?from_date={{ date_from }}&to_date={{ date_to }}{% endif %}" class="btn btn-info">📄 স্টেটমেন্ট</a>
         </div>
     </div>
 
@@ -23,7 +22,7 @@
                     {% if customer.current_balance >= 0 %}
                     ৳{{ customer.current_balance|floatformat:2 }}
                     {% else %}
-                    -৳{{ customer.current_balance|abs_value|floatformat:2 }}
+                    <span style="color: #dc3545;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -46,8 +45,8 @@
     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <form method="get" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
             <div>
-                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">লেনদেনের ধরন:</label>
-                <select name="type" class="form-control" style="min-width: 150px;">
+                <label for="type" style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">লেনদেনের ধরন:</label>
+                <select name="type" id="type" class="form-control" style="min-width: 150px;">
                     <option value="">সব</option>
                     <option value="submission" {% if transaction_type == 'submission' %}selected{% endif %}>জমা</option>
                     <option value="purchase" {% if transaction_type == 'purchase' %}selected{% endif %}>ক্রয়</option>
@@ -57,19 +56,19 @@
             </div>
             
             <div>
-                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শুরুর তারিখ:</label>
-                <input type="date" name="from_date" value="{{ date_from }}" class="form-control">
+                <label for="from_date" style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শুরুর তারিখ:</label>
+                <input type="date" name="from_date" id="from_date" value="{{ date_from }}" class="form-control">
             </div>
             
             <div>
-                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শেষ তারিখ:</label>
-                <input type="date" name="to_date" value="{{ date_to }}" class="form-control">
+                <label for="to_date" style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শেষ তারিখ:</label>
+                <input type="date" name="to_date" id="to_date" value="{{ date_to }}" class="form-control">
             </div>
             
             <div>
                 <button type="submit" class="btn btn-primary">🔍 ফিল্টার করুন</button>
                 {% if transaction_type or date_from or date_to %}
-                <a href="{% url 'transactions:transaction_list' customer.pk %}" class="btn btn-secondary">সাফ করুন</a>
+                <a href="{% url 'transactions:transaction_list' customer_pk=customer.pk %}" class="btn btn-secondary">সাফ করুন</a>
                 {% endif %}
             </div>
         </form>
@@ -112,7 +111,7 @@
                     <td style="padding: 10px 8px;">
                         {% if txn.transaction_type == 'purchase' %}
                             <strong>{{ txn.item_name }}</strong>
-                            {% if txn.item_quantity %}<br><small>পরিমাণ: {{ txn.item_quantity }} | একক মূল্য: ৳{{ txn.item_unit_price }}</small>{% endif %}
+                            {% if txn.item_quantity %}<br><small>পরিমাণ: {{ txn.item_quantity }} | একক মূল্য: ৳{{ txn.item_unit_price|floatformat:2 }}</small>{% endif %}
                         {% elif txn.notes %}
                             {{ txn.notes|truncatewords:15 }}
                         {% else %}
@@ -126,9 +125,9 @@
                         <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
                         {% elif txn.transaction_type == 'reversal' %}
                             {% if txn.reverses_transaction.transaction_type == 'submission' %}
-                            <span style="color: #dc3545;">-৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
                             {% else %}
-                            <span style="color: #28a745;">+৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
                             {% endif %}
                         {% endif %}
                     </td>
@@ -136,13 +135,13 @@
                         {% if txn.balance_after >= 0 %}
                         <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
                         {% else %}
-                        <span style="color: #dc3545;">-৳{{ txn.balance_after|abs_value|floatformat:2 }}</span>
+                        <span style="color: #dc3545;">৳{{ txn.balance_after|floatformat:2 }}</span>
                         {% endif %}
                     </td>
                     <td style="padding: 10px 8px; text-align: center;">
-                        <a href="{% url 'transactions:transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার">🧾</a>
+                        <a href="{% url 'transactions:transaction_voucher' pk=txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার">🧾</a>
                         {% if not txn.is_reversed %}
-                        <a href="{% url 'transactions:transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
                         {% endif %}
                     </td>
                 </tr>

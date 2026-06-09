@@ -807,6 +807,24 @@ def customer_detail(request, pk):
 
 
 @login_required
+def customer_detail_redirect(request, pk):
+    """Redirect to transactions app customer detail by looking up mobile number"""
+    from transactions.models import Customer as TransactionCustomer
+    
+    # Get the shop customer
+    shop_customer = get_object_or_404(Customer, pk=pk)
+    
+    # Find the corresponding transaction customer by mobile number
+    try:
+        transaction_customer = TransactionCustomer.objects.get(mobile_number=shop_customer.mobile_number)
+        # Redirect to the transactions app customer detail page
+        return redirect('transactions:customer_detail', pk=transaction_customer.pk)
+    except TransactionCustomer.DoesNotExist:
+        # If not found in transactions app, show the old shop app detail page
+        return redirect('customer_detail', pk=pk)
+
+
+@login_required
 def customer_delete(request, pk):
     """ক্রেতা মুছে ফেলা"""
     customer = get_object_or_404(Customer, pk=pk)
@@ -3200,51 +3218,24 @@ def test_customer_edit(request, pk):
 
 @login_required
 def test_customer_delete(request, pk):
-    """ক্রেতা মুছে ফেলা"""
+    """ক্রেতা মুছে ফেলা - সব লেনদেন সহ"""
     customer = get_object_or_404(TestCustomer, pk=pk)
     
     # Check if customer has transactions
     has_transactions = customer.test_transactions.exists()
     transaction_count = customer.test_transactions.count() if has_transactions else 0
     
-    # For GET requests with force delete parameter, delete with all transactions
-    if request.method == 'GET' and request.GET.get('force') == 'yes':
+    # For POST requests (from form submission) - delete everything
+    if request.method == 'POST':
         name = customer.name
         # Delete all transactions first (cascade will handle this, but being explicit)
         if has_transactions:
             customer.test_transactions.all().delete()
         customer.delete()
-        messages.warning(request, f'⚠️ {name} এবং {transaction_count}টি লেনদেন সফলভাবে মুছে ফেলা হয়েছে!')
-        return redirect('test_customer_list')
-    
-    # For GET requests with normal confirmation parameter, only delete if no transactions
-    if request.method == 'GET' and request.GET.get('confirm') == 'yes':
-        if has_transactions:
-            messages.error(request, f'❌ এই ক্রেতার {transaction_count}টি লেনদেন আছে! বাধ্যতামূলকভাবে মুছে ফেলতে "বাধ্যতামূলক মুছুন" বাটন ব্যবহার করুন।')
-            return redirect('test_customer_detail', pk=customer.pk)
-        name = customer.name
-        customer.delete()
-        messages.success(request, f'✅ {name} সফলভাবে মুছে ফেলা হয়েছে!')
-        return redirect('test_customer_list')
-    
-    # For POST requests (from form submission)
-    if request.method == 'POST':
-        force_delete = request.POST.get('force_delete') == 'yes'
         
-        if force_delete:
-            # Force delete with all transactions
-            name = customer.name
-            if has_transactions:
-                customer.test_transactions.all().delete()
-            customer.delete()
-            messages.warning(request, f'⚠️ {name} এবং {transaction_count}টি লেনদেন বাধ্যতামূলকভাবে মুছে ফেলা হয়েছে!')
+        if has_transactions:
+            messages.warning(request, f'⚠️ {name} এবং {transaction_count}টি লেনদেন সফলভাবে মুছে ফেলা হয়েছে!')
         else:
-            # Normal delete only if no transactions
-            if has_transactions:
-                messages.error(request, f'❌ এই ক্রেতার {transaction_count}টি লেনদেন আছে!')
-                return redirect('test_customer_detail', pk=customer.pk)
-            name = customer.name
-            customer.delete()
             messages.success(request, f'✅ {name} সফলভাবে মুছে ফেলা হয়েছে!')
         
         return redirect('test_customer_list')
@@ -4115,3 +4106,28 @@ def test_submission_remove_item(request, item_pk):
         messages.success(request, f'✅ {product_name} সফলভাবে সরানো হয়েছে!')
     
     return redirect('test_submission_detail', pk=submission.pk)
+
+
+# ==================== REDIRECT VIEWS FOR OLD URLS ====================
+@login_required
+def redirect_order_list(request, **kwargs):
+    """Redirect old order list URL to transactions app"""
+    return redirect('transactions:customer_list')
+
+
+@login_required
+def redirect_order_create(request):
+    """Redirect old order create URL to transactions app"""
+    return redirect('transactions:order_create')
+
+
+@login_required
+def redirect_order_voucher(request, pk):
+    """Redirect old order voucher URL to transactions app"""
+    return redirect('transactions:customer_list')
+
+
+@login_required
+def redirect_combined_voucher(request, customer_pk):
+    """Redirect old combined voucher URL to transactions app"""
+    return redirect('transactions:customer_list')

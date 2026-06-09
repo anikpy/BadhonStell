@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>লেনদেন ভাউচার - {{ transaction.transaction_number }}</title>
-    {% load custom_filters %}
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -411,23 +410,23 @@
         <div class="balance-section">
             <div class="balance-box">
                 <div class="balance-label">পূর্ববর্তী ব্যালেন্স</div>
-                <div class="balance-value">
-                    {% if transaction.balance_before >= 0 %}
-                    ৳{{ transaction.balance_before|floatformat:2 }}
-                    {% else %}
-                    -৳{{ transaction.balance_before|abs_value|floatformat:2 }}
-                    {% endif %}
-                </div>
+                    <div class="balance-value">
+                        {% if transaction.balance_before >= 0 %}
+                        ৳{{ transaction.balance_before|floatformat:2 }}
+                        {% else %}
+                        <span style="color: #dc3545;">৳{{ transaction.balance_before|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
             </div>
             <div class="balance-box">
                 <div class="balance-label">নতুন ব্যালেন্স</div>
-                <div class="balance-value" style="{% if transaction.balance_after >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
-                    {% if transaction.balance_after >= 0 %}
-                    ৳{{ transaction.balance_after|floatformat:2 }}
-                    {% else %}
-                    -৳{{ transaction.balance_after|abs_value|floatformat:2 }}
-                    {% endif %}
-                </div>
+                    <div class="balance-value" style="{% if transaction.balance_after >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                        {% if transaction.balance_after >= 0 %}
+                        ৳{{ transaction.balance_after|floatformat:2 }}
+                        {% else %}
+                        <span style="color: #dc3545;">৳{{ transaction.balance_after|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
             </div>
         </div>
 

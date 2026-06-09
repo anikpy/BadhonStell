@@ -591,6 +591,10 @@
                 <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>
                 <a href="{% url 'due_accounts_list' %}" {% if request.resolver_match.url_name == 'due_accounts_list' %}class="active"{% endif %}>📝 বাকি খাতা</a>
                 <a href="{% url 'customer_list' %}" {% if request.resolver_match.url_name == 'customer_list' %}class="active"{% endif %}>👥 কাস্টমার লিস্ট</a>
+                <a href="{% url 'transactions:notification_list' %}" {% if request.resolver_match.url_name == 'notification_list' %}class="active"{% endif %} id="notification-link" style="position: relative;">
+                    🔔 নোটিফিকেশন
+                    <span id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">0</span>
+                </a>
                 {% if request.user.is_superuser %}
                 <a href="{% url 'admin_statistics' %}" {% if request.resolver_match.url_name == 'admin_statistics' %}class="active"{% endif %}>📊 স্ট্যাটিস্টিক্স</a>
                 <a href="{% url 'user_management' %}" {% if request.resolver_match.url_name == 'user_management' %}class="active"{% endif %}>👥 ইউজার</a>

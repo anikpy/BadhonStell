@@ -31,23 +31,23 @@
         {% csrf_token %}
         
         <div class="form-group">
-            <label>পণ্যের নাম *</label>
-            <input type="text" name="product_name" class="form-control" placeholder="পণ্যের নাম লিখুন" required>
+            <label for="product_name">পণ্যের নাম *</label>
+            <input type="text" name="product_name" id="product_name" class="form-control" placeholder="পণ্যের নাম লিখুন" required>
         </div>
 
         <div class="form-group">
-            <label>পণ্যের বিবরণ</label>
-            <textarea name="product_description" class="form-control" rows="2" placeholder="বিবরণ (ঐচ্ছিক)"></textarea>
+            <label for="product_description">পণ্যের বিবরণ</label>
+            <textarea name="product_description" id="product_description" class="form-control" rows="2" placeholder="বিবরণ (ঐচ্ছিক)"></textarea>
         </div>
 
         <div class="form-group">
-            <label>পরিমাণ *</label>
-            <input type="number" name="quantity" class="form-control bangla-number-input" placeholder="উদাহরণ: 1" step="0.01" required>
+            <label for="quantity">পরিমাণ *</label>
+            <input type="number" name="quantity" id="quantity" class="form-control bangla-number-input" placeholder="উদাহরণ: 1" step="0.01" required>
         </div>
 
         <div class="form-group">
-            <label>একক মূল্য *</label>
-            <input type="number" name="unit_price" class="form-control bangla-number-input" placeholder="উদাহরণ: 5000" step="0.01" required>
+            <label for="unit_price">একক মূল্য *</label>
+            <input type="number" name="unit_price" id="unit_price" class="form-control bangla-number-input" placeholder="উদাহরণ: 5000" step="0.01" required>
         </div>
 
         <div style="margin-top: 20px;">

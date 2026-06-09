@@ -1,6 +1,5 @@
 {% extends 'admin_panel/base.html' %}
 {% load static %}
-{% load custom_filters %}
 
 {% block title %}{{ customer.name }} - নতুন ক্রয়{% endblock %}
 
@@ -45,9 +44,9 @@
         <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
             <h3 style="margin-top: 0; color: #2c3e50;">📅 তারিখ নির্বাচন করুন</h3>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                 <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের তারিখ <span style="color: #dc3545;">*</span></label>
+                    <label for="order-date" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের তারিখ <span style="color: #dc3545;">*</span></label>
                     <input 
                         type="date" 
                         name="order_date" 
@@ -59,7 +58,7 @@
                     >
                 </div>
                 <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারির তারিখ <span style="color: #dc3545;">*</span></label>
+                    <label for="delivery-date" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারির তারিখ <span style="color: #dc3545;">*</span></label>
                     <input 
                         type="date" 
                         name="delivery_date" 
@@ -67,6 +66,17 @@
                         class="form-control" 
                         value="{{ transaction.delivery_date|date:'Y-m-d'|default:'' }}"
                         required
+                        style="font-size: 1rem; padding: 12px; cursor: pointer;"
+                    >
+                </div>
+                <div>
+                    <label for="payment-date" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পেমেন্ট তারিখ</label>
+                    <input 
+                        type="date" 
+                        name="payment_date" 
+                        id="payment-date"
+                        class="form-control" 
+                        value="{{ transaction.payment_date|date:'Y-m-d'|default:'' }}"
                         style="font-size: 1rem; padding: 12px; cursor: pointer;"
                     >
                 </div>
@@ -182,6 +192,37 @@
             <div style="padding: 10px; background: white; border-radius: 6px;">
                 <div style="font-size: 0.9rem; color: #856404;">ছাড়ের পর মোট:</div>
                 <div id="final-total" style="font-size: 2rem; font-weight: 700; color: #dc3545;">৳0.00</div>
+            </div>
+        </div>
+
+        <!-- Order Status and Delivery Status -->
+        <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2c3e50;">📊 অর্ডার স্ট্যাটাস</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের অবস্থা <span style="color: #dc3545;">*</span></label>
+                    <select name="status" id="order-status" class="form-control" required style="font-size: 1rem; padding: 12px;">
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if transaction and transaction.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারি অবস্থা <span style="color: #dc3545;">*</span></label>
+                    <select name="delivery_status" id="delivery-status" class="form-control" required style="font-size: 1rem; padding: 12px;">
+                        {% for value, label in delivery_status_choices %}
+                        <option value="{{ value }}" {% if transaction and transaction.delivery_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff;">
+                <small style="color: #004085;">
+                    ℹ️ <strong>অর্ডারের অবস্থা:</strong> অর্ডারের প্রগতি | 
+                    <strong>ডেলিভারি অবস্থা:</strong> পণ্য ডেলিভারির অবস্থা
+                </small>
             </div>
         </div>
 
