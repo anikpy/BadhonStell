@@ -41,6 +41,7 @@ urlpatterns = [
     path('transactions/<int:pk>/reverse/', views.transaction_reverse, name='transaction_reverse'),
     path('transactions/<int:pk>/edit/', views.transaction_edit, name='transaction_edit'),
     path('transactions/<int:pk>/complete/', views.transaction_complete, name='transaction_complete'),
+    path('transactions/<int:pk>/update-status/', views.transaction_update_status, name='transaction_status_update'),
     
     # Customer Statements & History
     path('customers/<int:customer_pk>/statement/', views.customer_statement, name='customer_statement'),

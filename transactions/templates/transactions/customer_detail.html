@@ -4,6 +4,41 @@
 {% block title %}{{ customer.name }} - বিস্তারিত{% endblock %}
 
 {% block content %}
+
+<!-- Quick Status Update Modal -->
+<div id="status-modal" class="status-modal">
+    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: #2c3e50;">🔄 স্ট্যাটাস আপডেট করুন</h3>
+        <form id="status-update-form" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="transaction_pk" id="status-transaction-pk" value="">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #2c3e50;">অর্ডারের অবস্থা *</label>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="pending" checked> চলমান</label>
+                    <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="ready"> প্রস্তুত</label>
+                    <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="completed"> সম্পন্ন</label>
+                    <label style="display: block;"><input type="radio" name="status" value="cancelled"> বাতিল</label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #2c3e50;">ডেলিভারি অবস্থা *</label>
+                <div>
+                    <label style="display: block; margin-bottom: 8px;"><input type="radio" name="delivery_status" value="not_delivered" checked> ডেলিভারি হয়নি</label>
+                    <label style="display: block;"><input type="radio" name="delivery_status" value="delivered"> ডেলিভারি সম্পন্ন</label>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" onclick="closeStatusModal()" class="btn btn-secondary">বাতিল</button>
+                <button type="submit" class="btn btn-primary">আপডেট করুন</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-title">
         👤 {{ customer.name }} - ক্রেতার বিবরণ
@@ -166,6 +201,8 @@
                         {% else %}
                         <span class="btn btn-sm" style="background: #d4edda; color: #155724; cursor: default;" title="ডেলিভারি সম্পন্ন">✅ সম্পন্ন</span>
                         {% endif %}
+                        <!-- Quick Status Update Button -->
+                        <button onclick="toggleStatusForm({{ txn.pk }})" class="btn btn-sm btn-primary" title="স্ট্যাটাস আপডেট করুন">🔄</button>
                         {% endif %}
                         {% if not txn.is_reversed %}
                         <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
@@ -194,4 +231,40 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function toggleStatusForm(transactionPk) {
+    const modal = document.getElementById('status-modal');
+    const form = document.getElementById('status-update-form');
+    const pkInput = document.getElementById('status-transaction-pk');
+    
+    // Set the transaction PK
+    pkInput.value = transactionPk;
+    
+    // Set form action URL
+    form.action = '/transactions/' + transactionPk + '/update-status/';
+    
+    // Show modal
+    modal.classList.add('active');
+}
+
+function closeStatusModal() {
+    const modal = document.getElementById('status-modal');
+    modal.classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.getElementById('status-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeStatusModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeStatusModal();
+    }
+});
+</script>
 {% endblock %}

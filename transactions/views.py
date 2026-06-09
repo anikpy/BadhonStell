@@ -1191,6 +1191,41 @@ def submission_remove_item(request, item_pk):
     return redirect('submission_detail', pk=submission.pk)
 
 
+@login_required
+def transaction_update_status(request, pk):
+    """Quick update of order status and delivery status"""
+    transaction = get_object_or_404(Transaction, pk=pk)
+    
+    # Only allow updating purchase transactions
+    if transaction.transaction_type != 'purchase':
+        messages.error(request, '❌ শুধুমাত্র ক্রয় লেনদেনের স্ট্যাটাস আপডেট করা যায়!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    if request.method == 'POST':
+        # Get form data
+        new_status = request.POST.get('status', transaction.status)
+        new_delivery_status = request.POST.get('delivery_status', transaction.delivery_status)
+        
+        # Update transaction
+        transaction.status = new_status
+        transaction.delivery_status = new_delivery_status
+        transaction.save()
+        
+        # Record history
+        TransactionHistory.objects.create(
+            transaction=transaction,
+            action='edited',
+            old_balance=transaction.balance_before,
+            new_balance=transaction.balance_after,
+            notes=f'Status updated: {transaction.get_status_display()} / {transaction.get_delivery_status_display()}',
+            performed_by=request.user
+        )
+        
+        messages.success(request, f'✅ স্ট্যাটাস আপডেট হয়েছে! লেনদেন #: {transaction.transaction_number}')
+    
+    return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+
+
 # ==================== Notification Views ====================
 
 @login_required

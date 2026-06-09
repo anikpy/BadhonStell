@@ -201,20 +201,20 @@
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের অবস্থা <span style="color: #dc3545;">*</span></label>
-                    <select name="status" id="order-status" class="form-control" required style="font-size: 1rem; padding: 12px;">
-                        {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if transaction and transaction.status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #2c3e50;">অর্ডারের অবস্থা <span style="color: #dc3545;">*</span></label>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="pending" {% if not transaction or transaction.status == 'pending' %}checked{% endif %}> চলমান</label>
+                        <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="ready" {% if transaction and transaction.status == 'ready' %}checked{% endif %}> প্রস্তুত</label>
+                        <label style="display: block; margin-bottom: 8px;"><input type="radio" name="status" value="completed" {% if transaction and transaction.status == 'completed' %}checked{% endif %}> সম্পন্ন</label>
+                        <label style="display: block;"><input type="radio" name="status" value="cancelled" {% if transaction and transaction.status == 'cancelled' %}checked{% endif %}> বাতিল</label>
+                    </div>
                 </div>
                 <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারি অবস্থা <span style="color: #dc3545;">*</span></label>
-                    <select name="delivery_status" id="delivery-status" class="form-control" required style="font-size: 1rem; padding: 12px;">
-                        {% for value, label in delivery_status_choices %}
-                        <option value="{{ value }}" {% if transaction and transaction.delivery_status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #2c3e50;">ডেলিভারি অবস্থা <span style="color: #dc3545;">*</span></label>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px;"><input type="radio" name="delivery_status" value="not_delivered" {% if not transaction or transaction.delivery_status == 'not_delivered' %}checked{% endif %}> ডেলিভারি হয়নি</label>
+                        <label style="display: block;"><input type="radio" name="delivery_status" value="delivered" {% if transaction and transaction.delivery_status == 'delivered' %}checked{% endif %}> ডেলিভারি সম্পন্ন</label>
+                    </div>
                 </div>
             </div>
 
