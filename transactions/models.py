@@ -11,6 +11,8 @@ class Customer(models.Model):
     current_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Current Balance', default=0)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+    is_deleted = models.BooleanField(default=False, verbose_name='Is Deleted')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Deleted At')
 
     class Meta:
         verbose_name = 'Customer'
@@ -25,7 +27,7 @@ class Customer(models.Model):
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='submission',
-            status='completed'
+            is_reversed=False
         ).aggregate(total=Sum('amount'))
         return result['total'] or 0
 
@@ -34,7 +36,7 @@ class Customer(models.Model):
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='purchase',
-            status='completed'
+            is_reversed=False
         ).aggregate(total=Sum('amount'))
         return abs(result['total'] or 0)
 
@@ -43,7 +45,7 @@ class Customer(models.Model):
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='withdrawal',
-            status='completed'
+            is_reversed=False
         ).aggregate(total=Sum('amount'))
         return abs(result['total'] or 0)
 
@@ -120,6 +122,8 @@ class Transaction(models.Model):
     created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Created By')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+    is_deleted = models.BooleanField(default=False, verbose_name='Is Deleted')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='Deleted At')
     
     class Meta:
         verbose_name = 'Transaction'
@@ -165,7 +169,21 @@ class Transaction(models.Model):
         elif self.transaction_type == 'reversal':
             # For reversal, reverse the original transaction's effect
             if self.reverses_transaction:
-                if self.reverses_transaction.transaction_type == 'submission':
+                # If reversing a reversal, we need to reverse the reversal's effect
+                if self.reverses_transaction.transaction_type == 'reversal':
+                    # Reversing a reversal means undoing the reversal
+                    # So we apply the same logic as the original reversal but in opposite direction
+                    if self.reverses_transaction.reverses_transaction:
+                        original_txn = self.reverses_transaction.reverses_transaction
+                        if original_txn.transaction_type == 'submission':
+                            # Original was submission, reversal subtracted it, so we add it back
+                            self.balance_after = self.balance_before + abs(original_txn.amount)
+                        else:
+                            # Original was purchase/withdrawal, reversal added it, so we subtract it back
+                            self.balance_after = self.balance_before - abs(original_txn.amount)
+                    else:
+                        self.balance_after = self.balance_before + self.amount
+                elif self.reverses_transaction.transaction_type == 'submission':
                     self.balance_after = self.balance_before - abs(self.reverses_transaction.amount)
                 else:
                     self.balance_after = self.balance_before + abs(self.reverses_transaction.amount)
@@ -174,7 +192,8 @@ class Transaction(models.Model):
         
         super().save(*args, **kwargs)
         
-        if self.status == 'completed' and not self.is_reversed:
+        # Update customer balance for all non-reversed orders (pending, ready, completed)
+        if not self.is_reversed:
             self.customer.current_balance = self.balance_after
             self.customer.save()
 

@@ -153,6 +153,8 @@
                         {% endif %}
                         {% if not txn.is_reversed %}
                         <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        {% else %}
+                        <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-success" title="পুনরায় সক্রিয় করুন" onclick="return confirm('এই বাতিলকৃত লেনদেন পুনরায় সক্রিয় করতে চান?')">♻️</a>
                         {% endif %}
                     </td>
                 </tr>

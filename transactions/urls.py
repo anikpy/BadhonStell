@@ -15,6 +15,8 @@ urlpatterns = [
     path('customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('customers/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
     path('customers/bulk-delete/', views.customer_bulk_delete, name='customer_bulk_delete'),
+    path('customers/trash/', views.customer_trash_list, name='customer_trash_list'),
+    path('customers/<int:pk>/restore/', views.customer_restore, name='customer_restore'),
     
     # Transaction Management - Submission (Deposit)
     path('customers/<int:customer_pk>/submission/create/', 
@@ -29,15 +31,15 @@ urlpatterns = [
          views.transaction_withdrawal_create, name='transaction_withdrawal_create'),
     
     # Transaction Voucher & List
-    path('transactions/<int:pk>/voucher/', views.transaction_voucher, name='transaction_voucher'),
-    path('transactions/', views.transaction_list_all, name='transaction_list_all'),
+    path('<int:pk>/voucher/', views.transaction_voucher, name='transaction_voucher'),
+    path('list/', views.transaction_list_all, name='transaction_list_all'),
     path('customers/<int:customer_pk>/transactions/', views.transaction_list, name='transaction_list'),
     
     # Transaction Actions
-    path('transactions/<int:pk>/reverse/', views.transaction_reverse, name='transaction_reverse'),
-    path('transactions/<int:pk>/edit/', views.transaction_edit, name='transaction_edit'),
-    path('transactions/<int:pk>/complete/', views.transaction_complete, name='transaction_complete'),
-    path('transactions/<int:pk>/update-status/', views.transaction_update_status, name='transaction_status_update'),
+    path('<int:pk>/reverse/', views.transaction_reverse, name='transaction_reverse'),
+    path('<int:pk>/edit/', views.transaction_edit, name='transaction_edit'),
+    path('<int:pk>/complete/', views.transaction_complete, name='transaction_complete'),
+    path('<int:pk>/update-status/', views.transaction_update_status, name='transaction_status_update'),
     
     # Customer Statements & History
     path('customers/<int:customer_pk>/statement/', views.customer_statement, name='customer_statement'),

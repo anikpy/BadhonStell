@@ -1,0 +1,45 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}মুছে ফেলা কাস্টমারসমূহ (ট্র্যাশ){% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        🗑️ মুছে ফেলা কাস্টমারসমূহ (ট্র্যাশ)
+        <a href="{% url 'transactions:customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+    </div>
+
+    {% if customers %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">নাম</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">মোবাইল</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">মুছে ফেলার তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px;"><strong>{{ customer.name }}</strong></td>
+                    <td style="padding: 10px 8px;">{{ customer.mobile_number }}</td>
+                    <td style="padding: 10px 8px; text-align: center;">{{ customer.deleted_at|date:"d/m/Y H:i" }}</td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        <a href="{% url 'transactions:customer_restore' customer.pk %}" class="btn btn-sm btn-success">♻️ পুনরুদ্ধার</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <h3>ট্র্যাশ খালি আছে</h3>
+        <p>বর্তমানে কোনো মুছে ফেলা কাস্টমার নেই।</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

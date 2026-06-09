@@ -1,0 +1,21 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}কাস্টমার পুনরুদ্ধার নিশ্চিত করুন{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">♻️ কাস্টমার পুনরুদ্ধার নিশ্চিত করুন</div>
+    <div style="padding: 20px;">
+        <p>আপনি কি নিশ্চিত যে আপনি <strong>{{ customer.name }}</strong> কাস্টমার এবং তার সমস্ত লেনদেন পুনরুদ্ধার করতে চান?</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn btn-success">✅ হ্যাঁ, পুনরুদ্ধার করুন</button>
+                <a href="{% url 'transactions:customer_trash_list' %}" class="btn btn-secondary">বন্ধ করুন</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -118,7 +118,7 @@ def customer_list(request):
     delivery_status_filter = request.GET.get('delivery_status', '')
     
     # Get all customers
-    customers = Customer.objects.all().order_by('-created_at')
+    customers = Customer.objects.filter(is_deleted=False).order_by('-created_at')
     
     # If status filter is provided, filter customers by their transactions
     if status_filter or delivery_status_filter:
@@ -180,10 +180,13 @@ def customer_detail(request, pk):
     """Customer detail - transaction based"""
     customer = get_object_or_404(Customer, pk=pk)
     
-    # Get all transactions (including pending orders)
-    transactions = customer.transactions.all().order_by('-created_at')
+    # Get all transactions (including pending orders) but exclude pure reversal transactions
+    # Only show: submission, purchase, withdrawal (not reversal type)
+    transactions = customer.transactions.filter(is_deleted=False).exclude(
+        transaction_type='reversal'
+    ).order_by('-created_at')
     
-    # Get transaction counts
+    # Get transaction counts (excluding reversals)
     submission_count = transactions.filter(transaction_type='submission').count()
     purchase_count = transactions.filter(transaction_type='purchase').count()
     withdrawal_count = transactions.filter(transaction_type='withdrawal').count()
@@ -248,17 +251,18 @@ def customer_delete(request, pk):
     # For POST requests (from form submission) - delete everything
     if request.method == 'POST':
         name = customer.name
-        # Delete all transactions first (cascade will handle this, but being explicit)
-        if has_transactions:
-            customer.transactions.all().delete()
-        customer.delete()
+        # Soft delete customer and all his transactions
+        customer.is_deleted = True
+        customer.deleted_at = timezone.now()
+        customer.save()
         
+        # Soft delete all transactions
         if has_transactions:
-            messages.warning(request, f'⚠️ {name} and {transaction_count} transactions successfully deleted!')
-        else:
-            messages.success(request, f'✅ {name} successfully deleted!')
+            customer.transactions.all().update(is_deleted=True, deleted_at=timezone.now())
         
-        return redirect('customer_list')
+        messages.success(request, f'✅ {name} successfully moved to trash!')
+        
+        return redirect('transactions:customer_list')
     
     # Show confirmation page for GET requests
     context = {
@@ -308,6 +312,34 @@ def customer_bulk_delete(request):
         messages.warning(request, f'⚠️ {failed_count} customers could not be deleted (may have transactions)')
     
     return redirect('customer_list')
+
+
+@login_required
+def customer_trash_list(request):
+    """View to list soft-deleted customers"""
+    trashed_customers = Customer.objects.filter(is_deleted=True).order_by('-deleted_at')
+    context = {'customers': trashed_customers, 'page_title': 'Deleted Customers'}
+    return render(request, 'transactions/customer_trash_list.html', context)
+
+
+@login_required
+def customer_restore(request, pk):
+    """Restore a soft-deleted customer"""
+    customer = get_object_or_404(Customer, pk=pk, is_deleted=True)
+    
+    if request.method == 'POST':
+        customer.is_deleted = False
+        customer.deleted_at = None
+        customer.save()
+        
+        # Restore transactions
+        customer.transactions.filter(is_deleted=True).update(is_deleted=False, deleted_at=None)
+        
+        messages.success(request, f'✅ {customer.name} and their transactions restored!')
+        return redirect('transactions:customer_trash_list')
+    
+    context = {'customer': customer}
+    return render(request, 'transactions/customer_restore_confirm.html', context)
 
 
 # ==================== Transaction Management ====================
@@ -614,7 +646,7 @@ def transaction_list_all(request):
     search_query = request.GET.get('search', '')
     
     # Get all transactions
-    transactions = Transaction.objects.all().order_by('-created_at')
+    transactions = Transaction.objects.filter(is_deleted=False).order_by('-created_at')
     
     # Apply filters
     if status_filter:
@@ -727,70 +759,93 @@ def transaction_complete(request, pk):
 
 @login_required
 def transaction_reverse(request, pk):
-    """Reverse/cancel transaction"""
+    """Reverse/cancel transaction or restore it"""
+    # Allow reversing even if trashed? Usually not. Let's find it but ensure customer isn't deleted.
     transaction = get_object_or_404(Transaction, pk=pk)
     
-    if transaction.is_reversed:
-        messages.error(request, '❌ This transaction has already been reversed!')
-        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
-    
+    if transaction.customer.is_deleted:
+        messages.error(request, '❌ এই কাস্টমার বর্তমানে ট্র্যাশে আছে।')
+        return redirect('transactions:customer_list')
+
     if request.method == 'POST':
-        # Store old balance for history
         old_balance = transaction.customer.current_balance
         
-        # Create reversal transaction
-        reversal_amount = -transaction.amount if transaction.transaction_type == 'submission' else transaction.amount
+        # Check if this is a restore action (undo cancellation)
+        if transaction.is_reversed:
+            # RESTORE: Mark as not reversed
+            # Restore inventory stock if it was a purchase
+            if transaction.transaction_type == 'purchase':
+                for item in transaction.items.all():
+                    if item.inventory_product:
+                        item.inventory_product.remove_stock(item.quantity)
+                        
+                        # Create stock history
+                        StockHistory.objects.create(
+                            product=item.inventory_product,
+                            operation='sale',
+                            quantity=item.quantity,
+                            previous_quantity=item.inventory_product.stock_quantity + item.quantity,
+                            new_quantity=item.inventory_product.stock_quantity,
+                            notes=f'Transaction restored: {transaction.transaction_number}'
+                        )
+            
+            # Mark as not reversed - the model's save() will recalculate balance
+            transaction.is_reversed = False
+            transaction.save()
+            
+            # Get the new balance after model recalculated it
+            transaction.customer.refresh_from_db()
+            new_balance = transaction.customer.current_balance
+            
+            # Record history
+            TransactionHistory.objects.create(
+                transaction=transaction,
+                action='edited',
+                old_balance=old_balance,
+                new_balance=new_balance,
+                notes=f'Transaction restored: {transaction.transaction_number}',
+                performed_by=request.user
+            )
+            
+            messages.success(request, f'✅ Transaction restored successfully! {transaction.transaction_number}')
+        else:
+            # CANCEL: Mark as reversed
+            # Restore inventory stock if it was a purchase
+            if transaction.transaction_type == 'purchase':
+                for item in transaction.items.all():
+                    if item.inventory_product:
+                        item.inventory_product.add_stock(item.quantity)
+                        
+                        # Create stock history
+                        StockHistory.objects.create(
+                            product=item.inventory_product,
+                            operation='adjustment',
+                            quantity=item.quantity,
+                            previous_quantity=item.inventory_product.stock_quantity - item.quantity,
+                            new_quantity=item.inventory_product.stock_quantity,
+                            notes=f'Transaction cancelled: {transaction.transaction_number}'
+                        )
+            
+            # Mark as reversed - the model's save() will recalculate balance
+            transaction.is_reversed = True
+            transaction.save()
+            
+            # Get the new balance after model recalculated it
+            transaction.customer.refresh_from_db()
+            new_balance = transaction.customer.current_balance
+            
+            # Record history
+            TransactionHistory.objects.create(
+                transaction=transaction,
+                action='reversed',
+                old_balance=old_balance,
+                new_balance=new_balance,
+                notes=f'Transaction cancelled: {transaction.transaction_number}',
+                performed_by=request.user
+            )
+            
+            messages.success(request, f'✅ Transaction cancelled successfully! {transaction.transaction_number}')
         
-        reversal = Transaction.objects.create(
-            customer=transaction.customer,
-            transaction_type='reversal',
-            amount=reversal_amount,
-            notes=f'Reversal: {transaction.transaction_number} - {transaction.get_transaction_type_display()}',
-            reverses_transaction=transaction,
-            status='completed',
-            created_by=request.user
-        )
-        
-        # Mark original as reversed
-        transaction.is_reversed = True
-        transaction.save()
-        
-        # If it was a purchase, restore inventory stock for all items
-        if transaction.transaction_type == 'purchase':
-            for item in transaction.items.all():
-                if item.inventory_product:
-                    item.inventory_product.add_stock(item.quantity)
-                    
-                    # Create stock history
-                    StockHistory.objects.create(
-                        product=item.inventory_product,
-                        operation='adjustment',
-                        quantity=item.quantity,
-                        previous_quantity=item.inventory_product.stock_quantity - item.quantity,
-                        new_quantity=item.inventory_product.stock_quantity,
-                        notes=f'Transaction reversal: {transaction.transaction_number}'
-                    )
-        
-        # Record history for both original and reversal
-        TransactionHistory.objects.create(
-            transaction=transaction,
-            action='reversed',
-            old_balance=old_balance,
-            new_balance=transaction.customer.current_balance,
-            notes=f'Transaction reversed: {transaction.transaction_number}',
-            performed_by=request.user
-        )
-        
-        TransactionHistory.objects.create(
-            transaction=reversal,
-            action='created',
-            old_balance=old_balance,
-            new_balance=reversal.balance_after,
-            notes=f'Reversal created: {transaction.transaction_number}',
-            performed_by=request.user
-        )
-        
-        messages.success(request, f'✅ Transaction reversal successful! Reversal #: {reversal.transaction_number}')
         return redirect('transactions:customer_detail', pk=transaction.customer.pk)
     
     context = {

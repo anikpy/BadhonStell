@@ -1,0 +1,2 @@
+Error: That port is already in use.
+WARNING: Using auto-generated SECRET_KEY. Set DJANGO_SECRET_KEY env var for production!

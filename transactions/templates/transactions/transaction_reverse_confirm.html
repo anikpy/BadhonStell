@@ -2,10 +2,28 @@
 {% load static %}
 {% load custom_filters %}
 
-{% block title %}লেনদেন বাতিল নিশ্চিতকরণ{% endblock %}
+{% block title %}{% if transaction.is_reversed %}লেনদেন পুনরুদ্ধার নিশ্চিতকরণ{% else %}লেনদেন বাতিল নিশ্চিতকরণ{% endif %}{% endblock %}
 
 {% block content %}
 <div class="card" style="max-width: 800px; margin: 0 auto;">
+    {% if transaction.is_reversed %}
+    <div class="card-title" style="background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white;">
+        ♻️ লেনদেন পুনরুদ্ধার নিশ্চিতকরণ
+    </div>
+
+    <!-- Restore Banner -->
+    <div style="background: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 25px; border-radius: 4px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 3rem;">♻️</div>
+            <div>
+                <h3 style="color: #155724; margin-bottom: 8px;">পুনরুদ্ধার করুন</h3>
+                <p style="color: #155724; line-height: 1.6; margin: 0;">
+                    আপনি এই বাতিলকৃত লেনদেন পুনরুদ্ধার করতে চলেছেন। এটি গ্রাহকের ব্যালেন্স এবং ইনভেন্টরি স্টক পুনরায় আপডেট করবে।
+                </p>
+            </div>
+        </div>
+    </div>
+    {% else %}
     <div class="card-title" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">
         ⚠️ লেনদেন বাতিল নিশ্চিতকরণ
     </div>
@@ -22,6 +40,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Transaction Details -->
     <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
@@ -141,6 +160,20 @@
     <form method="post" style="text-align: center; padding: 25px; background: #f8f9fa; border-radius: 8px;">
         {% csrf_token %}
         
+        {% if transaction.is_reversed %}
+        <p style="font-size: 1.1rem; margin-bottom: 20px; color: #495057;">
+            আপনি কি নিশ্চিত যে আপনি এই লেনদেন পুনরুদ্ধার করতে চান?
+        </p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            <button type="submit" class="btn btn-success" style="padding: 15px 40px; font-size: 1.1rem; background: linear-gradient(135deg, #28a745 0%, #218838 100%); border: none; border-radius: 6px; color: white; cursor: pointer;">
+                ✓ হ্যাঁ, পুনরুদ্ধার করুন
+            </button>
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 15px 40px; font-size: 1.1rem; background: #6c757d; border: none; border-radius: 6px; color: white; text-decoration: none; display: inline-block;">
+                ✗ না, ফিরে যান
+            </a>
+        </div>
+        {% else %}
         <p style="font-size: 1.1rem; margin-bottom: 20px; color: #495057;">
             আপনি কি নিশ্চিত যে আপনি এই লেনদেন বাতিল করতে চান?
         </p>
@@ -153,12 +186,17 @@
                 ✗ না, ফিরে যান
             </a>
         </div>
+        {% endif %}
     </form>
 
     <!-- Additional Info -->
     <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-top: 20px;">
         <p style="font-size: 0.9rem; color: #495057; text-align: center; margin: 0;">
+            {% if transaction.is_reversed %}
+            <strong>দ্রষ্টব্য:</strong> পুনরুদ্ধার করলে লেনদেনটি আবার সক্রিয় হবে এবং গ্রাহকের ব্যালেন্স ও স্টক আপডেট হবে।
+            {% else %}
             <strong>দ্রষ্টব্য:</strong> বাতিলকরণ একটি নতুন "রিভার্সাল" লেনদেন তৈরি করবে। মূল লেনদেন ডেটাবেসে থাকবে কিন্তু "বাতিলকৃত" চিহ্নিত হবে।
+            {% endif %}
         </p>
     </div>
 </div>
