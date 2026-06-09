@@ -1,0 +1,96 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}জমা বিস্তারিত - {{ submission.customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        💰 জমা বিস্তারিত - {{ submission.customer.name }}
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' submission.customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'transactions:transaction_submission_create' submission.customer.pk %}" class="btn btn-success">➕ পণ্য যোগ করুন</a>
+        </div>
+    </div>
+
+    <!-- Submission Info -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>ক্রেতা:</strong><br>
+                {{ submission.customer.name }}
+            </div>
+            <div>
+                <strong>জমার তারিখ:</strong><br>
+                {{ submission.submission_date|date:"d/m/Y H:i" }}
+            </div>
+            <div>
+                <strong>জমার পরিমাণ:</strong><br>
+                <span style="font-size: 1.2rem; font-weight: 700; color: #1976d2;">৳{{ submission.submitted_amount|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #388e3c;">৳{{ total_spent|floatformat:0 }}</div>
+            <div style="color: #666;">মোট ব্যয়</div>
+        </div>
+        <div style="background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #f57c00;">৳{{ remaining|floatformat:0 }}</div>
+            <div style="color: #666;">বাকি টাকা</div>
+        </div>
+        <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 700; color: #1976d2;">{{ items.count }}</div>
+            <div style="color: #666;">পণ্য সংখ্যা</div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    {% if items %}
+    <h3 style="margin-bottom: 15px; color: #1976d2;">📦 ক্রয়কৃত পণ্য</h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">পণ্য</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পরিমাণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">একক মূল্য</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">মোট মূল্য</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px;">
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.product_description %}
+                        <br><small style="color: #666;">{{ item.product_description }}</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right;">{{ item.quantity }}</td>
+                    <td style="padding: 10px 8px; text-align: right;">৳{{ item.unit_price|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600;">৳{{ item.total_price|floatformat:2 }}</td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <form method="post" action="{% url 'transactions:transaction_reverse' item.pk %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('এই পণ্য বাতিল করতে চান?')">🗑️ বাতিল</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📦</div>
+        <h3>কোনো পণ্য নেই</h3>
+        <p>এখনো কোনো পণ্য যোগ করা হয়নি!</p>
+        <a href="{% url 'transactions:transaction_submission_create' submission.customer.pk %}" class="btn btn-success">➕ প্রথম পণ্য যোগ করুন</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

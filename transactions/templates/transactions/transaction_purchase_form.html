@@ -1,0 +1,644 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ customer.name }} - নতুন ক্রয়{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        <h3 style="margin-top: 0; color: #2c3e50;">🛒 {{ page_title }}</h3>
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Customer Info Banner -->
+    <div style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; color: white;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">ক্রেতা</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.name }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোবাইল</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.mobile_number }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" id="purchase-form" style="max-width: 100%;">
+        {% csrf_token %}
+        
+        <!-- Date Selection Section -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2c3e50;">📅 তারিখ নির্বাচন করুন</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">অর্ডারের তারিখ <span style="color: #dc3545;">*</span></label>
+                    <input 
+                        type="date" 
+                        name="order_date" 
+                        id="order-date"
+                        class="form-control" 
+                        value="{{ transaction.order_date|date:'Y-m-d' }}"
+                        required
+                        style="font-size: 1rem; padding: 12px; cursor: pointer;"
+                    >
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">ডেলিভারির তারিখ <span style="color: #dc3545;">*</span></label>
+                    <input 
+                        type="date" 
+                        name="delivery_date" 
+                        id="delivery-date"
+                        class="form-control" 
+                        value="{{ transaction.delivery_date|date:'Y-m-d'|default:'' }}"
+                        required
+                        style="font-size: 1rem; padding: 12px; cursor: pointer;"
+                    >
+                </div>
+            </div>
+
+            <div style="margin-top: 10px; padding: 10px; background: #e7f3ff; border-radius: 6px; border-left: 4px solid #007bff;">
+                <small style="color: #004085;">
+                    ℹ️ <strong>অর্ডারের তারিখ:</strong> অর্ডার গ্রহণের তারিখ | 
+                    <strong>ডেলিভারির তারিখ:</strong> পণ্য ডেলিভারির 예chtimated তারিখ
+                </small>
+            </div>
+        </div>
+
+        <!-- Product Search Section -->
+        <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2c3e50;">📦 পণ্য যোগ করুন</h3>
+            
+            <!-- Search Input -->
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পণ্য খুঁজুন</label>
+                <input 
+                    type="text" 
+                    id="product-search" 
+                    class="form-control" 
+                    placeholder="পণ্যের নাম লিখুন বা ইনভেন্টরি থেকে নির্বাচন করুন..."
+                    autocomplete="off"
+                    style="font-size: 1rem; padding: 12px;"
+                >
+                <div id="search-results" style="margin-top: 10px; max-height: 300px; overflow-y: auto; display: none; background: white; border: 1px solid #ced4da; border-radius: 6px;"></div>
+            </div>
+
+            <!-- Selected Product Details -->
+            <div id="product-details" style="display: none; padding: 15px; background: white; border-radius: 6px; border: 2px solid #007bff;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পণ্যের নাম</label>
+                        <input type="text" id="product-name" class="form-control" readonly style="background-color: #e7f3ff;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">স্টক পরিমাণ</label>
+                        <input type="text" id="product-stock" class="form-control" readonly style="background-color: #e7f3ff;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পরিমাণ <span style="color: #dc3545;">*</span></label>
+                        <input type="text" id="item-quantity" class="form-control bangla-number-input" placeholder="উদাহরণ: ১০ বা 10" autocomplete="off">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">একক মূল্য <span style="color: #dc3545;">*</span></label>
+                        <input type="text" id="item-price" class="form-control bangla-number-input" placeholder="উদাহরণ: ৫০০ বা 500" autocomplete="off">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পণ্যের ছাড় (%)</label>
+                        <input type="text" id="item-discount" class="form-control bangla-number-input" placeholder="উদাহরণ: ১০" value="0" autocomplete="off" min="0" max="100">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">পণ্যের বিবরণ</label>
+                    <textarea id="item-description" class="form-control" rows="2" placeholder="বিস্তারিত বিবরণ (ঐচ্ছিক)"></textarea>
+                </div>
+
+                <!-- Item Total Calculator -->
+                <div style="padding: 10px; background: #e7f3ff; border-radius: 6px; margin-bottom: 15px;">
+                    <div style="font-size: 0.9rem; color: #004085;">এই আইটেমের মোট:</div>
+                    <div id="item-total" style="font-size: 1.5rem; font-weight: 700; color: #004085;">৳0.00</div>
+                </div>
+
+                <button type="button" id="add-item-btn" class="btn btn-success" style="width: 100%; padding: 12px;">
+                    ✅ পণ্য যোগ করুন
+                </button>
+            </div>
+        </div>
+
+        <!-- Items List -->
+        <div id="items-section" style="margin-bottom: 25px; display: none;">
+            <h3 style="color: #2c3e50; margin-bottom: 15px;">📋 যোগ করা পণ্যসমূহ</h3>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                    <thead style="background: #007bff; color: white;">
+                        <tr>
+                            <th style="padding: 12px; text-align: left;">পণ্যের নাম</th>
+                            <th style="padding: 12px; text-align: center;">পরিমাণ</th>
+                            <th style="padding: 12px; text-align: right;">একক মূল্য</th>
+                            <th style="padding: 12px; text-align: center;">ছাড় (%)</th>
+                            <th style="padding: 12px; text-align: right;">ছাড়ের টাকা</th>
+                            <th style="padding: 12px; text-align: right;">নেট মূল্য</th>
+                            <th style="padding: 12px; text-align: center;">অপশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body">
+                        <!-- Items will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Total Discount -->
+        <div id="discount-section" style="margin-bottom: 25px; padding: 20px; background: #fff3cd; border-radius: 8px; display: none;">
+            <h3 style="margin-top: 0; color: #856404;">💰 মোট ছাড়</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #856404;">সাবটোটাল</label>
+                    <input type="text" id="subtotal-display" class="form-control" readonly style="background-color: #fff; font-weight: 600;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #856404;">মোট ছাড় (%)</label>
+                    <input type="text" id="total-discount-input" class="form-control bangla-number-input" placeholder="উদাহরণ: ৫" value="0" autocomplete="off" min="0" max="100">
+                </div>
+            </div>
+            <div style="padding: 10px; background: white; border-radius: 6px;">
+                <div style="font-size: 0.9rem; color: #856404;">ছাড়ের পর মোট:</div>
+                <div id="final-total" style="font-size: 2rem; font-weight: 700; color: #dc3545;">৳0.00</div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">নোট</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="নোট লিখুন (ঐচ্ছিক)"></textarea>
+        </div>
+
+        <!-- Hidden items JSON -->
+        <input type="hidden" name="items_json" id="items-json">
+        <input type="hidden" name="total_discount" id="total-discount-hidden" value="0">
+
+        <!-- Submit Buttons -->
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #e9ecef;">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 30px; font-size: 1.1rem;">
+                🛒 ক্রয় নিশ্চিত করুন
+            </button>
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px; font-size: 1.1rem;">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-control {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border: 2px solid #ced4da;
+    border-radius: 6px;
+    transition: border-color 0.15s ease-in-out;
+    font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s;
+}
+
+.search-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item .product-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.search-result-item .product-info {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    font-size: 0.875rem;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    background: #007bff;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.table td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+<script>
+// Global variables
+const productsData = {{ products_json|safe }};
+let cartItems = [];
+let currentProduct = null;
+
+// Convert Bangla numbers to English
+function banglaToEnglish(text) {
+    const banglaDigits = {"০":"0","১":"1","২":"2","৩":"3","৪":"4","৫":"5","৬":"6","৭":"7","৮":"8","৯":"9"};
+    if (!text) return text;
+    let result = String(text);
+    for (let [bangla, english] of Object.entries(banglaDigits)) {
+        result = result.replace(new RegExp(bangla, 'g'), english);
+    }
+    return result;
+}
+
+// Parse number (supports Bangla and English)
+function parseNumber(text) {
+    const english = banglaToEnglish(text);
+    const cleaned = english.replace(/,/g, '').replace(/\s/g, '');
+    return parseFloat(cleaned) || 0;
+}
+
+// Format number with commas
+function formatNumber(num) {
+    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Load existing items if editing
+    cartItems = [];
+    {% if edit_items_json %}
+    try {
+        const editItems = {{ edit_items_json|safe }};
+        if (editItems && editItems.length > 0) {
+            cartItems = editItems;
+            renderCart();
+            updateTotals();
+        }
+    } catch(e) {
+        console.error('Error loading existing items:', e);
+        cartItems = [];
+    }
+    {% endif %}
+
+    // Set total discount if provided
+    {% if total_discount %}
+    try {
+        const totalDiscountInput = document.getElementById('total-discount-input');
+        if (totalDiscountInput && {{ total_discount }} > 0) {
+            totalDiscountInput.value = {{ total_discount }};
+            updateTotals();
+        }
+    } catch(e) {
+        console.error('Error setting discount:', e);
+    }
+    {% endif %}
+
+    // Search products
+    document.getElementById('product-search').addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const resultsDiv = document.getElementById('search-results');
+        
+        if (query.length < 1) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        // Search in inventory products
+        const matches = productsData.filter(p => 
+            p.name.toLowerCase().includes(query)
+        ).slice(0, 10); // Limit to 10 results
+
+        if (matches.length > 0) {
+            let html = '';
+            matches.forEach(p => {
+                html += '<div class="search-result-item" data-product-id="' + p.id + '">';
+                html += '<div class="product-name">' + p.name + '</div>';
+                html += '<div class="product-info">';
+                html += '৳' + p.price + ' / ' + p.unit + ' | স্টক: ' + p.stock + ' ' + p.unit;
+                html += '</div></div>';
+            });
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+
+            // Add click handlers
+            resultsDiv.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const productId = parseInt(this.dataset.productId);
+                    selectProduct(productId);
+                });
+            });
+        } else {
+            // Allow custom product name
+            resultsDiv.innerHTML = '<div class="search-result-item" style="background: #fff3cd;">';
+            resultsDiv.innerHTML += '<div class="product-name">📝 কাস্টম পণ্য: "' + query + '"</div>';
+            resultsDiv.innerHTML += '<div class="product-info">ইনভেন্টরিতে পাওয়া যায়নি। কাস্টম নাম হিসেবে ব্যবহার করুন।</div>';
+            resultsDiv.innerHTML += '</div>';
+            resultsDiv.style.display = 'block';
+
+            resultsDiv.querySelector('.search-result-item').addEventListener('click', function() {
+                selectCustomProduct(query);
+            });
+        }
+    });
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(e) {
+        const searchInput = document.getElementById('product-search');
+        const resultsDiv = document.getElementById('search-results');
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.style.display = 'none';
+        }
+    });
+
+    // Add event listeners for item calculations
+    document.getElementById('item-quantity').addEventListener('input', calculateItemTotal);
+    document.getElementById('item-price').addEventListener('input', calculateItemTotal);
+    document.getElementById('item-discount').addEventListener('input', calculateItemTotal);
+
+    // Add item to cart
+    document.getElementById('add-item-btn').addEventListener('click', function() {
+        const productName = document.getElementById('product-name').value.trim();
+        const quantity = parseNumber(document.getElementById('item-quantity').value);
+        const price = parseNumber(document.getElementById('item-price').value);
+        const discount = parseNumber(document.getElementById('item-discount').value);
+        const description = document.getElementById('item-description').value.trim();
+        
+        if (!productName) {
+            alert('পণ্যের নাম লিখুন');
+            return;
+        }
+        
+        if (quantity <= 0) {
+            alert('পরিমাণ ০-এর বেশি হতে হবে');
+            return;
+        }
+        
+        if (price <= 0) {
+            alert('মূল্য ০-এর বেশি হতে হবে');
+            return;
+        }
+        
+        if (discount < 0 || discount > 100) {
+            alert('ছাড় ০-১০০%-এর মধ্যে হতে হবে');
+            return;
+        }
+
+        // Check stock for inventory products
+        if (currentProduct && currentProduct.stock < quantity) {
+            alert(`অপর্যাপ্ত স্টক! বর্তমান স্টক: ${currentProduct.stock} ${currentProduct.unit}`);
+            return;
+        }
+
+        // Calculate totals
+        const gross = quantity * price;
+        const discountAmount = (gross * discount) / 100;
+        const net = gross - discountAmount;
+
+        // Add to cart
+        const item = {
+            product_name: productName,
+            quantity: quantity,
+            unit_price: price,
+            discount_percentage: discount,
+            gross_amount: gross,
+            discount_amount: discountAmount,
+            net_amount: net,
+            description: description,
+            inventory_product_id: currentProduct ? currentProduct.id : null
+        };
+
+        cartItems.push(item);
+        renderCart();
+        updateTotals();
+        
+        // Clear form for next item
+        document.getElementById('product-name').value = '';
+        document.getElementById('product-stock').value = '';
+        document.getElementById('item-quantity').value = '';
+        document.getElementById('item-price').value = '';
+        document.getElementById('item-discount').value = '0';
+        document.getElementById('item-description').value = '';
+        document.getElementById('item-total').textContent = '৳0.00';
+        document.getElementById('product-details').style.display = 'none';
+        currentProduct = null;
+    });
+
+    // Total discount input handler
+    document.getElementById('total-discount-input').addEventListener('input', function() {
+        let value = parseNumber(this.value);
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+        this.value = value;
+        updateTotals();
+    });
+
+    // Form submission
+    document.getElementById('purchase-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (cartItems.length === 0) {
+            alert('কমপক্ষে একটি পণ্য যোগ করুন');
+            return;
+        }
+        
+        // Update hidden fields before submit
+        document.getElementById('items-json').value = JSON.stringify(cartItems);
+        document.getElementById('total-discount-hidden').value = document.getElementById('total-discount-input').value;
+        
+        // Submit form
+        this.submit();
+    });
+});
+
+// Select product from inventory
+function selectProduct(productId) {
+    const product = productsData.find(p => p.id === productId);
+    if (!product) return;
+
+    currentProduct = product;
+    document.getElementById('product-name').value = product.name;
+    document.getElementById('product-stock').value = `${product.stock} ${product.unit}`;
+    document.getElementById('item-price').value = product.price;
+    document.getElementById('product-details').style.display = 'block';
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('product-search').value = '';
+    
+    calculateItemTotal();
+}
+
+// Select custom product (not in inventory)
+function selectCustomProduct(name) {
+    currentProduct = null;
+    document.getElementById('product-name').value = name;
+    document.getElementById('product-stock').value = 'কাস্টম পণ্য';
+    document.getElementById('item-price').value = '';
+    document.getElementById('product-details').style.display = 'block';
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('product-search').value = '';
+}
+
+// Calculate item total
+function calculateItemTotal() {
+    const quantity = parseNumber(document.getElementById('item-quantity').value);
+    const price = parseNumber(document.getElementById('item-price').value);
+    const discount = parseNumber(document.getElementById('item-discount').value);
+    
+    const gross = quantity * price;
+    const discountAmount = (gross * discount) / 100;
+    const net = gross - discountAmount;
+    
+    document.getElementById('item-total').textContent = '৳' + formatNumber(net);
+}
+
+// Render cart items
+function renderCart() {
+    const tbody = document.getElementById('items-table-body');
+    const itemsSection = document.getElementById('items-section');
+    
+    if (cartItems.length === 0) {
+        itemsSection.style.display = 'none';
+        return;
+    }
+    
+    itemsSection.style.display = 'block';
+    let html = '';
+    cartItems.forEach((item, index) => {
+        html += '<tr>';
+        html += '<td><strong>' + item.product_name + '</strong>';
+        if (item.description) {
+            html += '<br><small style="color: #6c757d;">' + item.description + '</small>';
+        }
+        html += '</td>';
+        html += '<td style="text-align: center;">' + item.quantity + '</td>';
+        html += '<td style="text-align: right;">৳' + formatNumber(item.unit_price) + '</td>';
+        html += '<td style="text-align: center;">' + item.discount_percentage + '%</td>';
+        html += '<td style="text-align: right; color: #dc3545;">-৳' + formatNumber(item.discount_amount) + '</td>';
+        html += '<td style="text-align: right; font-weight: 600;">৳' + formatNumber(item.net_amount) + '</td>';
+        html += '<td style="text-align: center;">';
+        html += '<button type="button" class="btn btn-danger" onclick="removeItem(' + index + ')">🗑️ মুছুন</button>';
+        html += '</td>';
+        html += '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+// Remove item from cart
+function removeItem(index) {
+    if (confirm('আপনি কি নিশ্চিত এই পণ্যটি মুছে ফেলতে চান?')) {
+        cartItems.splice(index, 1);
+        renderCart();
+        updateTotals();
+    }
+}
+
+// Update totals
+function updateTotals() {
+    const subtotal = cartItems.reduce((sum, item) => sum + item.net_amount, 0);
+    const totalDiscount = parseNumber(document.getElementById('total-discount-input').value);
+    const discountAmount = (subtotal * totalDiscount) / 100;
+    const finalTotal = subtotal - discountAmount;
+    
+    document.getElementById('subtotal-display').value = '৳' + formatNumber(subtotal);
+    document.getElementById('final-total').textContent = '৳' + formatNumber(finalTotal);
+    
+    // Show/hide discount section
+    const discountSection = document.getElementById('discount-section');
+    if (cartItems.length > 0) {
+        discountSection.style.display = 'block';
+    } else {
+        discountSection.style.display = 'none';
+    }
+    
+    // Update hidden fields
+    document.getElementById('total-discount-hidden').value = totalDiscount;
+    document.getElementById('items-json').value = JSON.stringify(cartItems);
+}
+</script>
+{% endblock %}

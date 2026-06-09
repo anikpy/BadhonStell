@@ -1,0 +1,151 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ customer.name }} - টাকা উত্তোলন{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        💸 {{ page_title }}
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Customer Info Banner -->
+    <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; color: white;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">ক্রেতা</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.name }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোবাইল</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">{{ customer.mobile_number }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    <span style="color: #dc3545;">-৳{{ customer.current_balance|abs_value|floatformat:2 }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning if balance is low or negative -->
+    {% if customer.current_balance <= 0 %}
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 1.5rem;">⚠️</div>
+            <div>
+                <strong style="color: #856404;">সতর্কতা!</strong>
+                <div style="color: #856404; font-size: 0.9rem;">
+                    বর্তমান ব্যালেন্স শূন্য বা নেগেটিভ। উত্তোলন করলে ব্যালেন্স আরো নেগেটিভ হবে।
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.amount.label }} <span style="color: #dc3545;">*</span></label>
+            {{ form.amount }}
+            {% if form.amount.errors %}
+            <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.amount.errors.0 }}</div>
+            {% endif %}
+            <div style="color: #6c757d; margin-top: 5px; font-size: 0.875rem;">
+                💡 বাংলা বা ইংরেজি সংখ্যা উভয়ই ব্যবহার করতে পারবেন
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+            <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.notes.errors.0 }}</div>
+            {% endif %}
+            <div style="color: #6c757d; margin-top: 5px; font-size: 0.875rem;">
+                উত্তোলনের কারণ লিখুন (যেমন: ক্যাশ রিফান্ড, অতিরিক্ত জমা ফেরত, ইত্যাদি)
+            </div>
+        </div>
+
+        <!-- Balance Preview -->
+        <div id="balance-preview" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none;">
+            <div style="font-size: 0.9rem; color: #495057; margin-bottom: 10px;">উত্তোলন পরে নতুন ব্যালেন্স:</div>
+            <div id="new-balance" style="font-size: 1.6rem; font-weight: 700;">৳0.00</div>
+        </div>
+
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #e9ecef;">
+            <button type="submit" class="btn btn-warning" style="padding: 12px 30px; font-size: 1.1rem; color: white;">
+                💸 উত্তোলন নিশ্চিত করুন
+            </button>
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px; font-size: 1.1rem;">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-control {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border: 2px solid #ced4da;
+    border-radius: 6px;
+    transition: border-color 0.15s ease-in-out;
+    font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+</style>
+
+<script>
+// Calculate new balance when amount changes
+function calculateNewBalance() {
+    const amountInput = document.querySelector('input[name="amount"]');
+    const preview = document.getElementById('balance-preview');
+    const newBalanceDisplay = document.getElementById('new-balance');
+    const currentBalance = parseFloat("{{ customer.current_balance|floatformat:2 }}");
+    
+    if (amountInput) {
+        const withdrawalAmount = parseFloat(amountInput.value) || 0;
+        const newBalance = currentBalance - withdrawalAmount;
+        
+        if (withdrawalAmount > 0) {
+            preview.style.display = 'block';
+            
+            if (newBalance >= 0) {
+                newBalanceDisplay.style.color = '#28a745';
+                newBalanceDisplay.textContent = '৳' + newBalance.toFixed(2);
+            } else {
+                newBalanceDisplay.style.color = '#dc3545';
+                newBalanceDisplay.textContent = '-৳' + Math.abs(newBalance).toFixed(2);
+            }
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+}
+
+// Attach event listener
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.querySelector('input[name="amount"]');
+    if (amountInput) {
+        amountInput.addEventListener('input', calculateNewBalance);
+        calculateNewBalance(); // Initial calculation
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📋 অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা
+    </div>
+
+    <div class="card-actions">
+        <a href="{% url 'transactions:order_create' %}" class="btn btn-success">
+            🛒 নতুন অর্ডার
+        </a>
+        <a href="{% url 'transactions:customer_create' %}" class="btn btn-primary">
+            ➕ নতুন ক্রেতা
+        </a>
+    </div>
+
+    <!-- Dynamic Search Form -->
+    <div style="margin-bottom: 20px;">
+        <form method="get" id="searchForm" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" 
+                   id="searchInput" 
+                   name="search" 
+                   value="{{ search_query }}" 
+                   placeholder="নাম বা মোবাইল দিয়ে খুঁজুন (টাইপ করুন...)" 
+                   class="form-control" 
+                   style="max-width: 300px;"
+                   autocomplete="off">
+            <button type="submit" class="btn btn-primary">🔍 খুঁজুন</button>
+            {% if search_query %}
+            <a href="?" class="btn btn-secondary">সাফ করুন</a>
+            {% endif %}
+        </form>
+        
+        <!-- Autocomplete Results -->
+        <div id="autocompleteResults" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+    </div>
+
+    <!-- Customers Table -->
+    {% if customers %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">নাম</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">মোবাইল</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">বর্তমান ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">মোট জমা</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">মোট ক্রয়</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px;">
+                        <strong>{{ customer.name }}</strong>
+                    </td>
+                    <td style="padding: 10px 8px;">{{ customer.mobile_number }}</td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        {% if customer.current_balance >= 0 %}
+                        <span style="font-weight: 700; font-size: 1.1rem; color: #28a745;">৳{{ customer.current_balance|floatformat:2 }}</span>
+                        {% else %}
+                        <span style="font-weight: 700; font-size: 1.1rem; color: #dc3545;">-৳{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="color: #28a745;">৳{{ customer.total_submitted|floatformat:2 }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <span style="color: #dc3545;">৳{{ customer.total_purchased|floatformat:2 }}</span>
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
+                        <a href="{% url 'transactions:customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
+                        <a href="{% url 'transactions:transaction_purchase_create' customer.pk %}" class="btn btn-sm btn-success">🛒 ক্রয়</a>
+                        <a href="{% url 'transactions:customer_delete' customer.pk %}?confirm=yes" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
+                        <a href="{% url 'transactions:customer_delete' customer.pk %}?force=yes" class="btn btn-sm btn-warning" onclick="return confirmForceDelete('{{ customer.name }}')">⚠️ বাধ্যতামূলক মুছুন</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1" class="btn btn-sm">প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm">← আগের</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }}</span>
+        
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm">পরের →</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-sm">শেষ</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🧪</div>
+        <h3>কোনো কাস্টমার নেই</h3>
+        <p>এখনো কোনো ক্রেতা তৈরি হয়নি!</p>
+        <a href="{% url 'transactions:customer_create' %}" class="btn btn-success">➕ প্রথম ক্রেতা তৈরি করুন</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Confirm delete for individual customer
+function confirmDelete(customerName) {
+    return confirm(`আপনি কি নিশ্চিত "${customerName}" কাস্টমার মুছে ফেলতে চান?`);
+}
+
+// Confirm force delete for customer with transactions
+function confirmForceDelete(customerName) {
+    return confirm(`আপনি কি নিশ্চিত "${customerName}" কাস্টমার এবং তার সব লেনদেন বাধ্যতামূলকভাবে মুছে ফেলতে চান?\n\nএই পদক্ষেপ বাতিল করা যাবে না!`);
+}
+
+// Dynamic search with autocomplete
+const searchInput = document.getElementById('searchInput');
+const autocompleteResults = document.getElementById('autocompleteResults');
+let debounceTimer;
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    const query = this.value.trim();
+    
+    if (query.length < 2) {
+        autocompleteResults.style.display = 'none';
+        return;
+    }
+    
+    debounceTimer = setTimeout(() => {
+        fetch(`{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.customers && data.customers.length > 0) {
+                    autocompleteResults.innerHTML = data.customers.map(customer => `
+                        <div class="customer-result" 
+                             data-id="${customer.id}" 
+                             data-type="${customer.type}"
+                             style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; hover: background: #f5f5f5;"
+                             onmouseover="this.style.background='#f5f5f5'"
+                             onmouseout="this.style.background='white'">
+                            <div style="font-weight: 600;">${customer.name}</div>
+                            <div style="font-size: 0.9rem; color: #666;">
+                                ${customer.mobile} 
+                                <span style="color: #999;">(${customer.type === 'customer' ? 'ক্রেতা' : 'অর্ডার ক্রেতা'})</span>
+                            </div>
+                        </div>
+                    `).join('');
+                    autocompleteResults.style.display = 'block';
+                    
+                    // Add click handlers
+                    document.querySelectorAll('.customer-result').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const customerId = this.dataset.id;
+                            const customerType = this.dataset.type;
+                            
+                            if (customerType === 'customer') {
+                                window.location.href = `/admin-panel/customers/new/${customerId}/`;
+                            } else {
+                                window.location.href = `/admin-panel/test-customers/${customerId}/`;
+                            }
+                        });
+                    });
+                } else {
+                    autocompleteResults.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                autocompleteResults.style.display = 'none';
+            });
+    }, 300);
+});
+
+// Hide autocomplete when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
+        autocompleteResults.style.display = 'none';
+    }
+});
+
+// Show autocomplete on focus if there's text
+searchInput.addEventListener('focus', function() {
+    if (this.value.trim().length >= 2) {
+        this.dispatchEvent(new Event('input'));
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} - ইতিহাস{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📜 {{ customer.name }} - সম্পূর্ণ ইতিহাস
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>ক্রেতা:</strong> {{ customer.name }}<br>
+                <strong>মোবাইল:</strong> {{ customer.mobile_number }}
+            </div>
+            <div>
+                <strong>বর্তমান ব্যালেন্স:</strong>
+                {% if customer.current_balance >= 0 %}
+                <span style="color: #28a745; font-weight: 700;">৳{{ customer.current_balance|floatformat:2 }}</span>
+                {% else %}
+                <span style="color: #dc3545; font-weight: 700;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <strong>মোট রেকর্ড:</strong> {{ total_records }} টি
+            </div>
+        </div>
+    </div>
+
+    <!-- History Records -->
+    {% if history_records %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">তারিখ ও সময়</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">লেনদেন নং</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">অ্যাকশন</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">নোট</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পুরাতন ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">নতুন ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">কর্মকর্তা</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in history_records %}
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 10px 8px;">
+                        {{ record.created_at|date:"d/m/Y" }}<br>
+                        <small style="color: #6c757d;">{{ record.created_at|date:"H:i:s" }}</small>
+                    </td>
+                    <td style="padding: 10px 8px; font-family: monospace; font-size: 0.85rem;">
+                        {% if record.transaction %}
+                            {{ record.transaction.transaction_number }}
+                        {% else %}
+                            <span style="color: #6c757d;">(ক্রেতা এডিট)</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        {% if record.action == 'created' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">তৈরি</span>
+                        {% elif record.action == 'edited' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #cce5ff; color: #004085; font-weight: 600; font-size: 0.85rem;">সম্পাদনা</span>
+                        {% elif record.action == 'reversed' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">বাতিল</span>
+                        {% elif record.action == 'deleted' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #e2e3e5; color: #383d41; font-weight: 600; font-size: 0.85rem;">মুছে ফেলা</span>
+                        {% else %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #e2e3e5; color: #383d41; font-weight: 600; font-size: 0.85rem;">{{ record.get_action_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; max-width: 300px;">
+                        {{ record.notes|truncatewords:15 }}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        {% if record.old_balance is not None %}
+                            ৳{{ record.old_balance|floatformat:2 }}
+                        {% else %}
+                            <span style="color: #6c757d;">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if record.new_balance is not None %}
+                            {% if record.new_balance >= 0 %}
+                            <span style="color: #28a745;">৳{{ record.new_balance|floatformat:2 }}</span>
+                            {% else %}
+                            <span style="color: #dc3545;">৳-{{ record.new_balance|floatformat:2|slice:"1:" }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: #6c757d;">-</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        {% if record.performed_by %}
+                            {{ record.performed_by.get_full_name|default:record.performed_by.username }}
+                        {% else %}
+                            <span style="color: #6c757d;">সিস্টেম</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1" class="btn btn-sm">প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm">← আগের</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }}</span>
+        
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm">পরের →</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-sm">শেষ</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666; background: #f8f9fa; border-radius: 8px;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📜</div>
+        <h3>কোনো ইতিহাস নেই</h3>
+        <p>এই ক্রেতার কোনো লেনদেন ইতিহাস পাওয়া যায়নি!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

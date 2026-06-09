@@ -1,0 +1,77 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}পণ্য যোগ করুন - {{ submission.customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        ➕ পণ্য যোগ করুন - {{ submission.customer.name }}
+        <div style="float: right;">
+            <a href="{% url 'transactions:transaction_list' submission.customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Submission Info -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>জমা পরিমাণ:</strong><br>
+                <span style="font-size: 1.2rem; font-weight: 700;">৳{{ submission.submitted_amount|floatformat:2 }}</span>
+            </div>
+            <div>
+                <strong>বাকি টাকা:</strong><br>
+                <span style="font-size: 1.2rem; font-weight: 700; color: #28a745;">৳{{ submission.remaining_amount|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>পণ্যের নাম *</label>
+            <input type="text" name="product_name" class="form-control" placeholder="পণ্যের নাম লিখুন" required>
+        </div>
+
+        <div class="form-group">
+            <label>পণ্যের বিবরণ</label>
+            <textarea name="product_description" class="form-control" rows="2" placeholder="বিবরণ (ঐচ্ছিক)"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>পরিমাণ *</label>
+            <input type="number" name="quantity" class="form-control bangla-number-input" placeholder="উদাহরণ: 1" step="0.01" required>
+        </div>
+
+        <div class="form-group">
+            <label>একক মূল্য *</label>
+            <input type="number" name="unit_price" class="form-control bangla-number-input" placeholder="উদাহরণ: 5000" step="0.01" required>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-success">✅ পণ্য যোগ করুন</button>
+            <a href="{% url 'transactions:transaction_list' submission.customer.pk %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Bangla number input support
+document.querySelectorAll('.bangla-number-input').forEach(input => {
+    input.addEventListener('input', function() {
+        const banglaDigits = {
+            '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+            '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+        };
+        
+        let value = this.value;
+        for (let bangla in banglaDigits) {
+            value = value.replace(new RegExp(bangla, 'g'), banglaDigits[bangla]);
+        }
+        this.value = value;
+    });
+});
+</script>
+{% endblock %}

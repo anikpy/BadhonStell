@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>লেনদেন ভাউচার - {{ transaction.transaction_number }}</title>
+    {% load custom_filters %}
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .voucher-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .voucher-header {
+            text-align: center;
+            border-bottom: 3px double #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .voucher-header h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .voucher-header p {
+            font-size: 1rem;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .voucher-title {
+            text-align: center;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .voucher-title.submission {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .voucher-title.purchase {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+        }
+
+        .voucher-title.withdrawal {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: white;
+        }
+
+        .voucher-title.reversal {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .amount-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .amount-label {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .amount-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .amount-value.positive {
+            color: #28a745;
+        }
+
+        .amount-value.negative {
+            color: #dc3545;
+        }
+
+        .balance-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .balance-box {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .balance-label {
+            font-size: 0.9rem;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .balance-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .item-details {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+
+        .item-details h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .item-details-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            padding: 5px 0;
+        }
+
+        .signature-section {
+            margin-top: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 2px solid #333;
+            margin-top: 60px;
+            padding-top: 10px;
+            font-weight: 600;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px dashed #ccc;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .notes-section {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+
+        .notes-section h4 {
+            color: #004085;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .notes-section p {
+            color: #004085;
+            line-height: 1.6;
+        }
+
+        .print-button {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            font-size: 1rem;
+            margin: 0 5px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .reversed-badge {
+            background: #dc3545;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            .voucher-container {
+                border: 1.5px solid #000;
+                box-shadow: none;
+                padding: 15px;
+                max-width: 100%;
+            }
+
+            .voucher-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .voucher-title {
+                padding: 8px;
+                font-size: 1.1rem;
+            }
+
+            .amount-value {
+                font-size: 2rem;
+            }
+
+            .signature-section {
+                margin-top: 30px;
+            }
+
+            .signature-line {
+                margin-top: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn">← ফিরে যান</a>
+    </div>
+    
+    <div class="voucher-container">
+        <div class="voucher-header">
+            <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
+            <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
+            <p>📞 {{ shop_info.phone|default:"+8801727555673" }}</p>
+        </div>
+        
+        <div class="voucher-title {{ transaction.transaction_type }}">
+            {% if transaction.transaction_type == 'submission' %}
+            💰 জমা ভাউচার
+            {% elif transaction.transaction_type == 'purchase' %}
+            🛒 ক্রয় ভাউচার
+            {% elif transaction.transaction_type == 'withdrawal' %}
+            💸 উত্তোলন ভাউচার
+            {% elif transaction.transaction_type == 'reversal' %}
+            ↩️ বাতিল ভাউচার
+            {% else %}
+            📄 লেনদেন ভাউচার
+            {% endif %}
+        </div>
+
+        {% if transaction.is_reversed %}
+        <div style="text-align: center;">
+            <span class="reversed-badge">⚠️ এই লেনদেন বাতিল করা হয়েছে</span>
+        </div>
+        {% endif %}
+        
+        <div class="info-section">
+            <div class="info-row">
+                <div class="info-label">লেনদেন নাম্বার:</div>
+                <div class="info-value" style="font-family: monospace; font-weight: 700;">{{ transaction.transaction_number }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">ক্রেতার নাম:</div>
+                <div class="info-value">{{ customer.name }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">মোবাইল নাম্বার:</div>
+                <div class="info-value">{{ customer.mobile_number }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">তারিখ ও সময়:</div>
+                <div class="info-value">{{ transaction.created_at|date:"d/m/Y H:i" }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">লেনদেনের ধরন:</div>
+                <div class="info-value">{{ transaction.get_transaction_type_display }}</div>
+            </div>
+
+            {% if transaction.created_by %}
+            <div class="info-row">
+                <div class="info-label">তৈরিকারী:</div>
+                <div class="info-value">{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Item Details for Purchase -->
+        {% if transaction.transaction_type == 'purchase' and transaction.item_name %}
+        <div class="item-details">
+            <h3>📦 ক্রয়কৃত পণ্যের বিবরণ</h3>
+            <div class="item-details-row">
+                <strong>পণ্যের নাম:</strong>
+                <span>{{ transaction.item_name }}</span>
+            </div>
+            {% if transaction.item_description %}
+            <div class="item-details-row">
+                <strong>বিবরণ:</strong>
+                <span>{{ transaction.item_description }}</span>
+            </div>
+            {% endif %}
+            <div class="item-details-row">
+                <strong>পরিমাণ:</strong>
+                <span>{{ transaction.item_quantity }}</span>
+            </div>
+            <div class="item-details-row">
+                <strong>একক মূল্য:</strong>
+                <span>৳{{ transaction.item_unit_price|floatformat:2 }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Amount Section -->
+        <div class="amount-section">
+            <div class="amount-label">
+                {% if transaction.transaction_type == 'submission' %}
+                জমার পরিমাণ
+                {% elif transaction.transaction_type == 'purchase' %}
+                ক্রয় মূল্য
+                {% elif transaction.transaction_type == 'withdrawal' %}
+                উত্তোলনের পরিমাণ
+                {% else %}
+                লেনদেনের পরিমাণ
+                {% endif %}
+            </div>
+            <div class="amount-value {% if transaction.transaction_type == 'submission' %}positive{% else %}negative{% endif %}">
+                {% if transaction.transaction_type == 'submission' %}
+                +৳{{ transaction.amount|floatformat:2 }}
+                {% else %}
+                -৳{{ transaction.amount|floatformat:2 }}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Balance Section -->
+        <div class="balance-section">
+            <div class="balance-box">
+                <div class="balance-label">পূর্ববর্তী ব্যালেন্স</div>
+                <div class="balance-value">
+                    {% if transaction.balance_before >= 0 %}
+                    ৳{{ transaction.balance_before|floatformat:2 }}
+                    {% else %}
+                    -৳{{ transaction.balance_before|abs_value|floatformat:2 }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="balance-box">
+                <div class="balance-label">নতুন ব্যালেন্স</div>
+                <div class="balance-value" style="{% if transaction.balance_after >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                    {% if transaction.balance_after >= 0 %}
+                    ৳{{ transaction.balance_after|floatformat:2 }}
+                    {% else %}
+                    -৳{{ transaction.balance_after|abs_value|floatformat:2 }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes Section -->
+        {% if transaction.notes %}
+        <div class="notes-section">
+            <h4>📝 নোট:</h4>
+            <p>{{ transaction.notes }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Reversal Info -->
+        {% if transaction.transaction_type == 'reversal' and transaction.reverses_transaction %}
+        <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;">
+            <h4 style="color: #721c24; margin-bottom: 8px;">↩️ বাতিল তথ্য:</h4>
+            <p style="color: #721c24;">
+                মূল লেনদেন: <strong>{{ transaction.reverses_transaction.transaction_number }}</strong><br>
+                মূল লেনদেনের ধরন: <strong>{{ transaction.reverses_transaction.get_transaction_type_display }}</strong><br>
+                মূল পরিমাণ: <strong>৳{{ transaction.reverses_transaction.amount|floatformat:2 }}</strong>
+            </p>
+        </div>
+        {% endif %}
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">ক্রেতার স্বাক্ষর</div>
+            </div>
+            
+            <div class="signature-box">
+                <div class="signature-line">বিক্রেতার স্বাক্ষর</div>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>ধন্যবাদ! আমাদের সাথে ব্যবসা করার জন্য।</p>
+            <p>যেকোনো সমস্যার জন্য যোগাযোগ করুন: +8801727555673</p>
+        </div>
+    </div>
+</body>
+</html>

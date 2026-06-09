@@ -1,0 +1,73 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        💰 {{ page_title }}
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>ক্রেতার নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.submitted_amount.id_for_label }}">{{ form.submitted_amount.label }}</label>
+            {{ form.submitted_amount }}
+            {% if form.submitted_amount.errors %}
+            <div class="alert alert-danger" style="margin-top: 5px;">{{ form.submitted_amount.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+            <div class="alert alert-danger" style="margin-top: 5px;">{{ form.notes.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-success">✅ সংরক্ষণ করুন</button>
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Bangla number input support
+document.querySelectorAll('.bangla-number-input').forEach(input => {
+    input.addEventListener('input', function() {
+        const banglaDigits = {
+            '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+            '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+        };
+        
+        let value = this.value;
+        for (let bangla in banglaDigits) {
+            value = value.replace(new RegExp(bangla, 'g'), banglaDigits[bangla]);
+        }
+        this.value = value;
+    });
+});
+</script>
+{% endblock %}

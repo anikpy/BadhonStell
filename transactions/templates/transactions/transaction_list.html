@@ -1,0 +1,195 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ customer.name }} - সব লেনদেন{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        📋 {{ customer.name }} - সম্পূর্ণ লেনদেন ইতিহাস
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+            <a href="{% url 'transactions:customer_statement' customer.pk %}{% if date_from or date_to %}?from_date={{ date_from }}&to_date={{ date_to }}{% endif %}" class="btn btn-info">📄 স্টেটমেন্ট</a>
+        </div>
+    </div>
+
+    <!-- Customer Summary -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; color: white;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    -৳{{ customer.current_balance|abs_value|floatformat:2 }}
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোট জমা</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">৳{{ customer.total_submitted|floatformat:2 }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোট ক্রয়</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">৳{{ customer.total_purchased|floatformat:2 }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোট উত্তোলন</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">৳{{ customer.total_withdrawn|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <form method="get" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">লেনদেনের ধরন:</label>
+                <select name="type" class="form-control" style="min-width: 150px;">
+                    <option value="">সব</option>
+                    <option value="submission" {% if transaction_type == 'submission' %}selected{% endif %}>জমা</option>
+                    <option value="purchase" {% if transaction_type == 'purchase' %}selected{% endif %}>ক্রয়</option>
+                    <option value="withdrawal" {% if transaction_type == 'withdrawal' %}selected{% endif %}>উত্তোলন</option>
+                    <option value="reversal" {% if transaction_type == 'reversal' %}selected{% endif %}>বাতিল</option>
+                </select>
+            </div>
+            
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শুরুর তারিখ:</label>
+                <input type="date" name="from_date" value="{{ date_from }}" class="form-control">
+            </div>
+            
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600;">শেষ তারিখ:</label>
+                <input type="date" name="to_date" value="{{ date_to }}" class="form-control">
+            </div>
+            
+            <div>
+                <button type="submit" class="btn btn-primary">🔍 ফিল্টার করুন</button>
+                {% if transaction_type or date_from or date_to %}
+                <a href="{% url 'transactions:transaction_list' customer.pk %}" class="btn btn-secondary">সাফ করুন</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Transactions Table -->
+    {% if transactions %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">লেনদেন নং</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">ধরন</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">বিবরণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পরিমাণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr style="border-bottom: 1px solid #dee2e6; {% if txn.is_reversed %}opacity: 0.5; background: #f8f9fa;{% endif %}">
+                    <td style="padding: 10px 8px;">{{ txn.created_at|date:"d/m/Y H:i" }}</td>
+                    <td style="padding: 10px 8px; font-family: monospace; font-size: 0.85rem;">{{ txn.transaction_number }}</td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">জমা</span>
+                        {% elif txn.transaction_type == 'purchase' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #cce5ff; color: #004085; font-weight: 600; font-size: 0.85rem;">ক্রয়</span>
+                        {% elif txn.transaction_type == 'withdrawal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600; font-size: 0.85rem;">উত্তোলন</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">বাতিল</span>
+                        {% endif %}
+                        {% if txn.is_reversed %}
+                        <br><small style="color: #dc3545; font-weight: 600;">(বাতিলকৃত)</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'purchase' %}
+                            <strong>{{ txn.item_name }}</strong>
+                            {% if txn.item_quantity %}<br><small>পরিমাণ: {{ txn.item_quantity }} | একক মূল্য: ৳{{ txn.item_unit_price }}</small>{% endif %}
+                        {% elif txn.notes %}
+                            {{ txn.notes|truncatewords:15 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'purchase' or txn.transaction_type == 'withdrawal' %}
+                        <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                            {% if txn.reverses_transaction.transaction_type == 'submission' %}
+                            <span style="color: #dc3545;">-৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% else %}
+                            <span style="color: #28a745;">+৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if txn.balance_after >= 0 %}
+                        <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
+                        {% else %}
+                        <span style="color: #dc3545;">-৳{{ txn.balance_after|abs_value|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <a href="{% url 'transactions:transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার">🧾</a>
+                        {% if not txn.is_reversed %}
+                        <a href="{% url 'transactions:transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if date_from %}&from_date={{ date_from }}{% endif %}{% if date_to %}&to_date={{ date_to }}{% endif %}" class="btn btn-sm">প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if date_from %}&from_date={{ date_from }}{% endif %}{% if date_to %}&to_date={{ date_to }}{% endif %}" class="btn btn-sm">← আগের</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }}</span>
+        
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if date_from %}&from_date={{ date_from }}{% endif %}{% if date_to %}&to_date={{ date_to }}{% endif %}" class="btn btn-sm">পরের →</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if date_from %}&from_date={{ date_from }}{% endif %}{% if date_to %}&to_date={{ date_to }}{% endif %}" class="btn btn-sm">শেষ</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666; background: #f8f9fa; border-radius: 8px;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+        <h3>কোনো লেনদেন পাওয়া যায়নি</h3>
+        <p>নির্বাচিত ফিল্টার অনুযায়ী কোনো লেনদেন নেই!</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.form-control {
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    border: 2px solid #ced4da;
+    border-radius: 4px;
+    font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+</style>
+{% endblock %}

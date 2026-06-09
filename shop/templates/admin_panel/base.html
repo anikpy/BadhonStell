@@ -18,6 +18,7 @@
             color: #333;
         }
         
+        /* ==================== NAVBAR STYLES ==================== */
         .admin-header {
             background: linear-gradient(135deg, #1a237e 0%, #283593 60%, #1565c0 100%);
             color: white;
@@ -26,6 +27,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            overflow: hidden;
         }
 
         .admin-header-inner {
@@ -34,8 +36,9 @@
             padding: 0 20px;
             display: flex;
             justify-content: space-between;
-            align-items: stretch;
+            align-items: center;
             min-height: 58px;
+            flex-wrap: wrap;
         }
 
         .admin-brand {
@@ -45,6 +48,7 @@
             padding: 10px 0;
             line-height: 1.2;
             text-decoration: none;
+            flex: 1;
         }
 
         .admin-brand .brand-name {
@@ -60,17 +64,19 @@
             letter-spacing: 0.3px;
         }
 
+        /* Desktop Navigation */
         .admin-nav {
             display: flex;
             gap: 2px;
-            align-items: stretch;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .admin-nav a {
             color: rgba(255,255,255,0.82);
             text-decoration: none;
-            padding: 0 13px;
-            display: flex;
+            padding: 8px 13px;
+            display: inline-flex;
             align-items: center;
             font-size: 0.9rem;
             border-bottom: 3px solid transparent;
@@ -94,11 +100,30 @@
         .admin-nav a.nav-logout {
             color: #ef9a9a;
         }
+
         .admin-nav a.nav-logout:hover {
             color: #fff;
             background: rgba(220,53,69,0.25);
             border-bottom-color: #ef9a9a;
         }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 8px 12px;
+            transition: transform 0.2s;
+        }
+
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* ==================== RESPONSIVE STYLES ==================== */
         
         .container {
             max-width: 1400px;
@@ -197,19 +222,6 @@
             font-size: 1.5rem;
             margin-bottom: 20px;
             color: #2c3e50;
-        }
-        
-        /* Mobile Responsive Styles */
-        
-        /* Mobile menu toggle button */
-        .mobile-menu-toggle {
-            display: none;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 10px;
         }
         
         /* Responsive tables */
@@ -334,50 +346,72 @@
             flex-wrap: wrap;
         }
         
-        /* ==================== */
-        /* MOBILE BREAKPOINTS */
-        /* ==================== */
+        /* ==================== MOBILE BREAKPOINTS ==================== */
         
         /* Tablet and below (900px) */
         @media (max-width: 900px) {
             .admin-header-inner {
-                flex-direction: row;
-                flex-wrap: wrap;
-                padding: 8px 14px;
-                min-height: unset;
-                gap: 6px;
+                min-height: auto;
+                gap: 0;
             }
-            
-            .mobile-menu-toggle {
-                display: block;
-                order: 2;
-            }
-            
+
             .admin-brand {
                 flex: 1;
-                order: 1;
+                min-width: 200px;
             }
-            
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
             .admin-nav {
                 display: none;
-                width: 100%;
-                order: 3;
+                position: fixed;
+                top: 58px;
+                left: 0;
+                right: 0;
                 flex-direction: column;
-                gap: 4px;
+                gap: 0;
+                background: linear-gradient(135deg, #1a237e 0%, #283593 60%, #1565c0 100%);
                 padding: 10px 0;
-                border-top: 1px solid rgba(255,255,255,0.1);
+                z-index: 999;
+                box-shadow: 0 3px 16px rgba(0,0,0,0.22);
+                max-height: calc(100vh - 58px);
+                overflow-y: auto;
             }
-            
+
             .admin-nav.active {
                 display: flex;
             }
-            
+
             .admin-nav a {
-                padding: 10px 15px;
+                padding: 12px 20px;
                 font-size: 0.95rem;
                 border-bottom: none;
-                border-radius: 6px;
+                border-left: 3px solid transparent;
                 justify-content: flex-start;
+                color: rgba(255,255,255,0.82);
+            }
+
+            .admin-nav a:hover {
+                background: rgba(255,255,255,0.1);
+                border-left-color: rgba(255,255,255,0.4);
+                border-bottom: none;
+            }
+
+            .admin-nav a.active {
+                background: rgba(255,255,255,0.08);
+                border-left-color: #64b5f6;
+                border-bottom: none;
+            }
+
+            .admin-nav a.nav-logout {
+                color: #ef9a9a;
+            }
+
+            .admin-nav a.nav-logout:hover {
+                background: rgba(220,53,69,0.25);
+                border-left-color: #ef9a9a;
             }
             
             .container {
@@ -511,7 +545,7 @@
             }
         }
         
-        /* প্রিন্ট স্টাইল */
+        /* Print styles */
         @media print {
             .admin-header,
             .admin-nav,
@@ -548,12 +582,11 @@
                 <span class="brand-name">🏗️ Badhon Steel</span>
                 <span class="brand-sub">📍 Kendua, Netrokona &nbsp;|&nbsp; 📞 +8801727555673</span>
             </a>
-            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" title="মেনু">☰</button>
             <nav class="admin-nav" id="mobileNav">
                 <a href="{% url 'admin_dashboard' %}" {% if request.resolver_match.url_name == 'admin_dashboard' %}class="active"{% endif %}>🏠 ড্যাশবোর্ড</a>
-                <a href="{% url 'order_list' %}" {% if 'order' in request.resolver_match.url_name %}class="active"{% endif %}>📋 কাস্টম অর্ডার</a>
+                <a href="{% url 'transactions:customer_list' %}" {% if 'customer_list' in request.resolver_match.url_name %}class="active"{% endif %}>📋 অর্ডার</a>
                 <a href="{% url 'completed_order_list' %}" {% if request.resolver_match.url_name == 'completed_order_list' %}class="active"{% endif %}>✅ সম্পন্ন</a>
-                <a href="{% url 'order_customer_list' %}" {% if 'order_customer' in request.resolver_match.url_name or 'transaction' in request.resolver_match.url_name %}class="active"{% endif %}>📋 অর্ডার ব্যবস্থাপনা</a>
                 <a href="{% url 'inventory_product_list' %}" {% if 'inventory' in request.resolver_match.url_name %}class="active"{% endif %}>📦 ইনভেন্টরি</a>
                 <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>
                 <a href="{% url 'due_accounts_list' %}" {% if request.resolver_match.url_name == 'due_accounts_list' %}class="active"{% endif %}>📝 বাকি খাতা</a>
@@ -572,6 +605,13 @@
             const nav = document.getElementById('mobileNav');
             nav.classList.toggle('active');
         }
+        
+        // Close menu when clicking a link
+        document.querySelectorAll('.admin-nav a').forEach(link => {
+            link.addEventListener('click', function() {
+                document.getElementById('mobileNav').classList.remove('active');
+            });
+        });
         
         // Close menu when clicking outside
         document.addEventListener('click', function(e) {
@@ -598,4 +638,3 @@
     </div>
 </body>
 </html>
-

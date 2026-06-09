@@ -1,0 +1,78 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}কাস্টমার মুছে ফেলা - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        ⚠️ কাস্টমার মুছে ফেলা - {{ customer.name }}
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="color: #856404; font-weight: 600; margin-bottom: 10px;">⚠️ সতর্কতা</div>
+        <p style="color: #856404; margin: 0;">এই কাস্টমার এবং তার সকল জমা ও পণ্য মুছে ফেলা হবে। এই পদক্ষেপ বাতিল করা যাবে না।</p>
+    </div>
+
+    <!-- Customer Details -->
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <strong>নাম:</strong><br>
+                {{ customer.name }}
+            </div>
+            <div>
+                <strong>মোবাইল:</strong><br>
+                {{ customer.mobile_number }}
+            </div>
+            <div>
+                <strong>মোট জমা:</strong><br>
+                ৳{{ customer.submissions.all|dictsort:"submitted_amount"|sum:"submitted_amount"|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Warning -->
+    {% if has_transactions %}
+    <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="color: #721c24; font-weight: 600; margin-bottom: 10px;">❌ লেনদেন vorhanden</div>
+        <p style="color: #721c24; margin: 0;">এই ক্রেতার <strong>{{ transaction_count }}টি লেনদেন</strong> আছে। সাধারণ মুছে ফেলা সম্ভব নয়।</p>
+    </div>
+    {% endif %}
+
+    <!-- Confirmation Form -->
+    <form method="post" style="max-width: 600px;">
+        {% csrf_token %}
+        
+        {% if has_transactions %}
+        <!-- Force Delete Option -->
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="color: #856404; font-weight: 600; margin-bottom: 10px;">⚠️ বাধ্যতামূলক মুছে ফেলা</div>
+            <p style="color: #856404; margin: 0 0 15px 0;">নিচের বাটন চাপলে এই ক্রেতার {{ transaction_count }}টি লেনদেন সহ সম্পূর্ণভাবে মুছে ফেলা হবে।</p>
+            <button type="submit" name="force_delete" value="yes" class="btn btn-danger" onclick="return confirmForceDelete({{ transaction_count }})">⚠️ বাধ্যতামূলকভাবে মুছুন (লেনদেন সহ)</button>
+        </div>
+        {% else %}
+        <!-- Normal Delete Option -->
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-danger">🗑️ নিশ্চিত করে মুছুন</button>
+            <a href="{% url 'transactions:customer_list' %}" class="btn btn-secondary">বাতিল</a>
+        </div>
+        {% endif %}
+        
+        <div style="margin-top: 10px;">
+            <a href="{% url 'transactions:customer_list' %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function confirmForceDelete(transactionCount) {
+    const message = 'আপনি কি নিশ্চিত এই ক্রেতার ' + transactionCount + 'টি লেনদেন সহ সম্পূর্ণভাবে মুছে ফেলতে চান?\n\nএই পদক্ষেপ বাতিল করা যাবে না!';
+    return confirm(message);
+}
+</script>
+{% endblock %}

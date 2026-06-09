@@ -1,0 +1,177 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ customer.name }} - বিস্তারিত{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        👤 {{ customer.name }} - ক্রেতার বিবরণ
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_list' %}" class="btn btn-secondary">← তালিকায় ফিরুন</a>
+            <a href="{% url 'transactions:customer_edit' customer.pk %}" class="btn btn-warning">✏️ এডিট</a>
+        </div>
+    </div>
+
+    <!-- Customer Info Card -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px; color: white;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">নাম</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{{ customer.name }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">মোবাইল</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{{ customer.mobile_number }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                    {% else %}
+                    <span style="color: #ffc107;">৳-{{ customer.current_balance|floatformat:2|slice:"1:" }} (বাকি)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px;">
+        <div style="background: #d4edda; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.85rem; color: #155724; margin-bottom: 5px;">মোট জমা</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #155724;">৳{{ customer.total_submitted|floatformat:2 }}</div>
+            <div style="font-size: 0.75rem; color: #155724; margin-top: 5px;">{{ submission_count }} টি লেনদেন</div>
+        </div>
+        
+        <div style="background: #f8d7da; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.85rem; color: #721c24; margin-bottom: 5px;">মোট ক্রয়</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #721c24;">৳{{ customer.total_purchased|floatformat:2 }}</div>
+            <div style="font-size: 0.75rem; color: #721c24; margin-top: 5px;">{{ purchase_count }} টি ক্রয়</div>
+        </div>
+        
+        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.85rem; color: #856404; margin-bottom: 5px;">মোট উত্তোলন</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #856404;">৳{{ customer.total_withdrawn|floatformat:2 }}</div>
+            <div style="font-size: 0.75rem; color: #856404; margin-top: 5px;">{{ withdrawal_count }} টি উত্তোলন</div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+        <a href="{% url 'transactions:transaction_submission_create' customer.pk %}" class="btn btn-success">💰 জমা দিন</a>
+        <a href="{% url 'transactions:transaction_purchase_create' customer.pk %}" class="btn btn-primary">🛒 ক্রয় করুন</a>
+        <a href="{% url 'transactions:transaction_withdrawal_create' customer.pk %}" class="btn btn-warning">💸 টাকা উত্তোলন</a>
+        <a href="{% url 'transactions:transaction_list' customer.pk %}" class="btn btn-info">📋 সব লেনদেন</a>
+        <a href="{% url 'transactions:customer_statement' customer.pk %}" class="btn btn-secondary">📄 স্টেটমেন্ট</a>
+        <a href="{% url 'transactions:customer_history' customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
+    </div>
+
+    <!-- Recent Transactions -->
+    <h3 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 8px;">
+        📊 সাম্প্রতিক লেনদেন
+    </h3>
+
+    {% if transactions %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">লেনদেন নং</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">ধরন</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">বিবরণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পরিমাণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ব্যালেন্স</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr style="border-bottom: 1px solid #dee2e6; {% if txn.is_reversed %}opacity: 0.5; background: #f8f9fa;{% endif %}">
+                    <td style="padding: 10px 8px;">{{ txn.created_at|date:"d/m/Y H:i" }}</td>
+                    <td style="padding: 10px 8px; font-family: monospace; font-size: 0.85rem;">{{ txn.transaction_number }}</td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">জমা</span>
+                        {% elif txn.transaction_type == 'purchase' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #cce5ff; color: #004085; font-weight: 600; font-size: 0.85rem;">ক্রয়</span>
+                        {% elif txn.transaction_type == 'withdrawal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600; font-size: 0.85rem;">উত্তোলন</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">বাতিল</span>
+                        {% else %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #e2e3e5; color: #383d41; font-weight: 600; font-size: 0.85rem;">{{ txn.get_transaction_type_display }}</span>
+                        {% endif %}
+                        {% if txn.is_reversed %}
+                        <br><small style="color: #dc3545; font-weight: 600;">(বাতিলকৃত)</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'purchase' %}
+                            <strong>{{ txn.item_name }}</strong>
+                            {% if txn.item_quantity %}<br><small>পরিমাণ: {{ txn.item_quantity }}</small>{% endif %}
+                        {% elif txn.notes %}
+                            {{ txn.notes|truncatewords:10 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'purchase' or txn.transaction_type == 'withdrawal' %}
+                        <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                            {% if txn.reverses_transaction.transaction_type == 'submission' %}
+                            <span style="color: #dc3545;">-৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% else %}
+                            <span style="color: #28a745;">+৳{{ txn.amount|abs_value|floatformat:2 }}</span>
+                            {% endif %}
+                        {% else %}
+                        ৳{{ txn.amount|floatformat:2 }}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if txn.balance_after >= 0 %}
+                        <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
+                        {% else %}
+                        <span style="color: #dc3545;">৳-{{ txn.balance_after|floatformat:2|slice:"1:" }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        <a href="{% url 'transactions:transaction_voucher' txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার দেখুন">🧾</a>
+                        {% if txn.transaction_type == 'purchase' and not txn.is_reversed %}
+                        <a href="{% url 'transactions:transaction_edit' txn.pk %}" class="btn btn-sm btn-warning" title="সম্পাদনা করুন">✏️</a>
+                        {% endif %}
+                        {% if not txn.is_reversed %}
+                        <a href="{% url 'transactions:transaction_reverse' txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_transactions > 10 %}
+    <div style="margin-top: 15px; text-align: center;">
+        <a href="{% url 'transactions:transaction_list' customer.pk %}" class="btn btn-primary">📋 সব {{ total_transactions }} টি লেনদেন দেখুন</a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666; background: #f8f9fa; border-radius: 8px;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
+        <h3>কোনো লেনদেন নেই</h3>
+        <p>এই ক্রেতার এখনো কোনো লেনদেন নেই!</p>
+        <div style="margin-top: 20px;">
+            <a href="{% url 'transactions:transaction_submission_create' customer.pk %}" class="btn btn-success">💰 প্রথম জমা দিন</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

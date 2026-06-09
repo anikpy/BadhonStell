@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('django-admin/', admin.site.urls),
     path('', include('shop.urls')),
+    path('transactions/', include('transactions.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ customer.name }} - হিসাব বিবরণী</title>
+    {% load custom_filters %}
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans Bengali', Arial, sans-serif;
+            padding: 8px;
+            background-color: white;
+        }
+        
+        .statement-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 2px solid #000;
+        }
+        
+        .statement-header {
+            text-align: center;
+            border-bottom: 3px double #000;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+
+        .statement-header h1 {
+            font-size: 1.6rem;
+            color: #000;
+            margin-bottom: 3px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .statement-header p {
+            font-size: 0.9rem;
+            color: #333;
+            margin: 2px 0;
+            font-weight: 500;
+        }
+
+        .statement-title {
+            text-align: center;
+            color: #fff;
+            background: #000;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        .customer-info {
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #000;
+            background: #fafafa;
+        }
+
+        .customer-info-row {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            padding: 6px 0;
+            font-size: 0.95rem;
+            border-bottom: 1px dotted #999;
+        }
+
+        .customer-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .customer-info-label {
+            font-weight: 700;
+            color: #000;
+        }
+
+        .customer-info-value {
+            color: #222;
+            padding-left: 10px;
+        }
+
+        .summary-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .summary-box {
+            padding: 12px;
+            text-align: center;
+            border: 2px solid #000;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+
+        .summary-box-label {
+            font-weight: 700;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .summary-box-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .transactions-table th {
+            background: #000;
+            color: white;
+            padding: 8px 5px;
+            text-align: left;
+            font-weight: 700;
+            border: 1px solid #000;
+            font-size: 0.85rem;
+            letter-spacing: 0.2px;
+        }
+
+        .transactions-table td {
+            padding: 7px 5px;
+            border: 1px solid #ddd;
+            color: #000;
+        }
+
+        .transactions-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .transactions-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        .amount-positive {
+            color: #000;
+            font-weight: 700;
+        }
+
+        .amount-negative {
+            color: #000;
+            font-weight: 700;
+        }
+
+        .footer-section {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 2px solid #000;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .signature-line {
+            margin: 20px 0 5px 0;
+            border-bottom: 1px solid #000;
+            height: 30px;
+        }
+
+        .signature-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .footer-note {
+            font-size: 0.75rem;
+            color: #555;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .print-button {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #000;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Noto Sans Bengali', Arial, sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-right: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #333;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #999;
+        }
+
+        .divider {
+            height: 1px;
+            background: #000;
+            margin: 12px 0;
+        }
+
+        .summary-label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 5mm;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .print-button {
+                display: none !important;
+            }
+
+            .statement-container {
+                padding: 15px;
+                border: 1px solid #000;
+            }
+
+            .btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-button">
+        <button onclick="window.print()" class="btn">🖨️ প্রিন্ট করুন</button>
+        <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+    </div>
+    
+    <div class="statement-container">
+        <!-- Header -->
+        <div class="statement-header">
+            <h1>{{ shop_info.name|default:"Badhon Steel" }}</h1>
+            <p>{{ shop_info.address|default:"Kendua, Netrokona" }}</p>
+            <p>📞 {{ shop_info.phone|default:"+8801727555673" }}</p>
+        </div>
+        
+        <!-- Title -->
+        <div class="statement-title">
+            📋 গ্রাহক হিসাব বিবরণী
+        </div>
+
+        <!-- Customer Info -->
+        <div class="customer-info">
+            <div class="customer-info-row">
+                <div class="customer-info-label">গ্রাহক নাম:</div>
+                <div class="customer-info-value"><strong>{{ customer.name }}</strong></div>
+            </div>
+            <div class="customer-info-row">
+                <div class="customer-info-label">মোবাইল নম্বর:</div>
+                <div class="customer-info-value">{{ customer.mobile_number }}</div>
+            </div>
+            <div class="customer-info-row">
+                <div class="customer-info-label">ঠিকানা:</div>
+                <div class="customer-info-value">{{ customer.address|default:"N/A" }}</div>
+            </div>
+            <div class="customer-info-row">
+                <div class="customer-info-label">প্রিন্ট তারিখ:</div>
+                <div class="customer-info-value">{{ now|date:"d/m/Y H:i" }}</div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-label">📊 সারসংক্ষেপ</div>
+        <div class="summary-section">
+            <div class="summary-box">
+                <div class="summary-box-label">মোট জমা</div>
+                <div class="summary-box-value">৳{{ customer.total_submitted|floatformat:0 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-box-label">মোট ক্রয়</div>
+                <div class="summary-box-value">৳{{ customer.total_purchased|floatformat:0 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-box-label">মোট উত্তোলন</div>
+                <div class="summary-box-value">৳{{ customer.total_withdrawn|floatformat:0 }}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-box-label">চূড়ান্ত ব্যালেন্স</div>
+                <div class="summary-box-value">
+                    {% if customer.current_balance >= 0 %}
+                    ৳{{ customer.current_balance|floatformat:0 }}
+                    {% else %}
+                    -৳{{ customer.current_balance|abs_value|floatformat:0 }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Transactions Table -->
+        {% if transactions %}
+        <div class="summary-label">📝 লেনদেন বিবরণ</div>
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th style="width: 11%;">তারিখ</th>
+                    <th style="width: 13%;">লেনদেন নং</th>
+                    <th style="width: 10%;">ধরন</th>
+                    <th style="width: 32%;">বিবরণ</th>
+                    <th style="width: 17%; text-align: right;">পরিমাণ</th>
+                    <th style="width: 17%; text-align: right;">ব্যালেন্স</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>{{ txn.created_at|date:"d/m/Y" }}</td>
+                    <td style="font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: 600;">{{ txn.transaction_number }}</td>
+                    <td style="font-weight: 600;">
+                        {% if txn.transaction_type == 'submission' %}জমা
+                        {% elif txn.transaction_type == 'purchase' %}ক্রয়
+                        {% elif txn.transaction_type == 'withdrawal' %}উত্তোলন
+                        {% elif txn.transaction_type == 'reversal' %}বাতিল
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if txn.transaction_type == 'purchase' %}
+                            <strong>{{ txn.item_name|truncatewords:5 }}</strong>
+                        {% elif txn.notes %}
+                            {{ txn.notes|truncatewords:8 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span class="amount-positive">+৳{{ txn.amount|floatformat:0 }}</span>
+                        {% elif txn.transaction_type == 'purchase' or txn.transaction_type == 'withdrawal' %}
+                        <span class="amount-negative">-৳{{ txn.amount|floatformat:0 }}</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                            {% if txn.reverses_transaction.transaction_type == 'submission' %}
+                            <span class="amount-negative">-৳{{ txn.amount|abs_value|floatformat:0 }}</span>
+                            {% else %}
+                            <span class="amount-positive">+৳{{ txn.amount|abs_value|floatformat:0 }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700;">
+                        {% if txn.balance_after >= 0 %}
+                        ৳{{ txn.balance_after|floatformat:0 }}
+                        {% else %}
+                        -৳{{ txn.balance_after|abs_value|floatformat:0 }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 25px; color: #666; font-size: 0.95rem;">
+            কোনো লেনদেন পাওয়া যায়নি
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer-section">
+            <div class="signature-line"></div>
+            <div class="signature-label">স্বাক্ষর / তারিখ</div>
+            
+            <div class="footer-note">
+                এই বিবরণী কম্পিউটার দ্বারা তৈরি এবং বৈধ।
+            </div>
+        </div>
+    </div>
+</body>
+</html>
