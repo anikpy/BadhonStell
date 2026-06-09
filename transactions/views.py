@@ -1184,21 +1184,24 @@ def customer_search_api(request):
 @login_required
 @csrf_exempt
 def customer_notes_api(request, customer_pk):
-    """API endpoint to get customer notes"""
+    """API endpoint to get customer notes and dismiss them from dashboard"""
     customer = get_object_or_404(Customer, pk=customer_pk)
     
-    # Handle DELETE requests
+    # Handle DISMISS requests (from dashboard only)
     if request.method == 'POST' and 'note_id' in request.POST:
         note_id = request.POST.get('note_id')
         try:
             note = CustomerNote.objects.get(pk=note_id, customer=customer)
-            note.delete()
+            # Mark as dismissed from dashboard instead of deleting
+            note.is_dismissed_from_dashboard = True
+            note.save()
             return JsonResponse({'success': True, 'message': 'নোট সফলভাবে মুছে ফেলা হয়েছে'})
         except CustomerNote.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'নোট পাওয়া যায়নি'}, status=404)
     
     # Handle GET requests
     try:
+        # Get all notes (including dismissed ones) for customer profile
         notes = customer.notes.all()[:20]  # Get last 20 notes
         
         notes_data = []

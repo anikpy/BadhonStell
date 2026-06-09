@@ -288,6 +288,7 @@ class CustomerNote(models.Model):
     created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Created By')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+    is_dismissed_from_dashboard = models.BooleanField(default=False, verbose_name='Dismissed from Dashboard')
 
     class Meta:
         verbose_name = 'Customer Note'

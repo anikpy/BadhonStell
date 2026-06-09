@@ -123,9 +123,9 @@ def admin_dashboard(request):
     # শুধু চলমান অর্ডার (সম্পন্ন অর্ডার দেখাবেন না)
     recent_orders = Order.objects.exclude(status='completed').order_by('status', '-created_at')[:10]
 
-    # Get recent customer notes
+    # Get recent customer notes (only non-dismissed from dashboard)
     from transactions.models import CustomerNote
-    recent_notes = CustomerNote.objects.select_related('customer', 'created_by').order_by('-created_at')[:10]
+    recent_notes = CustomerNote.objects.filter(is_dismissed_from_dashboard=False).select_related('customer', 'created_by').order_by('-created_at')[:10]
 
     context = {
         'total_orders': total_orders,
