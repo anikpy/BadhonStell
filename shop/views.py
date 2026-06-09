@@ -112,13 +112,20 @@ def admin_logout(request):
 @login_required
 def admin_dashboard(request):
     """অ্যাডমিন ড্যাশবোর্ড"""
-    total_orders = Order.objects.count()
-    pending_orders = Order.objects.filter(status='pending').count()
-    completed_orders = Order.objects.filter(status='completed', delivery_status='delivered').count()
-    completed_not_delivered = Order.objects.filter(status='completed', delivery_status='not_delivered').count()
+    # Get order statistics from transactions app instead of shop app
+    from transactions.models import Transaction
+    
+    total_orders = Transaction.objects.count()
+    pending_orders = Transaction.objects.filter(status='pending').count()
+    completed_orders = Transaction.objects.filter(status='completed', delivery_status='delivered').count()
+    completed_not_delivered = Transaction.objects.filter(status='completed', delivery_status='not_delivered').count()
 
     # শুধু চলমান অর্ডার (সম্পন্ন অর্ডার দেখাবেন না)
     recent_orders = Order.objects.exclude(status='completed').order_by('status', '-created_at')[:10]
+
+    # Get recent customer notes
+    from transactions.models import CustomerNote
+    recent_notes = CustomerNote.objects.select_related('customer', 'created_by').order_by('-created_at')[:10]
 
     context = {
         'total_orders': total_orders,
@@ -126,6 +133,7 @@ def admin_dashboard(request):
         'completed_orders': completed_orders,
         'completed_not_delivered': completed_not_delivered,
         'recent_orders': recent_orders,
+        'recent_notes': recent_notes,
     }
     return render(request, 'admin_panel/dashboard.html', context)
 
@@ -135,6 +143,7 @@ def order_list(request):
     """অর্ডার তালিকা - ক্রেতা অনুযায়ী গ্রুপ করা"""
     search_query = request.GET.get('search', '')
     status_filter = request.GET.get('status', '')
+    delivery_status_filter = request.GET.get('delivery_status', '')
     date_filter = request.GET.get('date_filter', '')
     from_date = request.GET.get('from_date', '')
     to_date = request.GET.get('to_date', '')
@@ -193,6 +202,9 @@ def order_list(request):
     if status_filter:
         orders = orders.filter(status=status_filter)
     
+    if delivery_status_filter:
+        orders = orders.filter(delivery_status=delivery_status_filter)
+    
     # Group orders by customer
     from collections import defaultdict
     customer_orders = defaultdict(list)
@@ -242,6 +254,7 @@ def order_list(request):
         'page_obj': page_obj,
         'search_query': search_query,
         'status_filter': status_filter,
+        'delivery_status_filter': delivery_status_filter,
         'date_filter': date_filter,
         'from_date': from_date,
         'to_date': to_date,

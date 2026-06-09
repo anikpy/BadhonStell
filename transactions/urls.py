@@ -30,6 +30,7 @@ urlpatterns = [
     
     # Transaction Voucher & List
     path('transactions/<int:pk>/voucher/', views.transaction_voucher, name='transaction_voucher'),
+    path('transactions/', views.transaction_list_all, name='transaction_list_all'),
     path('customers/<int:customer_pk>/transactions/', views.transaction_list, name='transaction_list'),
     
     # Transaction Actions

@@ -114,33 +114,62 @@
 </div>
 
 <div class="stats-grid">
-    <a href="{% url 'order_list' %}" style="text-decoration:none;">
+    <a href="{% url 'transactions:transaction_list_all' %}" style="text-decoration:none;">
         <div class="stat-card">
             <h3>মোট অর্ডার</h3>
             <div class="number">{{ total_orders }}</div>
         </div>
     </a>
 
-    <a href="{% url 'order_list' %}" style="text-decoration:none;">
+    <a href="{% url 'transactions:transaction_list_all' %}?status=pending" style="text-decoration:none;">
         <div class="stat-card warning">
             <h3>চলমান অর্ডার</h3>
             <div class="number">{{ pending_orders }}</div>
         </div>
     </a>
 
-    <a href="{% url 'completed_order_list' %}" style="text-decoration:none;">
+    <a href="{% url 'transactions:transaction_list_all' %}?status=completed" style="text-decoration:none;">
         <div class="stat-card success">
             <h3>সম্পন্ন অর্ডার</h3>
             <div class="number">{{ completed_orders }}</div>
         </div>
     </a>
 
-    <a href="{% url 'invoice_list' %}" style="text-decoration:none;">
+    <a href="{% url 'transactions:transaction_list_all' %}?status=completed&delivery_status=not_delivered" style="text-decoration:none;">
         <div class="stat-card danger">
             <h3>সম্পন্ন কিন্তু ডেলিভারি হয়নি</h3>
             <div class="number">{{ completed_not_delivered }}</div>
         </div>
     </a>
+</div>
+
+<!-- Recent Notes Section -->
+<div class="card">
+    <h3 class="card-title">📝 সাম্প্রতিক নোটসমূহ</h3>
+    
+    {% if recent_notes %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        {% for note in recent_notes %}
+        <div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; border-radius: 6px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <div>
+                    <h4 style="margin: 0 0 5px 0; color: #2c3e50;">{{ note.customer.name }}</h4>
+                    <small style="color: #666;">{{ note.created_at|date:"d/m/Y H:i" }}</small>
+                </div>
+                <form method="post" action="/admin-panel/transactions/api/customers/{{ note.customer.pk }}/notes/" style="display: inline;" onsubmit="return confirm('এই নোট মুছে ফেলতে চান?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="note_id" value="{{ note.pk }}">
+                    <button type="submit" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem; padding: 0;" title="মুছুন">×</button>
+                </form>
+            </div>
+            <p style="margin: 10px 0; color: #333; word-wrap: break-word;">{{ note.note }}</p>
+            <small style="color: #999;">by {{ note.created_by.username }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="text-align: center; padding: 20px; color: #666;">কোনো নোট নেই</p>
+    {% endif %}
 </div>
 
 <div class="card">

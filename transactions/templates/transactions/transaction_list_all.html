@@ -1,0 +1,189 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}সব লেনদেন - লেনদেন ব্যবস্থাপনা{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-title">
+        📋 সব লেনদেন
+        <div style="float: right; display: flex; gap: 10px; align-items: center;">
+            <div style="font-size: 0.9rem; color: #666;">
+                {% if page_obj %}
+                মোট {{ page_obj.paginator.count }} টি লেনদেন
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div style="margin-bottom: 20px;">
+        <form method="get" id="filterForm" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" 
+                   name="search" 
+                   value="{{ search_query }}" 
+                   placeholder="গ্রাহক নাম, মোবাইল বা লেনদেন নং খুঁজুন..." 
+                   class="form-control" 
+                   style="max-width: 300px;">
+            
+            <select name="status" class="form-control" style="max-width: 150px;">
+                <option value="">সব স্ট্যাটাস</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>চলমান</option>
+                <option value="ready" {% if status_filter == 'ready' %}selected{% endif %}>প্রস্তুত</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>সম্পন্ন</option>
+                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>বাতিল</option>
+            </select>
+            
+            <select name="delivery_status" class="form-control" style="max-width: 150px;">
+                <option value="">সব ডেলিভারি স্ট্যাটাস</option>
+                <option value="not_delivered" {% if delivery_status_filter == 'not_delivered' %}selected{% endif %}>ডেলিভারি হয়নি</option>
+                <option value="delivered" {% if delivery_status_filter == 'delivered' %}selected{% endif %}>ডেলিভারি সম্পন্ন</option>
+            </select>
+            
+            <select name="type" class="form-control" style="max-width: 150px;">
+                <option value="">সব ধরন</option>
+                <option value="submission" {% if transaction_type == 'submission' %}selected{% endif %}>জমা</option>
+                <option value="purchase" {% if transaction_type == 'purchase' %}selected{% endif %}>ক্রয়</option>
+                <option value="withdrawal" {% if transaction_type == 'withdrawal' %}selected{% endif %}>উত্তোলন</option>
+                <option value="reversal" {% if transaction_type == 'reversal' %}selected{% endif %}>বাতিল</option>
+            </select>
+            
+            <button type="submit" class="btn btn-primary">🔍 ফিল্টার করুন</button>
+            {% if search_query or status_filter or delivery_status_filter or transaction_type %}
+            <a href="?" class="btn btn-secondary">সাফ করুন</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Transactions Table -->
+    {% if transactions %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">তারিখ</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">লেনদেন নং</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">গ্রাহক</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">ধরন</th>
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">বিবরণ</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পরিমাণ</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">স্ট্যাটাস</th>
+                    <th style="padding: 12px 8px; text-align: center; font-weight: 600;">ডেলিভারি</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr style="border-bottom: 1px solid #dee2e6; {% if txn.is_reversed %}opacity: 0.5; background: #f8f9fa;{% endif %}">
+                    <td style="padding: 10px 8px;">{{ txn.created_at|date:"d/m/Y H:i" }}</td>
+                    <td style="padding: 10px 8px; font-family: monospace; font-size: 0.85rem;">{{ txn.transaction_number }}</td>
+                    <td style="padding: 10px 8px;">
+                        <strong>{{ txn.customer.name }}</strong><br>
+                        <small style="color: #666;">{{ txn.customer.mobile_number }}</small>
+                    </td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">জমা</span>
+                        {% elif txn.transaction_type == 'purchase' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #cce5ff; color: #004085; font-weight: 600; font-size: 0.85rem;">ক্রয়</span>
+                        {% elif txn.transaction_type == 'withdrawal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600; font-size: 0.85rem;">উত্তোলন</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">বাতিল</span>
+                        {% else %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #e2e3e5; color: #383d41; font-weight: 600; font-size: 0.85rem;">{{ txn.get_transaction_type_display }}</span>
+                        {% endif %}
+                        {% if txn.is_reversed %}
+                        <br><small style="color: #dc3545; font-weight: 600;">(বাতিলকৃত)</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px;">
+                        {% if txn.transaction_type == 'purchase' %}
+                            <strong>{{ txn.item_name }}</strong>
+                            {% if txn.item_quantity %}<br><small>পরিমাণ: {{ txn.item_quantity }}</small>{% endif %}
+                        {% elif txn.notes %}
+                            {{ txn.notes|truncatewords:10 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
+                        {% if txn.transaction_type == 'submission' %}
+                        <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'purchase' or txn.transaction_type == 'withdrawal' %}
+                        <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
+                        {% elif txn.transaction_type == 'reversal' %}
+                            {% if txn.reverses_transaction.transaction_type == 'submission' %}
+                            <span style="color: #dc3545;">-৳{{ txn.amount|floatformat:2 }}</span>
+                            {% else %}
+                            <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
+                            {% endif %}
+                        {% else %}
+                        ৳{{ txn.amount|floatformat:2 }}
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        {% if txn.status == 'pending' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600; font-size: 0.85rem;">চলমান</span>
+                        {% elif txn.status == 'ready' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #cfe2ff; color: #084298; font-weight: 600; font-size: 0.85rem;">প্রস্তুত</span>
+                        {% elif txn.status == 'completed' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">সম্পন্ন</span>
+                        {% elif txn.status == 'cancelled' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">বাতিল</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: center;">
+                        {% if txn.delivery_status == 'not_delivered' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #f8d7da; color: #721c24; font-weight: 600; font-size: 0.85rem;">না</span>
+                        {% elif txn.delivery_status == 'delivered' %}
+                        <span style="padding: 4px 8px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; font-size: 0.85rem;">হ্যাঁ</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 10px 8px; text-align: right;">
+                        <a href="{% url 'transactions:transaction_voucher' pk=txn.pk %}" class="btn btn-sm btn-info" title="ভাউচার দেখুন">🧾</a>
+                        {% if txn.transaction_type == 'purchase' and not txn.is_reversed %}
+                        <a href="{% url 'transactions:transaction_edit' pk=txn.pk %}" class="btn btn-sm btn-warning" title="সম্পাদনা করুন">✏️</a>
+                        {% if txn.delivery_status != 'delivered' %}
+                        <a href="{% url 'transactions:transaction_complete' pk=txn.pk %}" class="btn btn-sm btn-success" title="সম্পন্ন করুন" onclick="return confirm('এই অর্ডার সম্পন্ন করতে চান?')">✅</a>
+                        {% else %}
+                        <span class="btn btn-sm" style="background: #d4edda; color: #155724; cursor: default;" title="ডেলিভারি সম্পন্ন">✅ সম্পন্ন</span>
+                        {% endif %}
+                        {% endif %}
+                        {% if not txn.is_reversed %}
+                        <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-danger" title="বাতিল করুন" onclick="return confirm('এই লেনদেন বাতিল করতে চান?')">↩️</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div style="margin-top: 20px; text-align: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_status_filter %}&delivery_status={{ delivery_status_filter }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}" class="btn btn-sm">প্রথম</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_status_filter %}&delivery_status={{ delivery_status_filter }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}" class="btn btn-sm">← আগের</a>
+        {% endif %}
+        
+        <span style="margin: 0 10px;">পৃষ্ঠা {{ page_obj.number }} এর {{ page_obj.paginator.num_pages }}</span>
+        
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_status_filter %}&delivery_status={{ delivery_status_filter }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}" class="btn btn-sm">পরের →</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if delivery_status_filter %}&delivery_status={{ delivery_status_filter }}{% endif %}{% if transaction_type %}&type={{ transaction_type }}{% endif %}" class="btn btn-sm">শেষ</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <div style="font-size: 3rem; margin-bottom: 10px;">📊</div>
+        <h3>কোনো লেনদেন নেই</h3>
+        <p>নির্বাচিত ফিল্টারের সাথে কোনো লেনদেন পাওয়া যায়নি!</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

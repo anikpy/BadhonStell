@@ -112,10 +112,28 @@ def import_legacy_orders(request):
 
 @login_required
 def customer_list(request):
-    """Transaction customer list"""
+    """Transaction customer list with filtering by transaction status"""
     search_query = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    delivery_status_filter = request.GET.get('delivery_status', '')
     
+    # Get all customers
     customers = Customer.objects.all().order_by('-created_at')
+    
+    # If status filter is provided, filter customers by their transactions
+    if status_filter or delivery_status_filter:
+        # Get transactions matching the filters
+        transactions = Transaction.objects.all()
+        
+        if status_filter:
+            transactions = transactions.filter(status=status_filter)
+        
+        if delivery_status_filter:
+            transactions = transactions.filter(delivery_status=delivery_status_filter)
+        
+        # Get unique customers from filtered transactions
+        customer_ids = list(transactions.values_list('customer_id', flat=True).distinct())
+        customers = customers.filter(pk__in=customer_ids)
     
     if search_query:
         customers = customers.filter(
@@ -131,6 +149,8 @@ def customer_list(request):
         'page_obj': page_obj,
         'customers': page_obj.object_list,
         'search_query': search_query,
+        'status_filter': status_filter,
+        'delivery_status_filter': delivery_status_filter,
         'total_customers': customers.count(),
     }
     return render(request, 'transactions/customer_list.html', context)
@@ -160,8 +180,8 @@ def customer_detail(request, pk):
     """Customer detail - transaction based"""
     customer = get_object_or_404(Customer, pk=pk)
     
-    # Get all transactions
-    transactions = customer.transactions.filter(status='completed').order_by('-created_at')
+    # Get all transactions (including pending orders)
+    transactions = customer.transactions.all().order_by('-created_at')
     
     # Get transaction counts
     submission_count = transactions.filter(transaction_type='submission').count()
@@ -309,7 +329,8 @@ def transaction_submission_create(request, customer_pk):
                 transaction_type='submission',
                 amount=amount,
                 notes=notes,
-                status='completed',
+                status='pending',
+                delivery_status='not_delivered',
                 created_by=request.user
             )
             
@@ -467,7 +488,8 @@ def transaction_purchase_create(request, customer_pk):
                     total_discount_percentage=total_discount,
                     total_discount_amount=total_discount_amount,
                     notes=request.POST.get('notes', ''),
-                    status='completed',
+                    status='pending',
+                    delivery_status='not_delivered',
                     created_by=request.user,
                     order_date=order_date_obj,
                     delivery_date=delivery_date_obj
@@ -581,6 +603,51 @@ def transaction_voucher(request, pk):
         'customer': transaction.customer,
     }
     return render(request, 'transactions/transaction_voucher.html', context)
+
+
+@login_required
+def transaction_list_all(request):
+    """Transaction list - all transactions with filtering"""
+    status_filter = request.GET.get('status', '')
+    delivery_status_filter = request.GET.get('delivery_status', '')
+    transaction_type = request.GET.get('type', '')
+    search_query = request.GET.get('search', '')
+    
+    # Get all transactions
+    transactions = Transaction.objects.all().order_by('-created_at')
+    
+    # Apply filters
+    if status_filter:
+        transactions = transactions.filter(status=status_filter)
+    
+    if delivery_status_filter:
+        transactions = transactions.filter(delivery_status=delivery_status_filter)
+    
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+    
+    if search_query:
+        transactions = transactions.filter(
+            Q(customer__name__icontains=search_query) | 
+            Q(customer__mobile_number__icontains=search_query) |
+            Q(transaction_number__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(transactions, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'transactions': page_obj.object_list,
+        'status_filter': status_filter,
+        'delivery_status_filter': delivery_status_filter,
+        'transaction_type': transaction_type,
+        'search_query': search_query,
+        'total_transactions': transactions.count(),
+    }
+    return render(request, 'transactions/transaction_list_all.html', context)
 
 
 @login_required
@@ -1120,6 +1187,17 @@ def customer_notes_api(request, customer_pk):
     """API endpoint to get customer notes"""
     customer = get_object_or_404(Customer, pk=customer_pk)
     
+    # Handle DELETE requests
+    if request.method == 'POST' and 'note_id' in request.POST:
+        note_id = request.POST.get('note_id')
+        try:
+            note = CustomerNote.objects.get(pk=note_id, customer=customer)
+            note.delete()
+            return JsonResponse({'success': True, 'message': 'নোট সফলভাবে মুছে ফেলা হয়েছে'})
+        except CustomerNote.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'নোট পাওয়া যায়নি'}, status=404)
+    
+    # Handle GET requests
     try:
         notes = customer.notes.all()[:20]  # Get last 20 notes
         
