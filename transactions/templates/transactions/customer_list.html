@@ -4,6 +4,20 @@
 {% block title %}অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা{% endblock %}
 
 {% block content %}
+
+<!-- Notes Modal -->
+<div id="notes-modal" class="status-modal" style="display: none;">
+    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: #2c3e50;">📝 কাস্টমার নোট</h3>
+        <div id="notes-content">
+            <!-- Notes will be loaded here -->
+        </div>
+        <div style="margin-top: 20px; text-align: right;">
+            <button onclick="closeNotesModal()" class="btn btn-secondary">বন্ধ করুন</button>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-title">
         📋 অর্ডার ব্যবস্থাপনা - কাস্টমার তালিকা
@@ -74,8 +88,9 @@
                     </td>
                     <td style="padding: 10px 8px; text-align: right;">
                         <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-sm btn-info">👁️ দেখুন</a>
-                        <a href="{% url 'transactions:customer_edit' customer.pk %}" class="btn btn-sm btn-warning">✏️ এডিট</a>
-                        <a href="{% url 'transactions:transaction_purchase_create' customer.pk %}" class="btn btn-sm btn-success">🛒 ক্রয়</a>
+                        <button onclick="showNotesModal({{ customer.pk }}, '{{ customer.name|escapejs }}')" 
+                                class="btn btn-sm btn-warning" 
+                                title="নোট দেখুন">📝 নোট</button>
                         <a href="{% url 'transactions:customer_delete' customer.pk %}" class="btn btn-sm btn-danger" onclick="return confirmDelete('{{ customer.name }}')">🗑️ মুছুন</a>
                     </td>
                 </tr>
@@ -186,6 +201,57 @@ document.addEventListener('click', function(e) {
 searchInput.addEventListener('focus', function() {
     if (this.value.trim().length >= 2) {
         this.dispatchEvent(new Event('input'));
+    }
+});
+
+// Notes Modal Functions
+function showNotesModal(customerPk, customerName) {
+    const modal = document.getElementById('notes-modal');
+    const content = document.getElementById('notes-content');
+    
+    // Show loading
+    content.innerHTML = '<div style="text-align: center; padding: 20px;">লোড হচ্ছে...</div>';
+    modal.classList.add('active');
+    
+    // Fetch notes
+    fetch(`/transactions/api/customers/${customerPk}/notes/`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Notes data:', data); // Debug log
+            if (data.notes && data.notes.length > 0) {
+                let html = '<div style="max-height: 400px; overflow-y: auto;">';
+                data.notes.forEach(note => {
+                    html += `
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #007bff;">
+                            <div style="margin-bottom: 5px;">${note.note}</div>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                ${note.created_at} 
+                                ${note.created_by ? 'by ' + note.created_by : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;"><p>কোনো নোট নেই</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><p>নোট লোড করতে সমস্যা হয়েছে</p></div>';
+        });
+}
+
+function closeNotesModal() {
+    const modal = document.getElementById('notes-modal');
+    modal.classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.getElementById('notes-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeNotesModal();
     }
 });
 </script>

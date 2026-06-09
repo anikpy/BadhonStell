@@ -4,11 +4,6 @@ from . import views
 app_name = 'transactions'
 
 urlpatterns = [
-    # Notifications
-    path('notifications/', views.notification_list, name='notification_list'),
-    path('notifications/<int:pk>/read/', views.notification_mark_read, name='notification_mark_read'),
-    path('api/notifications/count/', views.notification_count_api, name='notification_count_api'),
-    
     # Order Management
     path('order/create/', views.order_create, name='order_create'),
     path('import-legacy-orders/', views.import_legacy_orders, name='import_legacy_orders'),
@@ -46,9 +41,11 @@ urlpatterns = [
     # Customer Statements & History
     path('customers/<int:customer_pk>/statement/', views.customer_statement, name='customer_statement'),
     path('customers/<int:customer_pk>/history/', views.customer_history, name='customer_history'),
+    path('customers/<int:customer_pk>/notes/add/', views.customer_note_create, name='customer_note_create'),
     
     # API Endpoints
     path('api/customer-search/', views.customer_search_api, name='customer_search_api'),
+    path('api/customers/<int:customer_pk>/notes/', views.customer_notes_api, name='customer_notes_api'),
     
     # ==================== DEPRECATED URLS (Keep for backward compatibility) ====================
     path('submissions/create/<int:customer_pk>/', views.submission_create, name='submission_create'),

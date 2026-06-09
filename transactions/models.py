@@ -235,39 +235,6 @@ class TransactionHistory(models.Model):
         return f"{self.transaction.transaction_number} - {self.get_action_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
 
-class Notification(models.Model):
-    """Notification model for payment due alerts"""
-    
-    NOTIFICATION_TYPE_CHOICES = [
-        ('payment_due', 'Payment Due'),
-        ('delivery_due', 'Delivery Due'),
-    ]
-    
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES, verbose_name='Notification Type')
-    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='notifications', verbose_name='Customer')
-    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name='Transaction')
-    title = models.CharField(max_length=255, verbose_name='Title')
-    message = models.TextField(verbose_name='Message')
-    is_read = models.BooleanField(default=False, verbose_name='Is Read')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
-    read_at = models.DateTimeField(null=True, blank=True, verbose_name='Read At')
-    
-    class Meta:
-        verbose_name = 'Notification'
-        verbose_name_plural = 'Notifications'
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.title} - {self.customer.name}"
-    
-    def mark_as_read(self):
-        """Mark notification as read"""
-        if not self.is_read:
-            self.is_read = True
-            self.read_at = timezone.now()
-            self.save()
-
-
 # ==================== DEPRECATED MODELS (Keep for backward compatibility) ====================
 
 class CustomerSubmission(models.Model):
@@ -312,3 +279,20 @@ class CustomerItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name} × {self.quantity} - {self.submission.customer.name}"
+
+
+class CustomerNote(models.Model):
+    """Customer notes - for storing small notes about customers"""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='notes', verbose_name='Customer')
+    note = models.TextField(verbose_name='Note')
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Created By')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+
+    class Meta:
+        verbose_name = 'Customer Note'
+        verbose_name_plural = 'Customer Notes'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Note for {self.customer.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

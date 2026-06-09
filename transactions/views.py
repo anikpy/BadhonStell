@@ -10,10 +10,9 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-from .models import Customer, Transaction, TransactionItem, TransactionHistory, CustomerSubmission, CustomerItem, Notification
-from .forms import CustomerForm, TransactionSubmissionForm, TransactionPurchaseForm, TransactionWithdrawalForm
+from .models import Customer, Transaction, TransactionItem, TransactionHistory, CustomerSubmission, CustomerItem, CustomerNote
+from .forms import CustomerForm, TransactionSubmissionForm, TransactionPurchaseForm, TransactionWithdrawalForm, CustomerNoteForm
 from shop.models import InventoryProduct, StockHistory
-from .notifications import generate_payment_notifications, get_unread_notifications, get_unread_notification_count
 
 
 # ==================== Order Management ====================
@@ -1115,6 +1114,28 @@ def customer_search_api(request):
     return JsonResponse({'customers': results})
 
 
+@login_required
+def customer_notes_api(request, customer_pk):
+    """API endpoint to get customer notes"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
+    
+    try:
+        notes = customer.notes.all()[:20]  # Get last 20 notes
+        
+        notes_data = []
+        for note in notes:
+            notes_data.append({
+                'note': note.note,
+                'created_at': note.created_at.strftime('%d/%m/%Y %H:%M'),
+                'created_by': note.created_by.username if note.created_by else 'System'
+            })
+        
+        return JsonResponse({'notes': notes_data})
+    except Exception as e:
+        # If table doesn't exist yet (migration not run), return empty notes
+        return JsonResponse({'notes': [], 'error': str(e)})
+
+
 # ==================== Deprecated Views (Keep for backward compatibility) ====================
 
 @login_required
@@ -1226,44 +1247,22 @@ def transaction_update_status(request, pk):
     return redirect('transactions:customer_detail', pk=transaction.customer.pk)
 
 
-# ==================== Notification Views ====================
-
 @login_required
-def notification_list(request):
-    """List all unread notifications"""
-    # Generate new notifications for today/overdue payments
-    generate_payment_notifications()
+def customer_note_create(request, customer_pk):
+    """Add a note to customer"""
+    customer = get_object_or_404(Customer, pk=customer_pk)
     
-    # Get all unread notifications
-    notifications = get_unread_notifications()
+    if request.method == 'POST':
+        form = CustomerNoteForm(request.POST)
+        if form.is_valid():
+            note = form.save(commit=False)
+            note.customer = customer
+            note.created_by = request.user
+            note.save()
+            messages.success(request, '✅ নোট সফলভাবে যোগ করা হয়েছে!')
+        else:
+            messages.error(request, '❌ নোট যোগ করতে সমস্যা হয়েছে!')
     
-    context = {
-        'notifications': notifications,
-        'total_unread': notifications.count(),
-    }
-    return render(request, 'transactions/notification_list.html', context)
-
-
-@login_required
-def notification_mark_read(request, pk):
-    """Mark notification as read and redirect to customer profile"""
-    notification = get_object_or_404(Notification, pk=pk)
-    customer = notification.customer
-    
-    # Mark as read
-    notification.mark_as_read()
-    
-    # Redirect to customer profile
     return redirect('transactions:customer_detail', pk=customer.pk)
 
 
-@login_required
-def notification_count_api(request):
-    """API endpoint to get unread notification count"""
-    # Generate new notifications for today/overdue payments
-    generate_payment_notifications()
-    
-    # Get count
-    count = get_unread_notification_count()
-    
-    return JsonResponse({'unread_count': count})

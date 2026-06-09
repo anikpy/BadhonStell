@@ -103,6 +103,39 @@
         <a href="{% url 'transactions:customer_history' customer_pk=customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
     </div>
 
+    <!-- Customer Notes Section -->
+    <div id="notes-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6;">
+        <h4 style="margin-top: 0; margin-bottom: 15px; color: #2c3e50;">📝 কাস্টমার নোট</h4>
+        
+        <!-- Add Note Form -->
+        <form method="post" action="{% url 'transactions:customer_note_create' customer_pk=customer.pk %}" style="margin-bottom: 20px;">
+            {% csrf_token %}
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <textarea name="note" class="form-control" rows="2" placeholder="নতুন নোট যোগ করুন..." style="flex: 1; font-family: 'Noto Sans Bengali', sans-serif;"></textarea>
+                <button type="submit" class="btn btn-success">➕ যোগ করুন</button>
+            </div>
+        </form>
+
+        <!-- Notes List -->
+        {% if customer.notes.all %}
+        <div style="max-height: 400px; overflow-y: auto;">
+            {% for note in customer.notes.all %}
+            <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #007bff;">
+                <div style="margin-bottom: 5px;">{{ note.note }}</div>
+                <div style="font-size: 0.85rem; color: #666;">
+                    {{ note.created_at|date:"d/m/Y H:i" }} 
+                    {% if note.created_by %}by {{ note.created_by.username }}{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 20px; color: #666;">
+            <p>কোনো নোট নেই</p>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Date-wise Statement Filter -->
     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6;">
         <h4 style="margin-top: 0; margin-bottom: 15px; color: #2c3e50;">📄 তারিখ অনুযায়ী স্টেটমেন্ট</h4>

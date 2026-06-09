@@ -1,6 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Customer, Transaction
+from .models import Customer, Transaction, CustomerNote
 
 
 class CustomerForm(forms.ModelForm):
@@ -65,4 +65,14 @@ class TransactionWithdrawalForm(forms.ModelForm):
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter notes'}),
+        }
+
+
+class CustomerNoteForm(forms.ModelForm):
+    """Form for Customer Note"""
+    class Meta:
+        model = CustomerNote
+        fields = ['note']
+        widgets = {
+            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter note about this customer...'}),
         }
