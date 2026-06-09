@@ -6,7 +6,7 @@
 {% block content %}
 
 <!-- Notes Modal -->
-<div id="notes-modal" class="status-modal" style="display: none;">
+<div id="notes-modal" class="status-modal">
     <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
         <h3 style="margin-top: 0; color: #2c3e50;">📝 কাস্টমার নোট</h3>
         <div id="notes-content">
@@ -213,9 +213,26 @@ function showNotesModal(customerPk, customerName) {
     content.innerHTML = '<div style="text-align: center; padding: 20px;">লোড হচ্ছে...</div>';
     modal.classList.add('active');
     
-    // Fetch notes
-    fetch(`/transactions/api/customers/${customerPk}/notes/`)
-        .then(response => response.json())
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+    
+    // Fetch notes with proper headers
+    fetch(`/admin-panel/transactions/api/customers/${customerPk}/notes/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Notes data:', data); // Debug log
             if (data.notes && data.notes.length > 0) {
@@ -239,7 +256,7 @@ function showNotesModal(customerPk, customerName) {
         })
         .catch(error => {
             console.error('Error:', error);
-            content.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><p>নোট লোড করতে সমস্যা হয়েছে</p></div>';
+            content.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><p>নোট লোড করতে সমস্যা হয়েছে: ' + error.message + '</p></div>';
         });
 }
 

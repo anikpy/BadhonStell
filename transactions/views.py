@@ -1115,6 +1115,7 @@ def customer_search_api(request):
 
 
 @login_required
+@csrf_exempt
 def customer_notes_api(request, customer_pk):
     """API endpoint to get customer notes"""
     customer = get_object_or_404(Customer, pk=customer_pk)
