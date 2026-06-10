@@ -2658,6 +2658,42 @@ def due_accounts_list(request):
             if invoice.created_at > customer_due[customer_key]['last_date']:
                 customer_due[customer_key]['last_date'] = invoice.created_at
     
+    # Process customers from transactions app with negative balance (বাকি)
+    from transactions.models import Customer as TransactionCustomer
+    transaction_customers_with_due = TransactionCustomer.objects.filter(
+        current_balance__lt=0,
+        is_deleted=False
+    ).order_by('-updated_at')
+    
+    for txn_customer in transaction_customers_with_due:
+        # Negative balance means customer owes money (বাকি)
+        due_amount = abs(txn_customer.current_balance)
+        
+        customer_key = f"txn_customer_{txn_customer.pk}"
+        
+        if customer_key not in customer_due:
+            # Count completed transactions for this customer
+            from transactions.models import Transaction
+            transaction_count = Transaction.objects.filter(
+                customer=txn_customer,
+                is_reversed=False,
+                is_deleted=False
+            ).exclude(
+                transaction_type='purchase',
+                status='cancelled'
+            ).count()
+            
+            customer_due[customer_key] = {
+                'customer': None,
+                'customer_name': txn_customer.name,
+                'mobile_number': txn_customer.mobile_number,
+                'total_amount': txn_customer.total_purchased,
+                'paid_amount': txn_customer.total_submitted,
+                'due_amount': due_amount,
+                'order_count': transaction_count,
+                'last_date': txn_customer.updated_at,
+            }
+    
     # Convert to list and apply search filter
     due_items = list(customer_due.values())
     
