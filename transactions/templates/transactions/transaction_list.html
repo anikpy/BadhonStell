@@ -85,7 +85,6 @@
                     <th style="padding: 12px 8px; text-align: left; font-weight: 600;">ধরন</th>
                     <th style="padding: 12px 8px; text-align: left; font-weight: 600;">বিবরণ</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">পরিমাণ</th>
-                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ব্যালেন্স</th>
                     <th style="padding: 12px 8px; text-align: center; font-weight: 600;">অ্যাকশন</th>
                 </tr>
             </thead>
@@ -129,13 +128,6 @@
                             {% else %}
                             <span style="color: #28a745;">+৳{{ txn.amount|floatformat:2 }}</span>
                             {% endif %}
-                        {% endif %}
-                    </td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 700;">
-                        {% if txn.balance_after >= 0 %}
-                        <span style="color: #28a745;">৳{{ txn.balance_after|floatformat:2 }}</span>
-                        {% else %}
-                        <span style="color: #dc3545;">৳{{ txn.balance_after|floatformat:2 }}</span>
                         {% endif %}
                     </td>
                     <td style="padding: 10px 8px; text-align: center;">

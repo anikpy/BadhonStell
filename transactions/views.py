@@ -117,6 +117,15 @@ def customer_list(request):
     status_filter = request.GET.get('status', '')
     delivery_status_filter = request.GET.get('delivery_status', '')
     
+    # Get pagination size from request, default to 20
+    per_page = request.GET.get('per_page', '20')
+    try:
+        per_page = int(per_page)
+        if per_page not in [20, 50, 100, 200]:
+            per_page = 20
+    except (ValueError, TypeError):
+        per_page = 20
+    
     # Get all customers
     customers = Customer.objects.filter(is_deleted=False).order_by('-created_at')
     
@@ -141,7 +150,7 @@ def customer_list(request):
         )
     
     # Pagination
-    paginator = Paginator(customers, 20)
+    paginator = Paginator(customers, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -152,6 +161,7 @@ def customer_list(request):
         'status_filter': status_filter,
         'delivery_status_filter': delivery_status_filter,
         'total_customers': customers.count(),
+        'per_page': per_page,
     }
     return render(request, 'transactions/customer_list.html', context)
 
@@ -645,6 +655,15 @@ def transaction_list_all(request):
     transaction_type = request.GET.get('type', '')
     search_query = request.GET.get('search', '')
     
+    # Get pagination size from request, default to 50
+    per_page = request.GET.get('per_page', '50')
+    try:
+        per_page = int(per_page)
+        if per_page not in [20, 50, 100, 200]:
+            per_page = 50
+    except (ValueError, TypeError):
+        per_page = 50
+    
     # Get all transactions
     transactions = Transaction.objects.filter(is_deleted=False).order_by('-created_at')
     
@@ -666,7 +685,7 @@ def transaction_list_all(request):
         )
     
     # Pagination
-    paginator = Paginator(transactions, 50)
+    paginator = Paginator(transactions, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -678,6 +697,7 @@ def transaction_list_all(request):
         'transaction_type': transaction_type,
         'search_query': search_query,
         'total_transactions': transactions.count(),
+        'per_page': per_page,
     }
     return render(request, 'transactions/transaction_list_all.html', context)
 

@@ -613,7 +613,11 @@
             <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" title="মেনু">☰</button>
             <nav class="admin-nav" id="mobileNav">
                 <a href="{% url 'admin_dashboard' %}" {% if request.resolver_match.url_name == 'admin_dashboard' %}class="active"{% endif %}>🏠 ড্যাশবোর্ড</a>
+<<<<<<< Updated upstream
                 <a href="{% url 'transactions:customer_list' %}" {% if 'customer_list' in request.resolver_match.url_name %}class="active"{% endif %}>📋 অর্ডার</a>
+=======
+<!--                <a href="{% url 'order_list' %}" {% if 'order' in request.resolver_match.url_name %}class="active"{% endif %}>📋 কাস্টম অর্ডার</a>-->
+>>>>>>> Stashed changes
                 <a href="{% url 'completed_order_list' %}" {% if request.resolver_match.url_name == 'completed_order_list' %}class="active"{% endif %}>✅ সম্পন্ন</a>
                 <a href="{% url 'inventory_product_list' %}" {% if 'inventory' in request.resolver_match.url_name %}class="active"{% endif %}>📦 ইনভেন্টরি</a>
                 <a href="{% url 'invoice_list' %}" {% if 'invoice' in request.resolver_match.url_name %}class="active"{% endif %}>💰 বিক্রয়</a>

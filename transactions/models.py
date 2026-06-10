@@ -24,6 +24,7 @@ class Customer(models.Model):
 
     @property
     def total_submitted(self):
+        """Total deposits (জমা) - only non-reversed submissions"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='submission',
@@ -33,21 +34,63 @@ class Customer(models.Model):
 
     @property
     def total_purchased(self):
+        """Total purchases (ক্রয়) - only ACTIVE orders (non-reversed, non-cancelled)"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='purchase',
             is_reversed=False
+        ).exclude(
+            status='cancelled'  # Exclude cancelled orders
         ).aggregate(total=Sum('amount'))
         return abs(result['total'] or 0)
 
     @property
     def total_withdrawn(self):
+        """Total withdrawals (উত্তোলন) - only non-reversed withdrawals"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='withdrawal',
             is_reversed=False
         ).aggregate(total=Sum('amount'))
         return abs(result['total'] or 0)
+    
+    def recalculate_balance(self):
+        """
+        Recalculate customer balance based on ACTIVE transactions only.
+        
+        Balance Calculation Rules:
+        - মোট জমা (Total Deposits) = Sum of all non-reversed submissions
+        - মোট ক্রয় (Total Purchases) = Sum of all ACTIVE orders (non-reversed, non-cancelled)
+        - মোট উত্তোলন (Total Withdrawals) = Sum of all non-reversed withdrawals
+        - বর্তমান ব্যালেন্স = মোট জমা - মোট ক্রয় - মোট উত্তোলন
+        
+        Display Rules:
+        - If balance < 0: Show as negative with "(বাকি)" - customer owes money
+        - If balance > 0: Show as positive with "(কাস্টমার পাবে)" - customer has credit
+        - If balance = 0: Show as 0
+        """
+        balance = Decimal('0.00')
+        
+        # Get all ACTIVE transactions (non-reversed, non-deleted)
+        transactions = self.transactions.filter(
+            is_reversed=False,
+            is_deleted=False
+        ).order_by('created_at')
+        
+        for txn in transactions:
+            # Skip cancelled purchase orders - they should not affect balance
+            if txn.transaction_type == 'purchase' and txn.status == 'cancelled':
+                continue
+                
+            if txn.transaction_type == 'submission':
+                balance += txn.amount
+            elif txn.transaction_type in ['purchase', 'withdrawal']:
+                balance -= abs(txn.amount)
+            elif txn.transaction_type == 'adjustment':
+                balance += txn.amount
+        
+        self.current_balance = balance
+        return balance
 
 
 class Transaction(models.Model):
@@ -157,7 +200,8 @@ class Transaction(models.Model):
             
             self.transaction_number = f"TXN-{year}-{new_num:05d}"
         
-        # Always recalculate balance from current customer balance
+        # Calculate balance_before and balance_after for this transaction
+        # But DON'T update customer balance here - do it after save
         self.balance_before = self.customer.current_balance
         
         if self.transaction_type == 'submission':
@@ -169,17 +213,12 @@ class Transaction(models.Model):
         elif self.transaction_type == 'reversal':
             # For reversal, reverse the original transaction's effect
             if self.reverses_transaction:
-                # If reversing a reversal, we need to reverse the reversal's effect
                 if self.reverses_transaction.transaction_type == 'reversal':
-                    # Reversing a reversal means undoing the reversal
-                    # So we apply the same logic as the original reversal but in opposite direction
                     if self.reverses_transaction.reverses_transaction:
                         original_txn = self.reverses_transaction.reverses_transaction
                         if original_txn.transaction_type == 'submission':
-                            # Original was submission, reversal subtracted it, so we add it back
                             self.balance_after = self.balance_before + abs(original_txn.amount)
                         else:
-                            # Original was purchase/withdrawal, reversal added it, so we subtract it back
                             self.balance_after = self.balance_before - abs(original_txn.amount)
                     else:
                         self.balance_after = self.balance_before + self.amount
@@ -192,10 +231,10 @@ class Transaction(models.Model):
         
         super().save(*args, **kwargs)
         
-        # Update customer balance for all non-reversed orders (pending, ready, completed)
-        if not self.is_reversed:
-            self.customer.current_balance = self.balance_after
-            self.customer.save()
+        # CRITICAL FIX: Recalculate customer balance from ALL active transactions
+        # This ensures balance is always correct regardless of order status changes
+        new_balance = self.customer.recalculate_balance()
+        self.customer.save()
 
 
 class TransactionItem(models.Model):
