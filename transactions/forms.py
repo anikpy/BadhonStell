@@ -38,10 +38,16 @@ class TransactionSubmissionForm(forms.ModelForm):
     """Form for Submission (Deposit) transaction"""
     class Meta:
         model = Transaction
-        fields = ['amount', 'notes']
+        fields = ['amount', 'order_date', 'notes']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'order_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter notes'}),
+        }
+        labels = {
+            'order_date': 'তারিখ (Date)',
+            'amount': 'পরিমাণ (Amount)',
+            'notes': 'নোট (Notes)',
         }
 
 
@@ -61,10 +67,16 @@ class TransactionWithdrawalForm(forms.ModelForm):
     """Form for Withdrawal transaction"""
     class Meta:
         model = Transaction
-        fields = ['amount', 'notes']
+        fields = ['amount', 'order_date', 'notes']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'order_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter notes'}),
+        }
+        labels = {
+            'order_date': 'তারিখ (Date)',
+            'amount': 'পরিমাণ (Amount)',
+            'notes': 'নোট (Notes)',
         }
 
 

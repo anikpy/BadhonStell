@@ -40,6 +40,7 @@ urlpatterns = [
     path('<int:pk>/edit/', views.transaction_edit, name='transaction_edit'),
     path('<int:pk>/complete/', views.transaction_complete, name='transaction_complete'),
     path('<int:pk>/update-status/', views.transaction_update_status, name='transaction_status_update'),
+    path('<int:pk>/delete/', views.transaction_delete, name='transaction_delete'),
     
     # Customer Statements & History
     path('customers/<int:customer_pk>/statement/', views.customer_statement, name='customer_statement'),

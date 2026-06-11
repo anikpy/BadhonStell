@@ -105,37 +105,45 @@
         <a href="{% url 'transactions:customer_history' customer_pk=customer.pk %}" class="btn btn-dark">📜 ইতিহাস</a>
     </div>
 
-    <!-- Customer Notes Section -->
-    <div id="notes-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #dee2e6;">
-        <h4 style="margin-top: 0; margin-bottom: 15px; color: #2c3e50;">📝 কাস্টমার নোট</h4>
-        
-        <!-- Add Note Form -->
-        <form method="post" action="{% url 'transactions:customer_note_create' customer_pk=customer.pk %}" style="margin-bottom: 20px;">
-            {% csrf_token %}
-            <div style="display: flex; gap: 10px; align-items: flex-start;">
-                <textarea name="note" class="form-control" rows="2" placeholder="নতুন নোট যোগ করুন..." style="flex: 1; font-family: 'Noto Sans Bengali', sans-serif;"></textarea>
-                <button type="submit" class="btn btn-success">➕ যোগ করুন</button>
-            </div>
-        </form>
+    <!-- Customer Notes Button -->
+    <div style="margin-bottom: 25px;">
+        <button type="button" class="btn btn-info" onclick="openNotesModal()">📝 কাস্টমার নোট ({{ customer.notes.count }} টি)</button>
+    </div>
 
-        <!-- Notes List -->
-        {% if customer.notes.all %}
-        <div style="max-height: 400px; overflow-y: auto;">
-            {% for note in customer.notes.all %}
-            <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #007bff;">
-                <div style="margin-bottom: 5px;">{{ note.note }}</div>
-                <div style="font-size: 0.85rem; color: #666;">
-                    {{ note.created_at|date:"d/m/Y H:i" }} 
-                    {% if note.created_by %}by {{ note.created_by.username }}{% endif %}
-                </div>
+    <!-- Notes Modal -->
+    <div id="notes-modal" class="status-modal">
+        <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2c3e50;">📝 কাস্টমার নোট</h3>
+                <button type="button" onclick="closeNotesModal()" style="border: none; background: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
             </div>
-            {% endfor %}
+            
+            <!-- Add Note Form -->
+            <form method="post" action="{% url 'transactions:customer_note_create' customer_pk=customer.pk %}" style="margin-bottom: 20px;">
+                {% csrf_token %}
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                    <textarea name="note" class="form-control" rows="2" placeholder="নতুন নোট যোগ করুন..." style="flex: 1; font-family: 'Noto Sans Bengali', sans-serif;"></textarea>
+                    <button type="submit" class="btn btn-success">➕ যোগ করুন</button>
+                </div>
+            </form>
+
+            <!-- Notes List -->
+            <div style="max-height: 400px; overflow-y: auto;">
+                {% for note in customer.notes.all %}
+                <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #007bff;">
+                    <div style="margin-bottom: 5px;">{{ note.note }}</div>
+                    <div style="font-size: 0.85rem; color: #666;">
+                        {{ note.created_at|date:"d/m/Y H:i" }} 
+                        {% if note.created_by %}by {{ note.created_by.username }}{% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <p>কোনো নোট নেই</p>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        {% else %}
-        <div style="text-align: center; padding: 20px; color: #666;">
-            <p>কোনো নোট নেই</p>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Date-wise Statement Filter -->
@@ -237,6 +245,11 @@
                         {% if txn.is_reversed %}
                         <a href="{% url 'transactions:transaction_reverse' pk=txn.pk %}" class="btn btn-sm btn-success" title="পুনরায় সক্রিয় করুন" onclick="return confirm('এই বাতিলকৃত লেনদেন পুনরায় সক্রিয় করতে চান?')">♻️</a>
                         {% endif %}
+                        {% if txn.transaction_type == 'submission' or txn.transaction_type == 'withdrawal' %}
+                            {% if not txn.is_reversed %}
+                            <a href="{% url 'transactions:transaction_delete' pk=txn.pk %}" class="btn btn-sm" style="background: #6c757d; color: white;" title="মুছে ফেলুন">🗑️</a>
+                            {% endif %}
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -263,6 +276,14 @@
 </div>
 
 <script>
+function openNotesModal() {
+    document.getElementById('notes-modal').classList.add('active');
+}
+
+function closeNotesModal() {
+    document.getElementById('notes-modal').classList.remove('active');
+}
+
 function toggleStatusForm(transactionPk) {
     const modal = document.getElementById('status-modal');
     const form = document.getElementById('status-update-form');
@@ -294,6 +315,14 @@ document.getElementById('status-modal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeStatusModal();
+        closeNotesModal();
+    }
+});
+
+// Close notes modal when clicking outside
+document.getElementById('notes-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeNotesModal();
     }
 });
 </script>

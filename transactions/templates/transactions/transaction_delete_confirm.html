@@ -1,0 +1,180 @@
+{% extends 'admin_panel/base.html' %}
+{% load static %}
+
+{% block title %}লেনদেন মুছে ফেলুন - নিশ্চিতকরণ{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        🗑️ লেনদেন মুছে ফেলার নিশ্চিতকরণ
+        <div style="float: right;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary">← ফিরে যান</a>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 3rem;">⚠️</div>
+            <div>
+                <h3 style="margin: 0 0 10px 0; color: #856404;">সতর্কতা!</h3>
+                <p style="margin: 0; color: #856404; font-size: 1.05rem;">
+                    আপনি কি নিশ্চিত যে এই লেনদেন মুছে ফেলতে চান? এই কাজটি সম্পন্ন হলে লেনদেনটি মুছে যাবে এবং কাস্টমারের ব্যালেন্স স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details -->
+    <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+        <h4 style="margin-top: 0; margin-bottom: 20px; color: #2c3e50;">📋 লেনদেনের বিবরণ</h4>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div>
+                <strong style="color: #6c757d;">লেনদেন নম্বর:</strong><br>
+                <span style="font-family: monospace; font-size: 1.1rem; color: #2c3e50;">{{ transaction.transaction_number }}</span>
+            </div>
+            
+            <div>
+                <strong style="color: #6c757d;">লেনদেনের ধরন:</strong><br>
+                {% if transaction.transaction_type == 'submission' %}
+                <span style="padding: 6px 12px; border-radius: 4px; background: #d4edda; color: #155724; font-weight: 600; display: inline-block; margin-top: 5px;">💰 জমা</span>
+                {% elif transaction.transaction_type == 'withdrawal' %}
+                <span style="padding: 6px 12px; border-radius: 4px; background: #fff3cd; color: #856404; font-weight: 600; display: inline-block; margin-top: 5px;">💸 উত্তোলন</span>
+                {% endif %}
+            </div>
+            
+            <div>
+                <strong style="color: #6c757d;">পরিমাণ:</strong><br>
+                <span style="font-size: 1.3rem; font-weight: 700; color: #2c3e50;">৳{{ transaction.amount|floatformat:2 }}</span>
+            </div>
+            
+            <div>
+                <strong style="color: #6c757d;">তারিখ:</strong><br>
+                <span style="color: #2c3e50;">{{ transaction.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+        </div>
+
+        {% if transaction.notes %}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+            <strong style="color: #6c757d;">নোট:</strong><br>
+            <span style="color: #2c3e50;">{{ transaction.notes }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin-bottom: 25px; color: white;">
+        <h4 style="margin-top: 0; margin-bottom: 15px;">👤 কাস্টমার তথ্য</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">নাম</div>
+                <div style="font-size: 1.1rem; font-weight: 600;">{{ customer.name }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">মোবাইল</div>
+                <div style="font-size: 1.1rem; font-weight: 600;">{{ customer.mobile_number }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; opacity: 0.9;">বর্তমান ব্যালেন্স</div>
+                <div style="font-size: 1.2rem; font-weight: 700;">
+                    {% if customer.current_balance >= 0 %}
+                    <span style="color: #28a745;">৳{{ customer.current_balance|floatformat:2 }}</span>
+                    {% else %}
+                    <span style="color: #dc3545;">৳{{ customer.current_balance|floatformat:2 }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Impact Info -->
+    <div style="background: #e7f3ff; border: 2px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 2.5rem;">ℹ️</div>
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #004085;">ব্যালেন্স পরিবর্তন</h4>
+                <p style="margin: 0; color: #004085;">
+                    এই লেনদেন মুছে ফেলার পর কাস্টমারের ব্যালেন্স স্বয়ংক্রিয়ভাবে পুনঃগণনা করা হবে।
+                    {% if transaction.transaction_type == 'submission' %}
+                    জমা লেনদেন মুছে ফেলার ফলে ব্যালেন্স <strong>৳{{ transaction.amount|floatformat:2 }}</strong> কমে যাবে।
+                    {% elif transaction.transaction_type == 'withdrawal' %}
+                    উত্তোলন লেনদেন মুছে ফেলার ফলে ব্যালেন্স <strong>৳{{ transaction.amount|floatformat:2 }}</strong> বৃদ্ধি পাবে।
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <form method="post" style="margin-top: 25px;">
+        {% csrf_token %}
+        
+        <div style="background: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 1.05rem;">
+                <input type="checkbox" id="confirm-delete" required style="width: 20px; height: 20px;">
+                <span style="color: #721c24;">
+                    হ্যাঁ, আমি নিশ্চিত যে এই লেনদেন মুছে ফেলতে চাই এবং ব্যালেন্স স্বয়ংক্রিয়ভাবে সমন্বয় হবে।
+                </span>
+            </label>
+        </div>
+
+        <div style="display: flex; gap: 15px; justify-content: flex-end;">
+            <a href="{% url 'transactions:customer_detail' customer.pk %}" class="btn btn-secondary" style="padding: 12px 30px;">
+                ❌ বাতিল করুন
+            </a>
+            <button type="submit" class="btn btn-danger" style="padding: 12px 30px;" id="delete-btn" disabled>
+                🗑️ হ্যাঁ, মুছে ফেলুন
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Enable delete button only when checkbox is checked
+document.getElementById('confirm-delete').addEventListener('change', function() {
+    document.getElementById('delete-btn').disabled = !this.checked;
+});
+</script>
+
+<style>
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-danger:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+</style>
+{% endblock %}

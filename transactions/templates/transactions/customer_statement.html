@@ -14,16 +14,16 @@
         
         body {
             font-family: 'Noto Sans Bengali', Arial, sans-serif;
-            padding: 8px;
+            padding: 4px;
             background-color: white;
         }
         
         .statement-container {
-            max-width: 850px;
+            max-width: 100%;
             margin: 0 auto;
             background: white;
-            padding: 20px;
-            border: 2px solid #000;
+            padding: 10px;
+            border: 1px solid #000;
         }
         
         .statement-header {
@@ -344,27 +344,23 @@
         </div>
 
         <!-- Final Balance Explanation -->
-        <div style="background: {% if customer.current_balance >= 0 %}#d4edda{% else %}#f8d7da{% endif %}; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid {% if customer.current_balance >= 0 %}#28a745{% else %}#dc3545{% endif %};">
-            <div style="text-align: center;">
-                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: {% if customer.current_balance >= 0 %}#155724{% else %}#721c24{% endif %};">
-                    💰 চূড়ান্ত হিসাব
-                </div>
-                {% if customer.current_balance >= 0 %}
-                <div style="font-size: 1.3rem; font-weight: 700; color: #155724;">
-                    {{ customer.name }} এর অতিরিক্ত জমা আছে ৳{{ customer.current_balance|floatformat:0 }} টাকা
-                </div>
-                <div style="font-size: 0.9rem; margin-top: 5px; color: #155724;">
-                    (ক্রেতা দোকান থেকে এই টাকা ফেরত নিতে পারবে)
-                </div>
-                {% else %}
-                <div style="font-size: 1.3rem; font-weight: 700; color: #721c24;">
-                    {{ customer.name }} এর বাকি আছে ৳{{ customer.current_balance|floatformat:0|slice:"1:" }} টাকা
-                </div>
-                <div style="font-size: 0.9rem; margin-top: 5px; color: #721c24;">
-                    (ক্রেতা দোকানকে এই টাকা দিতে হবে)
-                </div>
-                {% endif %}
+        <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin-top: 12px; border: 2px solid #000; text-align: center;">
+            <div style="font-size: 1rem; font-weight: 700; margin-bottom: 6px;">চূড়ান্ত হিসাব</div>
+            {% if customer.current_balance >= 0 %}
+            <div style="font-size: 1.1rem; font-weight: 700;">
+                {{ customer.name }} এর অতিরিক্ত জমা: ৳{{ customer.current_balance|floatformat:0 }}
             </div>
+            <div style="font-size: 0.85rem; margin-top: 3px;">
+                (ক্রেতা দোকান থেকে এই টাকা ফেরত নিতে পারবে)
+            </div>
+            {% else %}
+            <div style="font-size: 1.1rem; font-weight: 700;">
+                {{ customer.name }} এর বাকি: ৳{{ customer.current_balance|floatformat:0|slice:"1:" }}
+            </div>
+            <div style="font-size: 0.85rem; margin-top: 3px;">
+                (ক্রেতা দোকানকে এই টাকা দিতে হবে)
+            </div>
+            {% endif %}
         </div>
 
         <div class="divider"></div>
@@ -397,9 +393,9 @@
                     </td>
                     <td>
                         {% if txn.transaction_type == 'purchase' %}
-                            <strong>{{ txn.item_name|truncatewords:5 }}</strong>
+                            <strong>{{ txn.item_name }}</strong>
                         {% elif txn.notes %}
-                            {{ txn.notes|truncatewords:8 }}
+                            {{ txn.notes }}
                         {% else %}
                             -
                         {% endif %}

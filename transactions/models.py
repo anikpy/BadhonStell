@@ -24,21 +24,23 @@ class Customer(models.Model):
 
     @property
     def total_submitted(self):
-        """Total deposits (জমা) - only non-reversed submissions"""
+        """Total deposits (জমা) - only non-reversed submissions and non-deleted"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='submission',
-            is_reversed=False
+            is_reversed=False,
+            is_deleted=False
         ).aggregate(total=Sum('amount'))
         return result['total'] or 0
 
     @property
     def total_purchased(self):
-        """Total purchases (ক্রয়) - only ACTIVE orders (non-reversed, non-cancelled)"""
+        """Total purchases (ক্রয়) - only ACTIVE orders (non-reversed, non-cancelled, non-deleted)"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='purchase',
-            is_reversed=False
+            is_reversed=False,
+            is_deleted=False
         ).exclude(
             status='cancelled'  # Exclude cancelled orders
         ).aggregate(total=Sum('amount'))
@@ -46,11 +48,12 @@ class Customer(models.Model):
 
     @property
     def total_withdrawn(self):
-        """Total withdrawals (উত্তোলন) - only non-reversed withdrawals"""
+        """Total withdrawals (উত্তোলন) - only non-reversed withdrawals and non-deleted"""
         from django.db.models import Sum
         result = self.transactions.filter(
             transaction_type='withdrawal',
-            is_reversed=False
+            is_reversed=False,
+            is_deleted=False
         ).aggregate(total=Sum('amount'))
         return abs(result['total'] or 0)
     

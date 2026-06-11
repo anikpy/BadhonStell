@@ -52,6 +52,17 @@
         </div>
 
         <div style="margin-bottom: 20px;">
+            <label for="{{ form.order_date.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.order_date.label }}</label>
+            {{ form.order_date }}
+            {% if form.order_date.errors %}
+            <div style="color: #dc3545; margin-top: 5px; font-size: 0.875rem;">{{ form.order_date.errors.0 }}</div>
+            {% endif %}
+            <div style="color: #6c757d; margin-top: 5px; font-size: 0.875rem;">
+                📅 জমার তারিখ নির্বাচন করুন
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
             <label for="{{ form.notes.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">{{ form.notes.label }}</label>
             {{ form.notes }}
             {% if form.notes.errors %}

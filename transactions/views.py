@@ -363,6 +363,7 @@ def transaction_submission_create(request, customer_pk):
         form = TransactionSubmissionForm(request.POST)
         if form.is_valid():
             amount = form.cleaned_data['amount']
+            order_date = form.cleaned_data.get('order_date')
             notes = form.cleaned_data.get('notes', '')
             
             # Create transaction
@@ -370,6 +371,7 @@ def transaction_submission_create(request, customer_pk):
                 customer=customer,
                 transaction_type='submission',
                 amount=amount,
+                order_date=order_date,
                 notes=notes,
                 status='pending',
                 delivery_status='not_delivered',
@@ -598,6 +600,7 @@ def transaction_withdrawal_create(request, customer_pk):
         form = TransactionWithdrawalForm(request.POST)
         if form.is_valid():
             amount = form.cleaned_data['amount']
+            order_date = form.cleaned_data.get('order_date')
             notes = form.cleaned_data.get('notes', '')
             
             # Create transaction (amount is negative for withdrawal)
@@ -605,6 +608,7 @@ def transaction_withdrawal_create(request, customer_pk):
                 customer=customer,
                 transaction_type='withdrawal',
                 amount=amount,
+                order_date=order_date,
                 notes=notes,
                 status='completed',
                 created_by=request.user
@@ -884,7 +888,9 @@ def customer_statement(request, customer_pk):
     date_to = request.GET.get('to_date', '')
     
     # Use order_date for filtering instead of created_at to preserve original order dates
-    transactions = customer.transactions.filter(status='completed').order_by('order_date')
+    # Exclude deleted transactions and reversed transactions
+    # Include ALL valid transactions (pending, completed, etc.) except deleted and reversed ones
+    transactions = customer.transactions.filter(is_deleted=False, is_reversed=False).order_by('order_date')
     
     # Parse dates if provided
     from_date_obj = None
@@ -1421,5 +1427,68 @@ def customer_note_create(request, customer_pk):
             messages.error(request, '❌ নোট যোগ করতে সমস্যা হয়েছে!')
     
     return redirect('transactions:customer_detail', pk=customer.pk)
+
+
+@login_required
+def transaction_delete(request, pk):
+    """Delete transaction (submission or withdrawal) with automatic balance adjustment"""
+    transaction = get_object_or_404(Transaction, pk=pk)
+    
+    # Only allow deleting submission and withdrawal transactions
+    if transaction.transaction_type not in ['submission', 'withdrawal']:
+        messages.error(request, '❌ শুধুমাত্র জমা এবং উত্তোলন লেনদেন মুছে ফেলা যায়!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    # Don't allow deleting already reversed transactions
+    if transaction.is_reversed:
+        messages.error(request, '❌ বাতিলকৃত লেনদেন মুছে ফেলা যায় না!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    # Don't allow deleting already deleted transactions
+    if transaction.is_deleted:
+        messages.error(request, '❌ এই লেনদেন ইতিমধ্যে মুছে ফেলা হয়েছে!')
+        return redirect('transactions:customer_detail', pk=transaction.customer.pk)
+    
+    customer = transaction.customer
+    
+    if request.method == 'POST':
+        old_balance = customer.current_balance
+        transaction_number = transaction.transaction_number
+        transaction_type = transaction.get_transaction_type_display()
+        amount = transaction.amount
+        
+        # Record history before deletion
+        TransactionHistory.objects.create(
+            transaction=transaction,
+            action='deleted',
+            old_balance=old_balance,
+            new_balance=None,  # Will be calculated after deletion
+            notes=f'Transaction deleted: {transaction_type} - ৳{amount}',
+            performed_by=request.user
+        )
+        
+        # Soft delete the transaction
+        transaction.is_deleted = True
+        transaction.deleted_at = timezone.now()
+        transaction.save()
+        
+        # Recalculate customer balance (this will automatically exclude deleted transactions)
+        customer.recalculate_balance()
+        customer.save()
+        
+        # Update the history record with new balance
+        history = TransactionHistory.objects.filter(transaction=transaction).order_by('-created_at').first()
+        if history:
+            history.new_balance = customer.current_balance
+            history.save()
+        
+        messages.success(request, f'✅ লেনদেন সফলভাবে মুছে ফেলা হয়েছে! {transaction_number} - ব্যালেন্স স্বয়ংক্রিয়ভাবে সমন্বয় করা হয়েছে!')
+        return redirect('transactions:customer_detail', pk=customer.pk)
+    
+    context = {
+        'transaction': transaction,
+        'customer': customer,
+    }
+    return render(request, 'transactions/transaction_delete_confirm.html', context)
 
 
