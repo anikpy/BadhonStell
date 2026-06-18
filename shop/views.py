@@ -2683,12 +2683,32 @@ def due_accounts_list(request):
                 status='cancelled'
             ).count()
             
+            # Calculate correct amounts for transaction customers
+            # total_purchase_amount is the total purchase amount (not due amount)
+            # total_submitted is total deposits
+            # current_balance = total_submitted - total_purchased (due amount)
+            # So due_amount = abs(current_balance) when current_balance < 0
+            # total_amount should be total_purchase_amount (full purchase amount)
+            # paid_amount should be total_submitted - due_amount (when balance < 0)
+            
+            total_purchase_amount = txn_customer.total_purchase_amount
+            total_submitted = txn_customer.total_submitted
+            
+            # If balance is negative (customer owes), calculate paid amount
+            if txn_customer.current_balance < 0:
+                paid_amount = total_submitted  # Customer has paid all deposits
+                # due_amount is already abs(current_balance)
+            else:
+                # Customer has credit (positive balance)
+                paid_amount = total_submitted - txn_customer.current_balance
+                due_amount = Decimal('0')  # No due if positive balance
+            
             customer_due[customer_key] = {
                 'customer': None,
                 'customer_name': txn_customer.name,
                 'mobile_number': txn_customer.mobile_number,
-                'total_amount': txn_customer.total_purchased,
-                'paid_amount': txn_customer.total_submitted,
+                'total_amount': total_purchase_amount,
+                'paid_amount': paid_amount,
                 'due_amount': due_amount,
                 'order_count': transaction_count,
                 'last_date': txn_customer.updated_at,

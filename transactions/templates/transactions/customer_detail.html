@@ -85,8 +85,14 @@
         
         <div style="background: #f8d7da; padding: 20px; border-radius: 8px; text-align: center;">
             <div style="font-size: 0.85rem; color: #721c24; margin-bottom: 5px;">মোট ক্রয়</div>
-            <div style="font-size: 1.6rem; font-weight: 700; color: #721c24;">৳{{ customer.total_purchased|floatformat:2 }}</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #721c24;">৳{{ customer.total_purchase_amount|floatformat:2 }}</div>
             <div style="font-size: 0.75rem; color: #721c24; margin-top: 5px;">{{ purchase_count }} টি ক্রয়</div>
+        </div>
+        
+        <div style="background: #cce5ff; padding: 20px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.85rem; color: #004085; margin-bottom: 5px;">মোট পরিশোধ</div>
+            <div style="font-size: 1.6rem; font-weight: 700; color: #004085;">৳{{ total_cash_paid|floatformat:2 }}</div>
+            <div style="font-size: 0.75rem; color: #004085; margin-top: 5px;">{{ purchase_count }} টি ক্রয় থেকে</div>
         </div>
         
         <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">

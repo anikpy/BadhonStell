@@ -190,16 +190,24 @@ def customer_detail(request, pk):
     """Customer detail - transaction based"""
     customer = get_object_or_404(Customer, pk=pk)
     
-    # Get all transactions (including pending orders) but exclude pure reversal transactions
-    # Only show: submission, purchase, withdrawal (not reversal type)
-    transactions = customer.transactions.filter(is_deleted=False).exclude(
+    # Get all ACTIVE transactions (non-deleted, non-reversed) excluding reversal type transactions
+    transactions = customer.transactions.filter(
+        is_deleted=False,
+        is_reversed=False
+    ).exclude(
         transaction_type='reversal'
     ).order_by('-created_at')
     
-    # Get transaction counts (excluding reversals)
+    # Get transaction counts
     submission_count = transactions.filter(transaction_type='submission').count()
     purchase_count = transactions.filter(transaction_type='purchase').count()
     withdrawal_count = transactions.filter(transaction_type='withdrawal').count()
+    
+    # Calculate total cash paid from ACTIVE purchase transactions only
+    total_cash_paid = Decimal('0')
+    purchase_transactions = transactions.filter(transaction_type='purchase')
+    for purchase in purchase_transactions:
+        total_cash_paid += purchase.cash_paid
     
     context = {
         'customer': customer,
@@ -208,6 +216,7 @@ def customer_detail(request, pk):
         'submission_count': submission_count,
         'purchase_count': purchase_count,
         'withdrawal_count': withdrawal_count,
+        'total_cash_paid': total_cash_paid,
     }
     return render(request, 'transactions/customer_detail.html', context)
 
@@ -431,6 +440,7 @@ def transaction_purchase_create(request, customer_pk):
     if request.method == 'POST':
         items_json_str = request.POST.get('items_json', '[]')
         total_discount = request.POST.get('total_discount', '0')
+        cash_paid = request.POST.get('cash_paid', '0')
         order_date = request.POST.get('order_date', '')
         delivery_date = request.POST.get('delivery_date', '')
         payment_date = request.POST.get('payment_date', '')
@@ -449,6 +459,14 @@ def transaction_purchase_create(request, customer_pk):
                 total_discount = Decimal('100')
         except:
             total_discount = Decimal('0')
+        
+        # Convert cash paid
+        try:
+            cash_paid = Decimal(str(cash_paid))
+            if cash_paid < 0:
+                cash_paid = Decimal('0')
+        except:
+            cash_paid = Decimal('0')
         
         # Parse dates
         from datetime import datetime
@@ -516,12 +534,48 @@ def transaction_purchase_create(request, customer_pk):
                 total_discount_amount = (subtotal * total_discount) / 100
                 final_total = subtotal - total_discount_amount
                 
+                # Calculate due amount - NEVER negative
+                # If cash_paid > final_total, due_amount = 0 (fully paid)
+                # Extra money goes to deposit, doesn't reduce due_amount below 0
+                due_amount = max(final_total - cash_paid, Decimal('0'))
+                
+                # ALWAYS record actual cash paid, even if it's more than final total
+                # Extra money will create a separate submission transaction
+                actual_cash_for_purchase = min(cash_paid, final_total)
+                
+                # If cash paid is more than final total, create submission for extra amount
+                extra_submission = None
+                if cash_paid > final_total:
+                    extra_amount = cash_paid - final_total
+                    extra_submission = Transaction.objects.create(
+                        customer=customer,
+                        transaction_type='submission',
+                        amount=extra_amount,
+                        notes=f'অতিরিক্ত জমা (ক্রয় লেনদেন থেকে): ৳{extra_amount}',
+                        status='completed',
+                        delivery_status='not_delivered',
+                        created_by=request.user,
+                        order_date=order_date_obj
+                    )
+                    
+                    # Record history for extra submission
+                    TransactionHistory.objects.create(
+                        transaction=extra_submission,
+                        action='created',
+                        old_balance=extra_submission.balance_before,
+                        new_balance=extra_submission.balance_after,
+                        notes=f'অতিরিক্ত জমা: ৳{extra_amount} (ক্রয় লেনদেন থেকে)',
+                        performed_by=request.user
+                    )
+                
                 # Create main transaction
                 item_names = ', '.join([item['product_name'] for item in validated_items])
                 transaction = Transaction.objects.create(
                     customer=customer,
                     transaction_type='purchase',
                     amount=final_total,
+                    cash_paid=actual_cash_for_purchase,
+                    due_amount=due_amount,
                     item_name=item_names,
                     item_description=f'{len(validated_items)} items purchased',
                     item_quantity=sum(item['quantity'] for item in validated_items),
@@ -531,7 +585,7 @@ def transaction_purchase_create(request, customer_pk):
                     item_discount_amount=total_discount_amount,
                     total_discount_percentage=total_discount,
                     total_discount_amount=total_discount_amount,
-                    notes=request.POST.get('notes', ''),
+                    notes=request.POST.get('notes', '') + (f'\n\nনগদ পরিশোধ: ৳{cash_paid}' if cash_paid > 0 else ''),
                     status='pending',
                     delivery_status='not_delivered',
                     created_by=request.user,
@@ -570,7 +624,7 @@ def transaction_purchase_create(request, customer_pk):
                             notes=f'Transaction - {customer.name} ({transaction.transaction_number})'
                         )
                 
-                messages.success(request, f'✅ Purchase successful! ৳{final_total} | Transaction #: {transaction.transaction_number}')
+                messages.success(request, f'✅ Purchase successful! মোট: ৳{final_total}, নগদ: ৳{cash_paid}, বাকি: ৳{due_amount if due_amount > 0 else 0} | Transaction #: {transaction.transaction_number}')
                 return redirect('transactions:transaction_voucher', pk=transaction.pk)
                 
             except ValueError as e:
@@ -644,9 +698,14 @@ def transaction_voucher(request, pk):
     """Transaction voucher"""
     transaction = get_object_or_404(Transaction, pk=pk)
     
+    # Get shop info
+    from shop.models import ShopInfo
+    shop_info = ShopInfo.objects.first()
+    
     context = {
         'transaction': transaction,
         'customer': transaction.customer,
+        'shop_info': shop_info,
     }
     return render(request, 'transactions/transaction_voucher.html', context)
 
@@ -715,7 +774,8 @@ def transaction_list(request, customer_pk):
     date_from = request.GET.get('from_date', '')
     date_to = request.GET.get('to_date', '')
     
-    transactions = customer.transactions.filter(status='completed').order_by('-created_at')
+    # Show all non-reversed transactions (including pending, ready, completed, cancelled)
+    transactions = customer.transactions.filter(is_reversed=False).order_by('-created_at')
     
     if transaction_type:
         transactions = transactions.filter(transaction_type=transaction_type)

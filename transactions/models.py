@@ -37,14 +37,37 @@ class Customer(models.Model):
     def total_purchased(self):
         """Total purchases (ক্রয়) - only ACTIVE orders (non-reversed, non-cancelled, non-deleted)"""
         from django.db.models import Sum
-        result = self.transactions.filter(
+        purchases = self.transactions.filter(
             transaction_type='purchase',
             is_reversed=False,
             is_deleted=False
         ).exclude(
             status='cancelled'  # Exclude cancelled orders
-        ).aggregate(total=Sum('amount'))
-        return abs(result['total'] or 0)
+        )
+        
+        # Sum due_amount for each purchase (not full amount)
+        total_due = 0
+        for purchase in purchases:
+            due_amount = purchase.due_amount if hasattr(purchase, 'due_amount') else purchase.amount
+            total_due += due_amount
+        
+        return abs(total_due)
+    
+    @property
+    def total_purchase_amount(self):
+        """Total purchase amount (ক্রয়ের মোট পরিমাণ) - sum of all purchase transaction amounts"""
+        from django.db.models import Sum
+        purchases = self.transactions.filter(
+            transaction_type='purchase',
+            is_reversed=False,
+            is_deleted=False
+        ).exclude(
+            status='cancelled'  # Exclude cancelled orders
+        )
+        
+        # Sum the full amount for each purchase
+        total_amount = purchases.aggregate(total=Sum('amount'))['total'] or 0
+        return abs(total_amount)
 
     @property
     def total_withdrawn(self):
@@ -87,7 +110,11 @@ class Customer(models.Model):
                 
             if txn.transaction_type == 'submission':
                 balance += txn.amount
-            elif txn.transaction_type in ['purchase', 'withdrawal']:
+            elif txn.transaction_type == 'purchase':
+                # Subtract due amount, not full amount (consider cash paid)
+                due_amount = txn.due_amount if hasattr(txn, 'due_amount') else txn.amount
+                balance -= due_amount
+            elif txn.transaction_type == 'withdrawal':
                 balance -= abs(txn.amount)
             elif txn.transaction_type == 'adjustment':
                 balance += txn.amount
@@ -133,6 +160,10 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Amount')
     balance_before = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Balance Before', default=0)
     balance_after = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Balance After', default=0)
+    
+    # Cash payment tracking (for purchase transactions)
+    cash_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cash Paid', default=0)
+    due_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Due Amount', default=0)
     
     # Item details (for purchase type - single item for backward compatibility)
     item_name = models.CharField(max_length=200, verbose_name='Item Name', blank=True)
@@ -209,7 +240,11 @@ class Transaction(models.Model):
         
         if self.transaction_type == 'submission':
             self.balance_after = self.balance_before + self.amount
-        elif self.transaction_type in ['purchase', 'withdrawal']:
+        elif self.transaction_type == 'purchase':
+            # For purchase: subtract due amount, not full amount
+            due_amount = self.due_amount if hasattr(self, 'due_amount') else abs(self.amount)
+            self.balance_after = self.balance_before - due_amount
+        elif self.transaction_type == 'withdrawal':
             self.balance_after = self.balance_before - abs(self.amount)
         elif self.transaction_type == 'adjustment':
             self.balance_after = self.balance_before + self.amount

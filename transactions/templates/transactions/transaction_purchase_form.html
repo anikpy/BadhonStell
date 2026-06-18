@@ -178,9 +178,35 @@
                     <input type="text" id="total-discount-input" class="form-control bangla-number-input" placeholder="উদাহরণ: ৫" value="0" autocomplete="off" min="0" max="100">
                 </div>
             </div>
-            <div style="padding: 10px; background: white; border-radius: 6px;">
+            <div style="padding: 10px; background: white; border-radius: 6px; margin-bottom: 15px;">
                 <div style="font-size: 0.9rem; color: #856404;">ছাড়ের পর মোট:</div>
                 <div id="final-total" style="font-size: 2rem; font-weight: 700; color: #dc3545;">৳0.00</div>
+            </div>
+            
+            <!-- Cash Payment Section -->
+            <div style="padding: 15px; background: #d1ecf1; border-radius: 6px; border-left: 4px solid #0c5460;">
+                <h4 style="margin-top: 0; margin-bottom: 10px; color: #0c5460;">💵 নগদ পরিশোধ</h4>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #0c5460;">নগদ টাকা (যদি থাকে)</label>
+                    <input type="text" id="cash-paid-input" name="cash_paid" class="form-control bangla-number-input" placeholder="উদাহরণ: ৫০০০" value="0" autocomplete="off" min="0">
+                    <small style="display: block; margin-top: 5px; color: #0c5460;">
+                        💡 যদি কাস্টমার কিছু নগদ দেয়, তাহলে এখানে লিখুন। বাকি স্বয়ংক্রিয়ভাবে হিসাব হবে।
+                    </small>
+                </div>
+                <div id="payment-summary" style="margin-top: 15px; padding: 10px; background: white; border-radius: 6px; display: none;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: #6c757d;">মোট:</span>
+                        <span id="payment-total" style="font-weight: 600;">৳0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="color: #6c757d;">নগদ পরিশোধ:</span>
+                        <span id="payment-cash" style="font-weight: 600; color: #28a745;">৳0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #dee2e6;">
+                        <span id="payment-due-label" style="font-weight: 600;">বাকি:</span>
+                        <span id="payment-due" style="font-weight: 700; font-size: 1.2rem; color: #dc3545;">৳0.00</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -409,6 +435,16 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error setting discount:', e);
     }
     {% endif %}
+
+    // Listen for total discount changes
+    document.getElementById('total-discount-input').addEventListener('input', function() {
+        updateTotals();
+    });
+    
+    // Listen for cash paid changes
+    document.getElementById('cash-paid-input').addEventListener('input', function() {
+        updateTotals();
+    });
 
     // Search products
     document.getElementById('product-search').addEventListener('input', function(e) {
@@ -658,6 +694,9 @@ function updateTotals() {
     document.getElementById('subtotal-display').value = '৳' + formatNumber(subtotal);
     document.getElementById('final-total').textContent = '৳' + formatNumber(finalTotal);
     
+    // Calculate cash payment and due
+    updatePaymentSummary(finalTotal);
+    
     // Show/hide discount section
     const discountSection = document.getElementById('discount-section');
     if (cartItems.length > 0) {
@@ -669,6 +708,43 @@ function updateTotals() {
     // Update hidden fields
     document.getElementById('total-discount-hidden').value = totalDiscount;
     document.getElementById('items-json').value = JSON.stringify(cartItems);
+}
+
+// Update payment summary (cash paid and due)
+function updatePaymentSummary(finalTotal) {
+    const cashPaidInput = document.getElementById('cash-paid-input');
+    const cashPaid = parseNumber(cashPaidInput.value);
+    const paymentSummary = document.getElementById('payment-summary');
+    
+    if (cashPaid > 0) {
+        paymentSummary.style.display = 'block';
+        
+        document.getElementById('payment-total').textContent = '৳' + formatNumber(finalTotal);
+        document.getElementById('payment-cash').textContent = '৳' + formatNumber(cashPaid);
+        
+        const due = finalTotal - cashPaid;
+        const dueLabel = document.getElementById('payment-due-label');
+        const dueAmount = document.getElementById('payment-due');
+        
+        if (due > 0) {
+            // Customer owes money
+            dueLabel.textContent = 'বাকি:';
+            dueAmount.textContent = '৳' + formatNumber(due);
+            dueAmount.style.color = '#dc3545';
+        } else if (due < 0) {
+            // Customer paid extra (will be added to balance)
+            dueLabel.textContent = 'অতিরিক্ত (জমা হবে):';
+            dueAmount.textContent = '৳' + formatNumber(Math.abs(due));
+            dueAmount.style.color = '#28a745';
+        } else {
+            // Fully paid
+            dueLabel.textContent = 'স্ট্যাটাস:';
+            dueAmount.textContent = 'সম্পূর্ণ পরিশোধিত';
+            dueAmount.style.color = '#28a745';
+        }
+    } else {
+        paymentSummary.style.display = 'none';
+    }
 }
 </script>
 {% endblock %}

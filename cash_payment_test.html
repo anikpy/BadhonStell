@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cash Payment Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            background: #e7f3ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        code {
+            background: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>💰 নগদ পরিশোধ ফিচার টেস্ট</h1>
+        
+        <div class="test-case success">
+            <h3>✅ সমস্যা চিহ্নিত</h3>
+            <p><strong>সমস্যা:</strong> "নগদ পরিশোধ" ফিল্ড দেখা যাচ্ছে না</p>
+            <p><strong>কারণ:</strong> ফিল্ডটি "💰 মোট ছাড়" সেকশনের মধ্যে আছে, যা শুধুমাত্র তখনই দেখা যাবে যখন cart এ অন্তত একটি পণ্য যুক্ত হবে।</p>
+        </div>
+        
+        <div class="test-case">
+            <h3>📋 টেস্ট করার ধাপসমূহ:</h3>
+            <ol>
+                <li><code>/admin-panel/transactions/customers/70/purchase/create/</code> এ যান</li>
+                <li>"পণ্য সার্চ" বক্সে একটি পণ্য লিখুন (যেমন: "লোহা")</li>
+                <li>সার্চ রেজাল্ট থেকে একটি পণ্য নির্বাচন করুন → "যোগ করুন" বাটনে ক্লিক করুন</li>
+                <li>এখন পৃষ্ঠা নিচে স্ক্রোল করুন</li>
+                <li><strong>"💰 মোট ছাড়"</strong> সেকশন দেখা যাবে</li>
+                <li>এই সেকশনের ভিতরে স্ক্রোল করুন → <strong>"💵 নগদ পরিশোধ"</strong> দেখা যাবে</li>
+            </ol>
+        </div>
+        
+        <div class="test-case">
+            <h3>🔍 ফিল্ড লোড হয়েছে কিনা যাচাই:</h3>
+            <p>ব্রাউজারে ডেভেলপার টুলস (F12) খুলে Elements tab এ এগুলো খুঁজুন:</p>
+            <ul>
+                <li><code>&lt;div id="discount-section"&gt;</code></li>
+                <li><code>&lt;h4&gt;💵 নগদ পরিশোধ&lt;/h4&gt;</code></li>
+                <li><code>&lt;input type="text" id="cash-paid-input"&gt;</code></li>
+            </ul>
+        </div>
+        
+        <div class="test-case warning">
+            <h3>⚠️ সাধারণ ভুল:</h3>
+            <p>1. পণ্য যোগ না করে সরাসরি নগদ ফিল্ড খোঁজা (পাবেন না, কারণ সেকশন hidden আছে)</p>
+            <p>2. JavaScript error থাকলে (console check করুন)</p>
+            <p>3. পৃষ্ঠা পুরোনো cache (Ctrl+F5 চাপুন)</p>
+        </div>
+        
+        <div class="test-case">
+            <h3>✅ Expected Behavior:</h3>
+            <ul>
+                <li>Cart খালি → Discount section hidden → নগদ ফিল্ড hidden</li>
+                <li>Cart এ 1+ পণ্য → Discount section visible → নগদ ফিল্ড visible</li>
+                <li>নগদ ফিল্ডে টাকা লিখলে → real-time payment summary দেখা যাবে</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
