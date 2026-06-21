@@ -474,24 +474,16 @@
         <!-- Balance Section -->
         <div class="balance-section">
             <div class="balance-box">
-                <div class="balance-label">পূর্ববর্তী ব্যালেন্স</div>
-                    <div class="balance-value">
-                        {% if transaction.balance_before >= 0 %}
-                        ৳{{ transaction.balance_before|floatformat:2 }}
-                        {% else %}
-                        <span style="color: #dc3545;">৳{{ transaction.balance_before|floatformat:2 }}</span>
-                        {% endif %}
-                    </div>
+                <div class="balance-label">মোট জমা</div>
+                <div class="balance-value">
+                    ৳{{ customer.total_submitted|floatformat:2 }}
+                </div>
             </div>
             <div class="balance-box">
-                <div class="balance-label">নতুন ব্যালেন্স</div>
-                    <div class="balance-value" style="{% if transaction.balance_after >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
-                        {% if transaction.balance_after >= 0 %}
-                        ৳{{ transaction.balance_after|floatformat:2 }}
-                        {% else %}
-                        <span style="color: #dc3545;">৳{{ transaction.balance_after|floatformat:2 }}</span>
-                        {% endif %}
-                    </div>
+                <div class="balance-label">বর্তমান ব্যালেন্স</div>
+                <div class="balance-value" style="{% if customer.current_balance >= 0 %}color: #28a745;{% else %}color: #dc3545;{% endif %}">
+                    ৳{{ customer.current_balance|floatformat:2 }}
+                </div>
             </div>
         </div>
 

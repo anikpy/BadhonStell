@@ -985,8 +985,11 @@ def customer_statement(request, pk):
         except ValueError:
             to_date_obj = None
     
-    # Get all orders for this customer
-    orders = customer.orders.all().order_by('order_date', 'created_at')
+    # Get all orders for this customer (Use customer_name, mobile_number if customer field is null)
+    if customer.mobile_number:
+        orders = Order.objects.filter(mobile_number=customer.mobile_number).order_by('order_date', 'created_at')
+    else:
+        orders = customer.orders.all().order_by('order_date', 'created_at')
     
     # Apply date filters if provided
     if from_date_obj:
@@ -1051,16 +1054,19 @@ def customer_statement(request, pk):
         running_balance += txn['debit'] - txn['credit']
         txn['balance'] = running_balance
     
-    # Calculate totals
+    # Calculate totals - based on the transaction types added to the list
     total_debit = sum(t['debit'] for t in transactions)
     total_credit = sum(t['credit'] for t in transactions)
     current_due = total_debit - total_credit
+    
+    # Also calculate total_purchase directly from orders list for accuracy
+    total_purchase_amount = sum(o.total_price for o in orders)
     
     context = {
         'customer': customer,
         'shop_info': shop_info,
         'transactions': transactions,
-        'total_debit': total_debit,
+        'total_debit': total_purchase_amount,   # Overwrite with accurate total purchase sum
         'total_credit': total_credit,
         'current_due': current_due,
         'from_date': from_date,

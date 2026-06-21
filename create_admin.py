@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-"""
-Admin User তৈরি করার স্ক্রিপ্ট
-এই স্ক্রিপ্ট চালানোর জন্য: python create_admin.py
-"""
-
 import os
 import django
 # Django setup

@@ -983,8 +983,15 @@ def customer_statement(request, customer_pk):
     
     # Calculate totals
     total_submitted = transactions.filter(transaction_type='submission').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    total_purchased = transactions.filter(transaction_type='purchase').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    
+    purchases = transactions.filter(transaction_type='purchase')
+    total_purchased = sum(p.amount for p in purchases)
+    
     total_withdrawn = transactions.filter(transaction_type='withdrawal').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    total_withdrawn = abs(total_withdrawn)
+    
+    # Calculate current due (amount customer owes)
+    current_due = abs(total_submitted - total_purchased - total_withdrawn) if (total_submitted - total_purchased - total_withdrawn) < 0 else Decimal('0')
     
     context = {
         'customer': customer,
@@ -996,6 +1003,9 @@ def customer_statement(request, customer_pk):
         'to_date_obj': to_date_obj,
         'today': timezone.now().date(),
         'now': timezone.now(),
+        'total_debit': total_purchased,      # মোট ক্রয় (Total Purchase)
+        'total_credit': total_submitted,     # মোট পরিশোধ (Total Payment/Deposit)
+        'current_due': current_due,          # বাকি (Due Amount)
         'total_submitted': total_submitted,
         'total_purchased': total_purchased,
         'total_withdrawn': total_withdrawn,
