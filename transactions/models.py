@@ -45,13 +45,9 @@ class Customer(models.Model):
             status='cancelled'  # Exclude cancelled orders
         )
         
-        # Sum due_amount for each purchase (not full amount)
-        total_due = 0
-        for purchase in purchases:
-            due_amount = purchase.due_amount if hasattr(purchase, 'due_amount') else purchase.amount
-            total_due += due_amount
-        
-        return abs(total_due)
+        # Sum the full purchase amount (not due_amount)
+        total_amount = purchases.aggregate(total=Sum('amount'))['total'] or 0
+        return abs(total_amount)
     
     @property
     def total_purchase_amount(self):
