@@ -2771,25 +2771,75 @@ def due_accounts_print(request):
             if customer_id not in customer_due:
                 customer_due[customer_id] = {
                     'customer': order.customer,
+                    'customer_name': order.customer.name,
+                    'mobile_number': order.customer.mobile_number,
                     'total_due': Decimal('0'),
-                    'orders': []
+                    'orders': [],
+                    'source': 'shop',  # Track source
+                    'last_date': order.created_at,
                 }
             customer_due[customer_id]['total_due'] += order.due_amount
             customer_due[customer_id]['orders'].append(order)
+            # Update last date if this order is newer
+            if order.created_at > customer_due[customer_id]['last_date']:
+                customer_due[customer_id]['last_date'] = order.created_at
             total_grand_due += order.due_amount
         else:
             # For orders without customer (old orders)
             key = f"mobile_{order.mobile_number}"
             if key not in customer_due:
                 customer_due[key] = {
+                    'customer': None,
                     'customer_name': order.customer_name,
                     'mobile_number': order.mobile_number,
                     'total_due': Decimal('0'),
-                    'orders': []
+                    'orders': [],
+                    'source': 'shop',  # Track source
+                    'last_date': order.created_at,
                 }
             customer_due[key]['total_due'] += order.due_amount
             customer_due[key]['orders'].append(order)
+            # Update last date if this order is newer
+            if order.created_at > customer_due[key]['last_date']:
+                customer_due[key]['last_date'] = order.created_at
             total_grand_due += order.due_amount
+    
+    # Process customers from transactions app with negative balance (বাকি)
+    from transactions.models import Customer as TransactionCustomer, Transaction
+    transaction_customers_with_due = TransactionCustomer.objects.filter(
+        current_balance__lt=0,
+        is_deleted=False
+    ).order_by('-updated_at')
+    
+    for txn_customer in transaction_customers_with_due:
+        # Negative balance means customer owes money (বাকি)
+        due_amount = abs(txn_customer.current_balance)
+        
+        customer_key = f"txn_customer_{txn_customer.pk}"
+        
+        if customer_key not in customer_due:
+            # Get all purchase transactions for this customer
+            purchase_transactions = Transaction.objects.filter(
+                customer=txn_customer,
+                transaction_type='purchase',
+                is_reversed=False,
+                is_deleted=False
+            ).exclude(status='cancelled').order_by('-order_date')
+            
+            # Get the last transaction date
+            last_transaction = purchase_transactions.first()
+            last_date = last_transaction.order_date if last_transaction else txn_customer.updated_at
+            
+            customer_due[customer_key] = {
+                'customer': None,
+                'customer_name': txn_customer.name,
+                'mobile_number': txn_customer.mobile_number,
+                'total_due': due_amount,
+                'orders': list(purchase_transactions),  # Include purchase transactions
+                'source': 'transaction',  # Track source
+                'last_date': last_date,
+            }
+            total_grand_due += due_amount
     
     context = {
         'shop_info': shop_info,
