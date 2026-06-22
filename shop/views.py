@@ -2450,7 +2450,7 @@ def admin_statistics(request):
         ).count()
         out_of_stock_products = active_products - products_with_stock
         
-        # শেষ ১ মাসের অর্ডার স্ট্যাটিস্টিক্স
+        # শেষ ১ মাসের অর্ডার স্ট্যাটিস্টিক্স (Shop App)
         last_month_orders = Order.objects.filter(created_at__date__gte=one_month_ago)
         total_orders_last_month = last_month_orders.count()
         
@@ -2468,8 +2468,23 @@ def admin_statistics(request):
             total=Sum('total_amount')
         )['total'] or Decimal('0')
         
-        # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস)
-        total_sales_last_month = total_order_value_last_month + total_invoice_value_last_month
+        # শেষ ১ মাসের লেনদেন স্ট্যাটিস্টিক্স (Transactions App)
+        from transactions.models import Transaction
+        last_month_transactions = Transaction.objects.filter(
+            transaction_type='purchase',
+            is_deleted=False,
+            is_reversed=False,
+            order_date__gte=one_month_ago
+        ).exclude(status='cancelled')
+        total_transactions_last_month = last_month_transactions.count()
+        
+        # শেষ ১ মাসের লেনদেনের মোট মূল্য
+        total_transaction_value_last_month = last_month_transactions.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0')
+        
+        # শেষ ১ মাসের মোট বিক্রয় (অর্ডার + ইনভয়েস + লেনদেন)
+        total_sales_last_month = total_order_value_last_month + total_invoice_value_last_month + total_transaction_value_last_month
         
         # গড় অর্ডার মূল্য
         avg_order_value = last_month_orders.aggregate(
@@ -2479,6 +2494,11 @@ def admin_statistics(request):
         # গড় ইনভয়েস মূল্য
         avg_invoice_value = last_month_invoices.aggregate(
             avg=Avg('subtotal')
+        )['avg'] or Decimal('0')
+        
+        # গড় লেনদেন মূল্য
+        avg_transaction_value = last_month_transactions.aggregate(
+            avg=Avg('amount')
         )['avg'] or Decimal('0')
         
     except Exception as e:
@@ -2509,13 +2529,22 @@ def admin_statistics(request):
         stock_quantity__gt=0
     ).order_by('stock_quantity')[:10]
 
-    # কাস্টমারদের বাকি টাকা (অর্ডার + ইনভয়েস)
+    # কাস্টমারদের বাকি টাকা (অর্ডার + ইনভয়েস + লেনদেন)
     order_dues_qs = Order.objects.filter(due_amount__gt=0)
     invoice_dues_qs = Invoice.objects.filter(due_amount__gt=0, is_latest=True)
 
     total_order_due = order_dues_qs.aggregate(total=Sum('due_amount'))['total'] or Decimal('0')
     total_invoice_due = invoice_dues_qs.aggregate(total=Sum('due_amount'))['total'] or Decimal('0')
-    total_due_all = total_order_due + total_invoice_due
+    
+    # Transaction app থেকে বাকি হিসাব (negative balance = customer owes money)
+    from transactions.models import Customer as TransactionCustomer
+    transaction_customers_with_due = TransactionCustomer.objects.filter(
+        current_balance__lt=0,
+        is_deleted=False
+    )
+    total_transaction_due = sum(abs(c.current_balance) for c in transaction_customers_with_due)
+    
+    total_due_all = total_order_due + total_invoice_due + total_transaction_due
 
     from collections import defaultdict
     customer_map = defaultdict(lambda: {
@@ -2523,6 +2552,7 @@ def admin_statistics(request):
         'mobile_number': '',
         'order_due': Decimal('0'),
         'invoice_due': Decimal('0'),
+        'transaction_due': Decimal('0'),
         'total_due': Decimal('0'),
     })
 
@@ -2539,11 +2569,19 @@ def admin_statistics(request):
         entry['customer_name'] = row['customer_name'] or entry['customer_name']
         entry['mobile_number'] = row['mobile_number'] or entry['mobile_number']
         entry['invoice_due'] += row['total'] or Decimal('0')
+    
+    # Transaction app customers with due
+    for txn_customer in transaction_customers_with_due:
+        key = txn_customer.mobile_number or txn_customer.name or 'UNKNOWN'
+        entry = customer_map[key]
+        entry['customer_name'] = txn_customer.name or entry['customer_name']
+        entry['mobile_number'] = txn_customer.mobile_number or entry['mobile_number']
+        entry['transaction_due'] += abs(txn_customer.current_balance)
 
     # মোট বাকি হিসাব করে সাজানো লিস্ট (টপ ১০)
     top_due_customers = []
     for entry in customer_map.values():
-        entry['total_due'] = entry['order_due'] + entry['invoice_due']
+        entry['total_due'] = entry['order_due'] + entry['invoice_due'] + entry['transaction_due']
         if entry['total_due'] > 0:
             top_due_customers.append(entry)
 
@@ -2559,16 +2597,20 @@ def admin_statistics(request):
         'out_of_stock_products': out_of_stock_products,
         'total_orders_last_month': total_orders_last_month,
         'total_invoices_last_month': total_invoices_last_month,
+        'total_transactions_last_month': total_transactions_last_month,
         'total_order_value_last_month': total_order_value_last_month,
         'total_invoice_value_last_month': total_invoice_value_last_month,
+        'total_transaction_value_last_month': total_transaction_value_last_month,
         'total_sales_last_month': total_sales_last_month,
         'avg_order_value': avg_order_value,
         'avg_invoice_value': avg_invoice_value,
+        'avg_transaction_value': avg_transaction_value,
         'top_valuable_products': top_valuable_products,
         'top_stock_products': top_stock_products,
         'low_stock_products': low_stock_products,
         'total_order_due': total_order_due,
         'total_invoice_due': total_invoice_due,
+        'total_transaction_due': total_transaction_due,
         'total_due_all': total_due_all,
         'top_due_customers': top_due_customers,
         'one_month_ago': one_month_ago,

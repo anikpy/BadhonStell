@@ -9,7 +9,7 @@
         margin: 0 auto;
         padding: 20px;
     }
-    
+
     .stats-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -18,48 +18,48 @@
         margin-bottom: 30px;
         text-align: center;
     }
-    
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 25px;
         margin-bottom: 30px;
     }
-    
+
     .stat-card {
         background: white;
         border-radius: 15px;
         padding: 25px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
         border-left: 5px solid #667eea;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    
+
     .stat-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     }
-    
+
     .stat-card.primary {
         border-left-color: #667eea;
     }
-    
+
     .stat-card.success {
         border-left-color: #28a745;
     }
-    
+
     .stat-card.warning {
         border-left-color: #ffc107;
     }
-    
+
     .stat-card.danger {
         border-left-color: #dc3545;
     }
-    
+
     .stat-card.info {
         border-left-color: #17a2b8;
     }
-    
+
     .stat-title {
         font-size: 0.9rem;
         color: #666;
@@ -68,19 +68,19 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-    
+
     .stat-value {
         font-size: 2.2rem;
         font-weight: 700;
         color: #333;
         margin-bottom: 5px;
     }
-    
+
     .stat-description {
         font-size: 0.85rem;
         color: #888;
     }
-    
+
     .section-title {
         font-size: 1.5rem;
         font-weight: 700;
@@ -89,20 +89,20 @@
         padding-bottom: 10px;
         border-bottom: 3px solid #667eea;
     }
-    
+
     .table-container {
         background: white;
         border-radius: 15px;
         padding: 25px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
         margin-bottom: 30px;
     }
-    
+
     .stats-table {
         width: 100%;
         border-collapse: collapse;
     }
-    
+
     .stats-table th {
         background: #f8f9fa;
         padding: 15px;
@@ -111,16 +111,16 @@
         color: #555;
         border-bottom: 2px solid #dee2e6;
     }
-    
+
     .stats-table td {
         padding: 15px;
         border-bottom: 1px solid #dee2e6;
     }
-    
+
     .stats-table tr:hover {
         background: #f8f9fa;
     }
-    
+
     .badge-success {
         background: #28a745;
         color: white;
@@ -128,7 +128,7 @@
         border-radius: 12px;
         font-size: 0.8rem;
     }
-    
+
     .badge-warning {
         background: #ffc107;
         color: #333;
@@ -136,7 +136,7 @@
         border-radius: 12px;
         font-size: 0.8rem;
     }
-    
+
     .badge-danger {
         background: #dc3545;
         color: white;
@@ -144,7 +144,7 @@
         border-radius: 12px;
         font-size: 0.8rem;
     }
-    
+
     .date-range {
         background: #e9ecef;
         padding: 8px 15px;
@@ -154,37 +154,37 @@
         margin-bottom: 15px;
         display: inline-block;
     }
-    
+
     .row {
         display: flex;
         gap: 25px;
         margin-bottom: 30px;
     }
-    
+
     .col-6 {
         flex: 1;
     }
-    
+
     .text-center {
         text-align: center;
     }
-    
+
     .text-success {
         color: #28a745;
     }
-    
+
     .text-danger {
         color: #dc3545;
     }
-    
+
     .text-warning {
         color: #ffc107;
     }
-    
+
     .text-info {
         color: #17a2b8;
     }
-    
+
     .font-weight-bold {
         font-weight: 700;
     }
@@ -210,31 +210,31 @@
             <div class="stat-value">{{ total_products }}</div>
             <div class="stat-description">সকল পণ্যের সংখ্যা</div>
         </div>
-        
+
         <div class="stat-card success">
             <div class="stat-title">সক্রিয় পণ্য</div>
             <div class="stat-value">{{ active_products }}</div>
             <div class="stat-description">বিক্রয়যোগ্য পণ্য</div>
         </div>
-        
+
         <div class="stat-card warning">
             <div class="stat-title">নিষ্ক্রিয় পণ্য</div>
             <div class="stat-value">{{ inactive_products }}</div>
             <div class="stat-description">বিক্রয় বন্ধ পণ্য</div>
         </div>
-        
+
         <div class="stat-card info">
             <div class="stat-title">মোট স্টক মূল্য</div>
             <div class="stat-value">৳{{ total_inventory_value|floatformat:2 }}</div>
             <div class="stat-description">সকল পণ্যের বর্তমান মূল্য</div>
         </div>
-        
+
         <div class="stat-card success">
             <div class="stat-title">স্টকসহ পণ্য</div>
             <div class="stat-value">{{ products_with_stock }}</div>
             <div class="stat-description">বর্তমানে স্টকে আছে</div>
         </div>
-        
+
         <div class="stat-card danger">
             <div class="stat-title">স্টকশূন্য পণ্য</div>
             <div class="stat-value">{{ out_of_stock_products }}</div>
@@ -248,17 +248,17 @@
         <div class="col-6">
             <div class="stats-grid">
                 <div class="stat-card primary">
-                    <div class="stat-title">মোট অর্ডার</div>
+                    <div class="stat-title">মোট অর্ডার (Shop)</div>
                     <div class="stat-value">{{ total_orders_last_month }}</div>
                     <div class="stat-description">শেষ ১ মাসের অর্ডার সংখ্যা</div>
                 </div>
-                
+
                 <div class="stat-card success">
                     <div class="stat-title">অর্ডার মূল্য</div>
                     <div class="stat-value">৳{{ total_order_value_last_month|floatformat:2 }}</div>
                     <div class="stat-description">অর্ডার থেকে আয়</div>
                 </div>
-                
+
                 <div class="stat-card info">
                     <div class="stat-title">গড় অর্ডার মূল্য</div>
                     <div class="stat-value">৳{{ avg_order_value|floatformat:2 }}</div>
@@ -266,21 +266,21 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-6">
             <div class="stats-grid">
                 <div class="stat-card primary">
-                    <div class="stat-title">মোট ইনভয়েস</div>
+                    <div class="stat-title">মোট ইনভয়েস (Shop)</div>
                     <div class="stat-value">{{ total_invoices_last_month }}</div>
                     <div class="stat-description">শেষ ১ মাসের ইনভয়েস</div>
                 </div>
-                
+
                 <div class="stat-card success">
                     <div class="stat-title">ইনভয়েস মূল্য</div>
                     <div class="stat-value">৳{{ total_invoice_value_last_month|floatformat:2 }}</div>
                     <div class="stat-description">ইনভয়েস থেকে আয়</div>
                 </div>
-                
+
                 <div class="stat-card info">
                     <div class="stat-title">গড় ইনভয়েস মূল্য</div>
                     <div class="stat-value">৳{{ avg_invoice_value|floatformat:2 }}</div>
@@ -289,33 +289,64 @@
             </div>
         </div>
     </div>
-    
-	    <div class="stat-card" style="border-left-color: #28a745; background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);">
-	        <div class="stat-title">🎯 শেষ ১ মাসের মোট বিক্রয়</div>
-	        <div class="stat-value text-success">৳{{ total_sales_last_month|floatformat:2 }}</div>
-	        <div class="stat-description">অর্ডার + ইনভয়েস মোট আয়</div>
-	    </div>
 
-	    <!-- বাকি টাকার স্ট্যাটিস্টিক্স -->
-	    <div class="stats-grid" style="margin-top: 20px;">
-	        <div class="stat-card danger">
-	            <div class="stat-title">মোট বাকি (সব কাস্টমার)</div>
-	            <div class="stat-value text-danger">৳{{ total_due_all|floatformat:2 }}</div>
-	            <div class="stat-description">অর্ডার + ইনভয়েস থেকে বাকি</div>
-	        </div>
-	        <div class="stat-card warning">
-	            <div class="stat-title">অর্ডার থেকে বাকি</div>
-	            <div class="stat-value text-warning">৳{{ total_order_due|floatformat:2 }}</div>
-	            <div class="stat-description">সকল কাস্টম অর্ডারের বাকি</div>
-	        </div>
-	        <div class="stat-card info">
-	            <div class="stat-title">ইনভয়েস থেকে বাকি</div>
-	            <div class="stat-value text-info">৳{{ total_invoice_due|floatformat:2 }}</div>
-	            <div class="stat-description">সকল বিক্রয় ইনভয়েসের বাকি</div>
-	        </div>
-	    </div>
+    <!-- লেনদেন স্ট্যাটিস্টিক্স (Transaction App) -->
+    <div class="row">
+        <div class="col-6">
+            <div class="stats-grid">
+                <div class="stat-card primary">
+                    <div class="stat-title">মোট লেনদেন (Transactions)</div>
+                    <div class="stat-value">{{ total_transactions_last_month }}</div>
+                    <div class="stat-description">শেষ ১ মাসের ক্রয় লেনদেন</div>
+                </div>
 
-	    <!-- টপ টেন টেবিল -->
+                <div class="stat-card success">
+                    <div class="stat-title">লেনদেন মূল্য</div>
+                    <div class="stat-value">৳{{ total_transaction_value_last_month|floatformat:2 }}</div>
+                    <div class="stat-description">লেনদেন থেকে আয়</div>
+                </div>
+
+                <div class="stat-card info">
+                    <div class="stat-title">গড় লেনদেন মূল্য</div>
+                    <div class="stat-value">৳{{ avg_transaction_value|floatformat:2 }}</div>
+                    <div class="stat-description">প্রতি লেনদেনে গড় আয়</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card"
+        style="border-left-color: #28a745; background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);">
+        <div class="stat-title">🎯 শেষ ১ মাসের মোট বিক্রয়</div>
+        <div class="stat-value text-success">৳{{ total_sales_last_month|floatformat:2 }}</div>
+        <div class="stat-description">অর্ডার + ইনভয়েস + লেনদেন মোট আয়</div>
+    </div>
+
+    <!-- বাকি টাকার স্ট্যাটিস্টিক্স -->
+    <div class="stats-grid" style="margin-top: 20px;">
+        <div class="stat-card danger">
+            <div class="stat-title">মোট বাকি (সব কাস্টমার)</div>
+            <div class="stat-value text-danger">৳{{ total_due_all|floatformat:2 }}</div>
+            <div class="stat-description">অর্ডার + ইনভয়েস + লেনদেন থেকে বাকি</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-title">অর্ডার থেকে বাকি</div>
+            <div class="stat-value text-warning">৳{{ total_order_due|floatformat:2 }}</div>
+            <div class="stat-description">সকল কাস্টম অর্ডারের বাকি</div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-title">ইনভয়েস থেকে বাকি</div>
+            <div class="stat-value text-info">৳{{ total_invoice_due|floatformat:2 }}</div>
+            <div class="stat-description">সকল বিক্রয় ইনভয়েসের বাকি</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-title">লেনদেন থেকে বাকি</div>
+            <div class="stat-value text-danger">৳{{ total_transaction_due|floatformat:2 }}</div>
+            <div class="stat-description">সকল লেনদেন থেকে বাকি</div>
+        </div>
+    </div>
+
+    <!-- টপ টেন টেবিল -->
     <div class="row">
         <div class="col-6">
             <div class="table-container">
@@ -346,7 +377,7 @@
                 </table>
             </div>
         </div>
-        
+
         <div class="col-6">
             <div class="table-container">
                 <h3 class="section-title">📦 সবচেয়ে বেশি স্টকের পণ্য (টপ ১০)</h3>
@@ -365,11 +396,11 @@
                             <td>{{ product.name }}</td>
                             <td>
                                 {% if product.stock_quantity > 50 %}
-                                    <span class="badge-success">{{ product.stock_quantity }}</span>
+                                <span class="badge-success">{{ product.stock_quantity }}</span>
                                 {% elif product.stock_quantity > 10 %}
-                                    <span class="badge-warning">{{ product.stock_quantity }}</span>
+                                <span class="badge-warning">{{ product.stock_quantity }}</span>
                                 {% else %}
-                                    <span class="badge-danger">{{ product.stock_quantity }}</span>
+                                <span class="badge-danger">{{ product.stock_quantity }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ product.get_unit_display }}</td>
@@ -386,62 +417,64 @@
         </div>
     </div>
 
-	    <!-- কাস্টমারদের বাকি টাকা (টপ ১০) -->
-	    {% if top_due_customers %}
-	    <div class="table-container">
-	        <h3 class="section-title">💳 কাস্টমারদের বাকি টাকা (টপ ১০)</h3>
-	        <table class="stats-table">
-	            <thead>
-	                <tr>
-	                    <th>ক্রেতার নাম</th>
-	                    <th>মোবাইল</th>
-	                    <th>অর্ডার থেকে বাকি</th>
-	                    <th>ইনভয়েস থেকে বাকি</th>
-	                    <th>মোট বাকি</th>
-	                </tr>
-	            </thead>
-	            <tbody>
-	                {% for c in top_due_customers %}
-	                <tr>
-	                    <td>{{ c.customer_name }}</td>
-	                    <td>{{ c.mobile_number }}</td>
-	                    <td>৳{{ c.order_due|floatformat:2 }}</td>
-	                    <td>৳{{ c.invoice_due|floatformat:2 }}</td>
-	                    <td class="font-weight-bold text-danger">৳{{ c.total_due|floatformat:2 }}</td>
-	                </tr>
-	                {% endfor %}
-	            </tbody>
-	        </table>
-	    </div>
-	    {% endif %}
+    <!-- কাস্টমারদের বাকি টাকা (টপ ১০) -->
+    {% if top_due_customers %}
+    <div class="table-container">
+        <h3 class="section-title">💳 কাস্টমারদের বাকি টাকা (টপ ১০)</h3>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>ক্রেতার নাম</th>
+                    <th>মোবাইল</th>
+                    <th>অর্ডার থেকে বাকি</th>
+                    <th>ইনভয়েস থেকে বাকি</th>
+                    <th>লেনদেন থেকে বাকি</th>
+                    <th>মোট বাকি</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in top_due_customers %}
+                <tr>
+                    <td>{{ c.customer_name }}</td>
+                    <td>{{ c.mobile_number }}</td>
+                    <td>৳{{ c.order_due|floatformat:2 }}</td>
+                    <td>৳{{ c.invoice_due|floatformat:2 }}</td>
+                    <td>৳{{ c.transaction_due|floatformat:2 }}</td>
+                    <td class="font-weight-bold text-danger">৳{{ c.total_due|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 
-	    <!-- কম স্টকের পণ্য -->
-	    {% if low_stock_products %}
-	    <div class="table-container">
-	        <h3 class="section-title">⚠️ কম স্টকের পণ্য (১০ টির কম)</h3>
-	        <table class="stats-table">
-	            <thead>
-	                <tr>
-	                    <th>পণ্যের নাম</th>
-	                    <th>বর্তমান স্টক</th>
-	                    <th>ইউনিট</th>
-	                    <th>ইউনিট মূল্য</th>
-	                    <th>স্ট্যাটাস</th>
-	                </tr>
-	            </thead>
-	            <tbody>
-	                {% for product in low_stock_products %}
-	                <tr>
-	                    <td>{{ product.name }}</td>
-	                    <td class="font-weight-bold text-danger">{{ product.stock_quantity }}</td>
-	                    <td>{{ product.get_unit_display }}</td>
-	                    <td>৳{{ product.price_per_unit|floatformat:2 }}</td>
-	                    <td><span class="badge-danger">কম স্টক</span></td>
-	                </tr>
-	                {% endfor %}
-	            </tbody>
-	        </table>
-	    </div>
-	    {% endif %}
+    <!-- কম স্টকের পণ্য -->
+    {% if low_stock_products %}
+    <div class="table-container">
+        <h3 class="section-title">⚠️ কম স্টকের পণ্য (১০ টির কম)</h3>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>পণ্যের নাম</th>
+                    <th>বর্তমান স্টক</th>
+                    <th>ইউনিট</th>
+                    <th>ইউনিট মূল্য</th>
+                    <th>স্ট্যাটাস</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in low_stock_products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td class="font-weight-bold text-danger">{{ product.stock_quantity }}</td>
+                    <td>{{ product.get_unit_display }}</td>
+                    <td>৳{{ product.price_per_unit|floatformat:2 }}</td>
+                    <td><span class="badge-danger">কম স্টক</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
